@@ -191,12 +191,26 @@ main{
     }
     .card:hover{box-shadow:0 2px 8px rgba(0,0,0,.07)}
 
-    .card[data-new="true"] .newdot{display:inline-block}
-    .newdot{
-      display:none;width:7px;height:7px;
-      border-radius:999px;background:var(--primary);
-      margin-left:6px;vertical-align:middle;
-    }
+/* New announcement indicator (corner) */
+    .card{
+  position: relative;   /* anchor for corner dot */
+}
+    
+.card-newdot{
+  position:absolute;
+  top:10px;
+  right:10px;
+  width:8px;
+  height:8px;
+  border-radius:999px;
+  background:#16A34A; /* green */
+  display:none;
+}
+
+/* Only show when new */
+.card[data-new="true"] .card-newdot{
+  display:block;
+}
 
     .card-top{
       display:flex;align-items:flex-start;
@@ -497,12 +511,13 @@ main{
       const catTag = item.category
         ? `<span class="cat-tag">${esc(item.category)}</span>` : "";
       return `
-      <article class="card ${high?"high":""}" data-id="${item.id}" data-new="${isNew}">
-        ${high?`<div class="hi-label">★ High Impact</div>`:""}
+<article class="card ${high?"high":""}" data-id="${item.id}" data-new="${isNew}">
+  <span class="card-newdot" title="New"></span>
+  ${high?`<div class="hi-label">★ High Impact</div>`:""}
         <div class="card-top">
           <div class="left">
             <div class="ticker-row">
-              <span class="ticker">${esc(item.ticker)}<span class="newdot" title="New"></span></span>
+              <span class="ticker">${esc(item.ticker)}</span>
               <div class="impact" aria-label="Impact ${item.impact}/5">${dots(item.impact)}</div>
               <span class="sentiment ${sentCls(item.sentiment)}">${esc(item.sentiment)}</span>
               ${catTag}
