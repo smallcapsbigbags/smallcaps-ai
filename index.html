@@ -109,7 +109,6 @@
     }
     .nav a.active{color:var(--text)}
 
-    /* Optional: reduce header crowding on very small screens */
     @media (max-width: 520px){
       .topbar-inner{ gap:10px; }
       .nav{ display:none; }
@@ -117,7 +116,7 @@
 
     /* Main layout */
     main{
-      padding-top: 24px;  /* breathing room under header */
+      padding-top: 24px;
       padding-bottom:28px;
     }
 
@@ -204,11 +203,26 @@
       justify-content:space-between;
       margin:40px 0 12px;
     }
-    .section-title .label{
+
+    /* High Impact header pill */
+    .hi-title-pill{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      height:26px;
+      padding:0 10px;
+      border-radius:999px;
+      color:var(--primary);
+      background:#EFF6FF;
+      border:1px solid rgba(37,99,235,.25);
       font-size:12px;
-      color:var(--muted);
       font-weight:800;
-      letter-spacing:0.02em;
+      white-space:nowrap;
+    }
+    .hi-title-pill .star{
+      color:var(--primary) !important;
+      font-weight:900;
+      line-height:1;
     }
 
     /* Grid */
@@ -220,7 +234,6 @@
     @media (min-width: 760px){
       .grid{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
-    /* 3 columns on wider desktop only (less cramped) */
     @media (min-width: 1120px){
       .grid{ grid-template-columns: repeat(3, minmax(0, 1fr)); }
     }
@@ -252,7 +265,7 @@
       display:flex;
       align-items:center;
       gap:10px;
-      flex-wrap:nowrap; /* ✅ no wrapping */
+      flex-wrap:nowrap;
       min-width:0;
     }
 
@@ -282,7 +295,7 @@
     .dot.filled.neg{ background: var(--neg-text); }
     .dot.filled.neu{ background: #6B7280; }
 
-    /* Pill cluster stays together (and can scroll on tiny screens) */
+    /* Pill cluster stays together */
     .pill-row{
       display:flex;
       align-items:center;
@@ -295,8 +308,8 @@
       .pill-row::-webkit-scrollbar{ display:none; }
     }
 
-    /* Unified pill sizing (sentiment/category/high-impact all match) */
-    .sentiment, .cat-tag, .hi-pill{
+    /* Unified pill sizing (sentiment/category) */
+    .sentiment, .cat-tag{
       display:inline-flex;
       align-items:center;
       height:24px;
@@ -318,17 +331,6 @@
       border:1px solid rgba(37,99,235,.18);
     }
 
-    .hi-pill{
-      color:var(--primary);
-      background:#EFF6FF;
-      border:1px solid rgba(37,99,235,.25);
-    }
-    .hi-pill .star{
-      color:var(--primary) !important;
-      font-weight:900;
-      line-height:1;
-    }
-
     .headline{
       margin-top:6px;
       font-weight:700;
@@ -343,7 +345,7 @@
 
     .meta{
       display:flex;
-      align-items:center; /* dot vertically centered with time */
+      align-items:center;
       gap:0;
       color:var(--muted);
       font-size:12px;
@@ -505,7 +507,7 @@
   <main class="container">
     <!-- HIGH IMPACT SECTION -->
     <div class="section-title">
-      <div class="label">High Impact</div>
+      <div class="hi-title-pill"><span class="star">★</span> High Impact</div>
       <div class="meta"><span class="timestamp" id="hiUpdated">Updated just now</span></div>
     </div>
 
@@ -664,10 +666,6 @@
         ? `<span class="live-dot" aria-hidden="true"></span>`
         : "";
 
-      const hiPill = high
-        ? `<span class="hi-pill"><span class="star">★</span> High Impact</span>`
-        : "";
-
       return `
         <article class="card ${high ? "high" : ""}" data-id="${item.id}">
           <div class="card-top">
@@ -679,7 +677,6 @@
                 <div class="pill-row">
                   <span class="sentiment ${sentimentClass(item.sentiment)}">${esc(item.sentiment)}</span>
                   ${catTag}
-                  ${hiPill}
                 </div>
               </div>
 
@@ -746,7 +743,6 @@
         allGrid.innerHTML = items.map(item => cardHTML(item)).join("");
       }
 
-      // Refresh relative timestamps and live-dot eligibility on re-render
       document.querySelectorAll("[data-time]").forEach(el => {
         el.textContent = fmtRelative(el.getAttribute("data-time"));
       });
@@ -805,10 +801,8 @@
       }, 120);
     });
 
-    // Initial render
     render();
 
-    // Keep relative times current; re-render so the 15-min live dot turns off naturally
     setInterval(() => {
       render();
     }, 30_000);
