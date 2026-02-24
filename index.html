@@ -78,8 +78,9 @@
       white-space:nowrap;
     }
     .brand-accent{
-  color: var(--primary);
-}
+      color:var(--primary);
+      font-weight:700;
+    }
     .search{
       flex:1;
       display:flex;
@@ -299,6 +300,26 @@
       white-space:nowrap;
     }
 
+    /* Inline High Impact pill (always last) */
+    .hi-pill{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      font-weight:800;
+      font-size:11px;
+      padding:4px 8px;
+      border-radius:999px;
+      color:var(--primary);
+      background:#EFF6FF;
+      border:1px solid rgba(37,99,235,.25);
+      white-space:nowrap;
+    }
+    .hi-pill .star{
+      color:var(--primary) !important;
+      font-weight:900;
+      line-height:1;
+    }
+
     .headline{
       margin-top:6px;
       font-weight:700;
@@ -356,7 +377,7 @@
     }
     .view:hover{ text-decoration:underline; }
 
-    /* High impact styling */
+    /* High impact styling (blue accent bar + slightly stronger border) */
     .card.high{
       border-color:#D1D5DB;
     }
@@ -369,32 +390,6 @@
       border-top-left-radius:var(--r);
       border-bottom-left-radius:var(--r);
     }
-
-/* High Impact label (brand blue) */
-.hi-label{
-  display:inline-flex;
-  align-items:center;
-  gap:6px;
-  font-size:11px;
-  font-weight:900;
-  color:var(--primary);
-  background:#EFF6FF; /* subtle blue background */
-  border:1px solid rgba(37,99,235,.25);
-  padding:4px 8px;
-  border-radius:999px;
-  margin-bottom:6px;
-  width:fit-content;
-}
-
-.hi-label .star{
-  color:var(--primary);
-  font-weight:900;
-}
-/* Force star to brand blue */
-.hi-label .star{
-  color:var(--primary) !important;
-  font-weight:900;
-}
 
     /* Subtle "live" dot next to timestamp (<= 15 mins old) */
     .live-dot{
@@ -483,9 +478,7 @@
   <!-- HEADER -->
   <header class="topbar" role="banner">
     <div class="container topbar-inner">
-<div class="logo">
-  smallcaps<span class="brand-accent">.ai</span>
-</div>
+      <div class="logo">smallcaps<span class="brand-accent">.ai</span></div>
 
       <div class="search" role="search">
         <input id="search" type="search" placeholder="Search ticker or company…" autocomplete="off" />
@@ -548,7 +541,7 @@
   </main>
 
   <script>
-    // ---- Mock state ----
+    // ---- State ----
     const state = {
       userPlan: "free",          // "free" | "pro"
       activeFilters: new Set(),
@@ -660,21 +653,22 @@
       const liveDot = isWithinMinutes(item.time, 15)
         ? `<span class="live-dot" aria-hidden="true"></span>`
         : "";
-const hiPill = high
-  ? `<span class="hi-pill"><span class="star">★</span> High Impact</span>`
-  : "";
-      return `
-        <article class="card "high" : ""}" data-id="${item.id}">
 
+      const hiPill = high
+        ? `<span class="hi-pill"><span class="star">★</span> High Impact</span>`
+        : "";
+
+      return `
+        <article class="card ${high ? "high" : ""}" data-id="${item.id}">
           <div class="card-top">
             <div class="left">
-            <div class="ticker-row">
-  <span class="ticker">${esc(item.ticker)}</span>
-  <div class="impact" aria-label="Impact ${item.impact}/5">${dots(item.impact, item.sentiment)}</div>
-  <span class="sentiment ${sentimentClass(item.sentiment)}">${esc(item.sentiment)}</span>
-  ${catTag}
-  ${hiPill}
-</div>
+              <div class="ticker-row">
+                <span class="ticker">${esc(item.ticker)}</span>
+                <div class="impact" aria-label="Impact ${item.impact}/5">${dots(item.impact, item.sentiment)}</div>
+                <span class="sentiment ${sentimentClass(item.sentiment)}">${esc(item.sentiment)}</span>
+                ${catTag}
+                ${hiPill}
+              </div>
 
               <div class="headline">${esc(item.headline)}</div>
             </div>
@@ -798,6 +792,7 @@ const hiPill = high
       }, 120);
     });
 
+    // Initial render
     render();
 
     // Keep relative times current; re-render so the 15-min live dot turns off naturally
