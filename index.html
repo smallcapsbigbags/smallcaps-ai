@@ -5,9 +5,10 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>smallcaps.ai — RNS Intelligence</title>
 
+  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Roboto+Mono:wght@500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@500;600&display=swap" rel="stylesheet">
 
   <style>
     :root{
@@ -17,337 +18,464 @@
       --primary:#2563EB;
       --text:#111827;
       --muted:#6B7280;
+
       --pill-bg:#F3F4F6;
+
       --pos-text:#15803D;
       --pos-bg:#DCFCE7;
+
       --neg-text:#B91C1C;
       --neg-bg:#FEE2E2;
+
       --neu-text:#374151;
       --neu-bg:#F3F4F6;
+
       --r:4px;
       --topbar-h:56px;
       --maxw:1180px;
+
       --pad-2:12px;
       --gap:12px;
     }
 
     *{box-sizing:border-box}
     html,body{height:100%}
-   body{
-  margin:0;
-  font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-  background:var(--bg);
-  color:var(--text);
-  padding-top: var(--topbar-h); /* ✅ pushes ALL content below fixed header */
-} 
-    a{color:inherit;text-decoration:none}
-    button,input,select{font:inherit}
+    body{
+      margin:0;
+      font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background:var(--bg);
+      color:var(--text);
+      padding-top: var(--topbar-h); /* pushes ALL content below fixed header */
+    }
 
-    .container{max-width:var(--maxw);margin:0 auto;padding:0 16px}
+    a{color:inherit; text-decoration:none}
+    button, input, select{font:inherit}
 
-    /* Topbar */
+    .container{
+      max-width:var(--maxw);
+      margin:0 auto;
+      padding:0 16px;
+    }
+
+    /* Header */
     .topbar{
-      position:fixed;top:0;left:0;right:0;
+      position:fixed;
+      top:0; left:0; right:0;
       height:var(--topbar-h);
       background:#fff;
       border-bottom:1px solid var(--border);
       z-index:50;
     }
     .topbar-inner{
-      height:100%;display:flex;align-items:center;gap:16px;
+      height:100%;
+      display:flex;
+      align-items:center;
+      gap:16px;
     }
-    .logo{font-weight:700;letter-spacing:-0.02em;font-size:15px;white-space:nowrap}
-    .logo span{color:var(--primary)}
-
-    /* Live badge */
-    .live-badge{
-      display:flex;align-items:center;gap:5px;
-      font-size:11px;font-weight:700;color:var(--muted);
+    .logo{
+      font-weight:700;
+      letter-spacing:-0.01em;
       white-space:nowrap;
     }
-    .live-dot{
-      width:7px;height:7px;border-radius:999px;background:#22C55E;
-      animation:pulse 2s infinite;
+    .search{
+      flex:1;
+      display:flex;
+      justify-content:center;
     }
-    @keyframes pulse{
-      0%,100%{opacity:1}50%{opacity:0.35}
-    }
-
-    .search{flex:1;display:flex;justify-content:center}
     .search input{
-      width:min(520px,100%);
+      width:min(560px, 100%);
       background:#fff;
       border:1px solid var(--border);
       border-radius:var(--r);
       padding:8px 10px;
       outline:none;
       color:var(--text);
-      font-size:13px;
     }
-    .search input:focus{border-color:var(--primary)}
     .search input::placeholder{color:var(--muted)}
-
-    .nav{display:flex;gap:14px;white-space:nowrap;color:var(--muted);font-weight:500;font-size:13px}
-    .nav a{padding:6px;border-radius:var(--r)}
+    .nav{
+      display:flex;
+      gap:14px;
+      white-space:nowrap;
+      color:var(--muted);
+      font-weight:600;
+    }
+    .nav a{
+      padding:6px 6px;
+      border-radius:var(--r);
+    }
     .nav a.active{color:var(--text)}
-    .nav a:hover{color:var(--text)}
 
-    /* Main */
-main{
-  padding-top: 24px;  /* just extra space under header */
-  padding-bottom: 28px;
-}
+    /* Optional: reduce header crowding on very small screens */
+    @media (max-width: 520px){
+      .topbar-inner{ gap:10px; }
+      .nav{ display:none; }
+    }
 
-    /* Row */
+    /* Main layout */
+    main{
+      padding-top: 24px;  /* breathing room under header */
+      padding-bottom:28px;
+    }
+
+    /* Tabs + controls row */
     .row{
-      display:flex;align-items:center;justify-content:space-between;
-      gap:12px;margin:12px 0 10px;flex-wrap:wrap;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      margin:12px 0 10px;
+      flex-wrap:wrap;
     }
 
-    /* Tabs */
-    .tabs{display:flex;gap:16px;align-items:flex-end}
+    .tabs{
+      display:flex;
+      gap:16px;
+      align-items:flex-end;
+    }
     .tab{
-      background:transparent;border:0;
-      padding:8px 0;color:var(--muted);font-weight:600;font-size:13px;
-      cursor:pointer;position:relative;
+      background:transparent;
+      border:0;
+      padding:8px 0;
+      color:var(--muted);
+      font-weight:700;
+      cursor:pointer;
+      position:relative;
     }
-    .tab[aria-selected="true"]{color:var(--text)}
+    .tab[aria-selected="true"]{
+      color:var(--text);
+    }
     .tab[aria-selected="true"]::after{
-      content:"";position:absolute;left:0;right:0;bottom:-6px;
-      height:2px;background:var(--primary);
+      content:"";
+      position:absolute;
+      left:0; right:0; bottom:-6px;
+      height:2px;
+      background:var(--primary);
     }
 
-    /* Sort */
-    .sort{display:flex;align-items:center;gap:8px;color:var(--muted);font-weight:500;font-size:13px}
+    .sort{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      color:var(--muted);
+      font-weight:600;
+    }
     .sort select{
-      background:#fff;border:1px solid var(--border);
-      border-radius:var(--r);padding:7px 10px;
-      color:var(--text);outline:none;font-size:13px;cursor:pointer;
+      background:#fff;
+      border:1px solid var(--border);
+      border-radius:var(--r);
+      padding:7px 10px;
+      color:var(--text);
+      outline:none;
     }
 
-    /* Filters */
+    /* Filter pills */
     .filters{
-      display:flex;gap:8px;overflow:auto;
-      padding:8px 0 10px;scrollbar-width:thin;
-      -webkit-overflow-scrolling:touch;
+      display:flex;
+      gap:8px;
+      overflow:auto;
+      padding:8px 0 10px;
+      scrollbar-width:thin;
     }
     .pill{
-      border:1px solid var(--border);background:var(--pill-bg);
-      color:var(--text);border-radius:999px;
-      padding:6px 12px;font-weight:600;font-size:12px;
-      cursor:pointer;white-space:nowrap;transition:all .15s;
+      border:1px solid var(--border);
+      background:var(--pill-bg);
+      color:var(--text);
+      border-radius:999px;
+      padding:6px 10px;
+      font-weight:700;
+      font-size:12px;
+      cursor:pointer;
+      white-space:nowrap;
     }
     .pill[aria-pressed="true"]{
-      background:var(--primary);border-color:var(--primary);color:#fff;
+      background:var(--primary);
+      border-color:var(--primary);
+      color:#fff;
     }
 
-    /* Section title */
+    /* Section headers */
     .section-title{
-      display:flex;align-items:center;justify-content:space-between;
-      margin:14px 0 8px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      margin:40px 0 12px;
     }
     .section-title .label{
-      font-size:11px;color:var(--muted);font-weight:800;
-      letter-spacing:0.06em;text-transform:uppercase;
+      font-size:12px;
+      color:var(--muted);
+      font-weight:800;
+      letter-spacing:0.02em;
     }
 
     /* Grid */
-    .grid{display:grid;gap:var(--gap);grid-template-columns:1fr}
-    @media(min-width:760px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-    @media(min-width:1060px){.grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
-
-    /* Skeleton */
-    .skeleton{
-      background:linear-gradient(90deg,#f0f0f0 25%,#e8e8e8 50%,#f0f0f0 75%);
-      background-size:200% 100%;
-      animation:shimmer 1.3s infinite;
-      border-radius:var(--r);height:152px;
-      border:1px solid var(--border);
+    .grid{
+      display:grid;
+      gap:var(--gap);
+      grid-template-columns:1fr;
     }
-    @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
-
-    /* Empty state */
-    .empty{
-      grid-column:1/-1;
-      text-align:center;padding:40px 16px;
-      color:var(--muted);font-size:13px;
+    @media (min-width: 760px){
+      .grid{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
-
-    /* Error state */
-    .error-bar{
-      background:#FEF2F2;border:1px solid #FECACA;
-      border-radius:var(--r);padding:10px 14px;
-      font-size:12px;color:#B91C1C;font-weight:600;
-      margin-bottom:10px;display:none;
+    /* 3 columns on wider desktop only (less cramped) */
+    @media (min-width: 1120px){
+      .grid{ grid-template-columns: repeat(3, minmax(0, 1fr)); }
     }
 
     /* Cards */
     .card{
-      background:var(--card);border:1px solid var(--border);
-      border-radius:var(--r);padding:var(--pad-2);
-      display:flex;flex-direction:column;gap:8px;
-      min-height:152px;position:relative;
-      transition:box-shadow .15s;
+      background:var(--card);
+      border:1px solid var(--border);
+      border-radius:var(--r);
+      padding:var(--pad-2);
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      min-height:152px;
+      position:relative;
     }
-    .card:hover{box-shadow:0 2px 8px rgba(0,0,0,.07)}
-
-/* New announcement indicator (corner) */
-    .card{
-  position: relative;   /* anchor for corner dot */
-}
-    
-/* Corner dot base */
-.card-newdot{
-  position:absolute;
-  top:10px;
-  right:10px;
-  width:8px;
-  height:8px;
-  border-radius:999px;
-  background:#16A34A;
-  box-shadow:0 0 0 2px #fff; /* subtle white ring */
-  display:none;
-}
-
-/* Soft pulse animation */
-@keyframes softPulse{
-  0%   { transform:scale(1); opacity:1; }
-  50%  { transform:scale(1.2); opacity:.6; }
-  100% { transform:scale(1); opacity:1; }
-}
-
-/* Only show + pulse when new */
-.card[data-new="true"] .card-newdot{
-  display:block;
-  animation:softPulse 1.6s ease-in-out 6; /* ~10 seconds total */
-}
 
     .card-top{
-      display:flex;align-items:flex-start;
-      justify-content:space-between;gap:10px;
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:10px;
     }
-    .left{min-width:0;flex:1}
+
+    .left{ min-width:0; flex:1; }
 
     .ticker-row{
-      display:flex;align-items:center;
-      gap:8px;flex-wrap:wrap;
+      display:flex;
+      align-items:center;
+      gap:10px;
+      flex-wrap:wrap;
     }
     .ticker{
-      font-family:"Roboto Mono",ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;
-      font-weight:600;letter-spacing:0.01em;font-size:13px;color:var(--text);
+      font-family:"Roboto Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-weight:600;
+      letter-spacing:0.01em;
+      font-size:13px;
+      color:var(--text);
     }
 
-    .impact{display:flex;gap:3px;align-items:center}
-    .dot{width:7px;height:7px;border-radius:999px;background:#E5E7EB}
-    .dot.filled{background:var(--primary)}
+    .impact{
+      display:flex;
+      gap:4px;
+      align-items:center;
+    }
+    .dot{
+      width:8px;
+      height:8px;
+      border-radius:999px;
+      background:var(--border);
+    }
+    /* Filled dots match sentiment color */
+    .dot.filled.pos{ background: var(--pos-text); }
+    .dot.filled.neg{ background: var(--neg-text); }
+    .dot.filled.neu{ background: #6B7280; }
 
     .sentiment{
-      font-weight:700;font-size:11px;
-      padding:3px 8px;border-radius:999px;
-      border:1px solid transparent;white-space:nowrap;
+      font-weight:800;
+      font-size:11px;
+      padding:4px 8px;
+      border-radius:999px;
+      border:1px solid transparent;
+      white-space:nowrap;
     }
-    .sentiment.pos{color:var(--pos-text);background:var(--pos-bg);border-color:rgba(21,128,61,.15)}
-    .sentiment.neg{color:var(--neg-text);background:var(--neg-bg);border-color:rgba(185,28,28,.15)}
-    .sentiment.neu{color:var(--neu-text);background:var(--neu-bg);border-color:rgba(55,65,81,.10)}
+    .sentiment.pos{ color:var(--pos-text); background:var(--pos-bg); border-color:rgba(21,128,61,.15); }
+    .sentiment.neg{ color:var(--neg-text); background:var(--neg-bg); border-color:rgba(185,28,28,.15); }
+    .sentiment.neu{ color:var(--neu-text); background:var(--neu-bg); border-color:rgba(55,65,81,.10); }
 
     .cat-tag{
-      font-size:10px;font-weight:700;
-      padding:2px 6px;border-radius:999px;
-      background:#EFF6FF;color:#1D4ED8;
-      border:1px solid #BFDBFE;
+      font-weight:800;
+      font-size:11px;
+      padding:4px 8px;
+      border-radius:999px;
+      color:#1D4ED8;
+      background:#EFF6FF;
+      border:1px solid rgba(37,99,235,.18);
       white-space:nowrap;
     }
 
     .headline{
-      margin-top:5px;font-weight:600;font-size:13px;
-      line-height:1.3;color:var(--text);
-      display:-webkit-box;-webkit-line-clamp:2;
-      -webkit-box-orient:vertical;overflow:hidden;
+      margin-top:6px;
+      font-weight:700;
+      font-size:13px;
+      line-height:1.3;
+      color:var(--text);
+      display:-webkit-box;
+      -webkit-line-clamp:2;
+      -webkit-box-orient:vertical;
+      overflow:hidden;
     }
 
-.meta{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  color:var(--muted);
-  font-size:12px;
-  padding-right:18px;  /* space for corner dot */
-}
+    .meta{
+      display:flex;
+      align-items:center; /* dot vertically centered with time */
+      gap:0;
+      color:var(--muted);
+      font-size:12px;
+      white-space:nowrap;
+    }
+    .timestamp{ color:var(--muted); }
 
     .summary{
-      margin:0;color:var(--text);font-size:12.5px;
-      line-height:1.45;
-      display:-webkit-box;-webkit-line-clamp:3;
-      -webkit-box-orient:vertical;overflow:hidden;
+      margin:0;
+      color:var(--text);
+      font-size:12.5px;
+      line-height:1.4;
+      display:-webkit-box;
+      -webkit-line-clamp:4;
+      -webkit-box-orient:vertical;
+      overflow:hidden;
     }
     .context{
-      margin:0;color:var(--muted);font-size:12px;
-      line-height:1.35;font-weight:500;
-      display:-webkit-box;-webkit-line-clamp:1;
-      -webkit-box-orient:vertical;overflow:hidden;
+      margin:0;
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.35;
+      display:-webkit-box;
+      -webkit-line-clamp:1;
+      -webkit-box-orient:vertical;
+      overflow:hidden;
     }
 
     .card-footer{
-      margin-top:auto;display:flex;
-      justify-content:space-between;align-items:center;
-      padding-top:4px;border-top:1px solid var(--border);
+      margin-top:auto;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      padding-top:4px;
     }
-    .view{color:var(--primary);font-weight:700;font-size:12px}
-    .view:hover{text-decoration:underline}
+    .view{
+      color:var(--primary);
+      font-weight:800;
+      font-size:12px;
+    }
+    .view:hover{ text-decoration:underline; }
 
-    /* High impact */
-    .card.high{border-color:#D1D5DB}
+    /* High impact styling */
+    .card.high{
+      border-color:#D1D5DB;
+    }
     .card.high::before{
-      content:"";position:absolute;
-      left:-1px;top:-1px;bottom:-1px;
-      width:3px;background:var(--primary);
+      content:"";
+      position:absolute;
+      left:-1px; top:-1px; bottom:-1px;
+      width:3px;
+      background:var(--primary);
       border-top-left-radius:var(--r);
       border-bottom-left-radius:var(--r);
     }
+
+    /* High Impact label = gold pill */
     .hi-label{
-      font-size:10px;font-weight:800;color:var(--primary);
-      letter-spacing:0.06em;text-transform:uppercase;
-      margin-bottom:2px;
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      font-size:11px;
+      font-weight:900;
+      color:#92400E; /* amber-800 */
+      background:#FEF3C7; /* amber-100 */
+      border:1px solid rgba(245,158,11,.35);
+      padding:4px 8px;
+      border-radius:999px;
+      margin-bottom:6px;
+      width:fit-content;
+    }
+    .hi-label .star{
+      color:#D97706; /* amber-600 */
+      font-weight:900;
+      line-height:1;
+    }
+
+    /* Subtle "live" dot next to timestamp (<= 15 mins old) */
+    .live-dot{
+      width:7px;
+      height:7px;
+      border-radius:999px;
+      background:#16A34A;
+      opacity:.45;
+      flex:0 0 auto;
+      margin-right:6px;
+      animation: liveSoftPulse 2.4s ease-in-out infinite;
+    }
+
+    @keyframes liveSoftPulse{
+      0%   { opacity:.18; }
+      50%  { opacity:.6; }
+      100% { opacity:.18; }
+    }
+
+    @media (prefers-reduced-motion: reduce){
+      .live-dot{ animation:none; }
     }
 
     /* Gating */
-    .gated{position:relative;overflow:hidden}
-    .gated .card{filter:blur(5px);pointer-events:none;user-select:none}
+    .gated{
+      position:relative;
+      overflow:hidden;
+    }
+    .gated .card{
+      filter: blur(5px);
+      pointer-events:none;
+      user-select:none;
+    }
     .gate-overlay{
-      position:absolute;inset:0;
-      display:flex;align-items:center;justify-content:center;
+      position:absolute;
+      inset:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
       padding:14px;
-      background:rgba(246,248,250,.75);
+      background:rgba(246,248,250,.72);
+      border:1px solid transparent;
     }
     .gate-panel{
-      width:min(440px,100%);background:#fff;
-      border:1px solid var(--border);border-radius:var(--r);
-      padding:14px;display:flex;align-items:center;
-      justify-content:space-between;gap:12px;
-      box-shadow:0 4px 16px rgba(0,0,0,.08);
+      width:min(440px, 100%);
+      background:#fff;
+      border:1px solid var(--border);
+      border-radius:var(--r);
+      padding:12px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
     }
-    .gate-text .title{font-weight:700;font-size:13px;margin:0 0 3px;color:var(--text)}
-    .gate-text .sub{margin:0;font-size:12px;color:var(--muted)}
+    .gate-text{ min-width:0; }
+    .gate-text .title{
+      font-weight:800;
+      font-size:13px;
+      margin:0 0 2px;
+      color:var(--text);
+    }
+    .gate-text .sub{
+      margin:0;
+      font-size:12px;
+      color:var(--muted);
+    }
     .btn{
-      border:1px solid var(--primary);background:var(--primary);
-      color:#fff;border-radius:var(--r);
-      padding:9px 14px;font-weight:800;font-size:12px;
-      cursor:pointer;white-space:nowrap;
+      border:1px solid var(--primary);
+      background:var(--primary);
+      color:#fff;
+      border-radius:var(--r);
+      padding:8px 10px;
+      font-weight:900;
+      font-size:12px;
+      cursor:pointer;
+      white-space:nowrap;
     }
-    .btn:hover{background:#1D4ED8}
 
-    .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
+    .sr-only{
+      position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); border:0;
+    }
   </style>
 </head>
 
 <body>
+  <!-- HEADER -->
   <header class="topbar" role="banner">
     <div class="container topbar-inner">
-      <div class="logo">smallcaps<span>.ai</span></div>
-
-      <div class="live-badge">
-        <span class="live-dot"></span> Live
-      </div>
+      <div class="logo">smallcaps.ai</div>
 
       <div class="search" role="search">
         <input id="search" type="search" placeholder="Search ticker or company…" autocomplete="off" />
@@ -362,23 +490,21 @@ main{
   </header>
 
   <main class="container">
-    <div id="errorBar" class="error-bar" role="alert">
-      Could not load feed — retrying in 60 seconds.
-    </div>
-
-    <!-- HIGH IMPACT -->
+    <!-- HIGH IMPACT SECTION -->
     <div class="section-title">
       <div class="label">High Impact</div>
-      <div class="meta"><span id="hiUpdated">Updated just now</span></div>
+      <div class="meta"><span class="timestamp" id="hiUpdated">Updated just now</span></div>
     </div>
-    <section class="grid" id="highImpactGrid" aria-label="High Impact announcements"></section>
+
+    <section class="grid" id="highImpactGrid" aria-label="High Impact (impact ≥ 4)"></section>
 
     <!-- TABS + SORT -->
-    <div class="row" style="margin-top:20px">
+    <div class="row" style="margin-top:18px;">
       <div class="tabs" role="tablist" aria-label="Feed tabs">
         <button class="tab" role="tab" id="tabToday" aria-selected="true" aria-controls="panelToday">Today</button>
         <button class="tab" role="tab" id="tabAll" aria-selected="false" aria-controls="panelAll">All Today</button>
       </div>
+
       <div class="sort">
         <label for="sortSelect" class="sr-only">Sort</label>
         <select id="sortSelect">
@@ -401,282 +527,271 @@ main{
 
     <!-- FEED PANELS -->
     <section id="panelToday" role="tabpanel" aria-labelledby="tabToday">
-      <div class="grid" id="todayGrid"></div>
+      <div class="grid" id="todayGrid" aria-label="Today feed"></div>
     </section>
 
     <section id="panelAll" role="tabpanel" aria-labelledby="tabAll" hidden>
       <div id="allWrapper">
-        <div class="grid" id="allGrid"></div>
+        <div class="grid" id="allGrid" aria-label="All Today feed"></div>
       </div>
     </section>
   </main>
 
   <script>
-    // ─── CONFIG ──────────────────────────────────────────────────
-    // To connect live data from Airtable, replace these values:
-    // const AIRTABLE_BASE  = "appXXXXXXXXXXXX";
-    // const AIRTABLE_TABLE = "announcements";
-    // const AIRTABLE_TOKEN = "patXXXXXXXXXXXX";
-    // Then call loadFromAirtable() instead of loadMock()
-    // ─────────────────────────────────────────────────────────────
-
+    // ---- Mock state ----
     const state = {
-      userPlan: "free",       // "free" | "pro"  — change to "pro" to test full feed
-      activeTab: "today",
+      userPlan: "free",          // "free" | "pro"
       activeFilters: new Set(),
       sort: "recent",
       query: "",
-      viewed: new Set(JSON.parse(localStorage.getItem("sc_viewed") || "[]")),
     };
 
-    // ─── MOCK DATA ───────────────────────────────────────────────
-    // Replace this array with your Airtable fetch when ready
-    let rns = [
-      { id:"1",  ticker:"ABC",  company:"Alpha Beta plc",      impact:5, sentiment:"Positive", headline:"Trading update: revenue ahead; FY guidance reiterated",          summary:"Management notes strong demand across core product lines. FY revenue expected to be ahead of market expectations while margins remain stable.",                    context:"FY26 revenue guidance reaffirmed; net cash position maintained.", category:"Results",   time:minsAgo(12), url:"#" },
-      { id:"2",  ticker:"MNO",  company:"Mono Group",           impact:4, sentiment:"Negative", headline:"Equity placing to strengthen balance sheet",                     summary:"Company announces an equity raise to support near-term working capital and accelerate delivery timelines. Dilution expected; proceeds earmarked for operations.",  context:"Placing at 18% discount; gross proceeds £6.0m.",                  category:"Fundraise",  time:minsAgo(38), url:"#" },
-      { id:"3",  ticker:"QRS",  company:"Quasar Renewables",    impact:4, sentiment:"Positive", headline:"Material contract win with UK utility partner",                  summary:"New multi-year agreement expands service footprint and adds recurring revenue profile. Initial phase begins immediately with option to scale.",                     context:"Contract value up to £12m over 3 years (conditional).",           category:"Contract",   time:minsAgo(75), url:"#" },
-      { id:"4",  ticker:"TUV",  company:"TUV Tech",             impact:3, sentiment:"Neutral",  headline:"Director dealing: small on-market purchase",                     summary:"Non-executive director acquires shares on-market. No change to strategy or outlook disclosed.",                                                                  context:"Purchase: 25,000 shares at 42.0p.",                               category:"",          time:minsAgo(140),url:"#" },
-      { id:"5",  ticker:"HJK",  company:"HJK Mining",           impact:2, sentiment:"Negative", headline:"Operational update: short-term disruption at site",              summary:"Temporary interruption impacts near-term output. Remediation underway; company expects to resume normal operations shortly.",                                      context:"FY output range unchanged (subject to recovery timeline).",       category:"",          time:hrsAgo(3),   url:"#" },
-      { id:"6",  ticker:"LMP",  company:"Limpet Bio",           impact:3, sentiment:"Positive", headline:"Regulatory milestone achieved for lead program",                 summary:"Regulator accepts filing; next review step scheduled. Company anticipates additional data release in coming weeks.",                                              context:"Submission accepted; timeline dependent on review.",              category:"",          time:hrsAgo(5),   url:"#" },
-      { id:"7",  ticker:"ZED",  company:"Zed Systems",          impact:1, sentiment:"Neutral",  headline:"Notice of AGM and proxy information",                            summary:"Administrative update including resolutions and voting procedures for the upcoming AGM.",                                                                        context:"AGM on 19 Mar 2026.",                                             category:"",          time:daysAgo(2),  url:"#" },
-      { id:"8",  ticker:"RKT",  company:"Rocket Fintech",       impact:4, sentiment:"Negative", headline:"Guidance revised lower due to churn in SME segment",             summary:"Management notes higher churn and slower pipeline conversion. Cost actions announced; focus shifts to retention and unit economics.",                           context:"FY revenue guide down 8–10%; opex reduction plan initiated.",     category:"Results",   time:minsAgo(22), url:"#" },
-      { id:"9",  ticker:"NIM",  company:"Nimbus AI",            impact:3, sentiment:"Positive", headline:"Partnership signed; distribution expanded into EU",              summary:"New partner provides channel access and onboarding support. Near-term revenue impact expected to be modest; strategic optionality improves.",                   context:"Initial term 24 months; revenue share disclosed.",                category:"",          time:minsAgo(9),  url:"#" },
+    // ---- Mock data (replace with your API) ----
+    const rns = [
+      { id:"1", ticker:"ABC", company:"Alpha Beta plc", impact:5, sentiment:"Positive", category:"Results", headline:"Trading update: revenue ahead; FY guidance reiterated", summary:"Management notes strong demand across core product lines. FY revenue expected to be ahead of market expectations while margins remain stable.", context:"FY26 revenue guidance reaffirmed; net cash position maintained.", time: minutesAgoISO(12), url:"#", },
+      { id:"2", ticker:"MNO", company:"Mono Group", impact:4, sentiment:"Negative", category:"Fundraise", headline:"Equity placing to strengthen balance sheet", summary:"Company announces an equity raise to support near-term working capital and accelerate delivery timelines. Dilution expected; proceeds earmarked for operations.", context:"Placing at 18% discount; gross proceeds £6.0m.", time: minutesAgoISO(38), url:"#", },
+      { id:"3", ticker:"QRS", company:"Quasar Renewables", impact:4, sentiment:"Positive", category:"Contract", headline:"Material contract win with UK utility partner", summary:"New multi-year agreement expands service footprint and adds recurring revenue profile. Initial phase begins immediately with option to scale.", context:"Contract value up to £12m over 3 years (conditional).", time: minutesAgoISO(75), url:"#", },
+      { id:"4", ticker:"TUV", company:"TUV Tech", impact:3, sentiment:"Neutral", category:"Other", headline:"Director dealing: small on-market purchase", summary:"Non-executive director acquires shares on-market. No change to strategy or outlook disclosed.", context:"Purchase: 25,000 shares at 42.0p.", time: hoursAgoISO(2), url:"#", },
+      { id:"5", ticker:"HJK", company:"HJK Mining", impact:2, sentiment:"Negative", category:"Other", headline:"Operational update: short-term disruption at site", summary:"Temporary interruption impacts near-term output. Remediation underway; company expects to resume normal operations shortly.", context:"FY output range unchanged (subject to recovery timeline).", time: hoursAgoISO(3), url:"#", },
+      { id:"6", ticker:"LMP", company:"Limpet Bio", impact:3, sentiment:"Positive", category:"Other", headline:"Regulatory milestone achieved for lead program", summary:"Regulator accepts filing; next review step scheduled. Company anticipates additional data release in coming weeks.", context:"Submission accepted; timeline dependent on review.", time: hoursAgoISO(5), url:"#", },
+      { id:"7", ticker:"ZED", company:"Zed Systems", impact:1, sentiment:"Neutral", category:"Other", headline:"Notice of AGM and proxy information", summary:"Administrative update including resolutions and voting procedures for the upcoming AGM.", context:"AGM on 19 Mar 2026.", time: daysAgoISO(2), url:"#", },
+      { id:"8", ticker:"RKT", company:"Rocket Fintech", impact:4, sentiment:"Negative", category:"Results", headline:"Guidance revised lower due to churn in SME segment", summary:"Management notes higher churn and slower pipeline conversion. Cost actions announced; focus shifts to retention and unit economics.", context:"FY revenue guide down 8–10%; opex reduction plan initiated.", time: minutesAgoISO(22), url:"#", },
+      { id:"9", ticker:"NIM", company:"Nimbus AI", impact:3, sentiment:"Positive", category:"Other", headline:"Partnership signed; distribution expanded into EU", summary:"New partner provides channel access and onboarding support. Near-term revenue impact expected to be modest; strategic optionality improves.", context:"Initial term 24 months; revenue share disclosed.", time: minutesAgoISO(9), url:"#", },
     ];
 
-    // ─── TIME HELPERS ────────────────────────────────────────────
-    function minsAgo(m){ return new Date(Date.now()-m*60000).toISOString() }
-    function hrsAgo(h){  return new Date(Date.now()-h*3600000).toISOString() }
-    function daysAgo(d){ return new Date(Date.now()-d*86400000).toISOString() }
+    function minutesAgoISO(m){ return new Date(Date.now() - m*60*1000).toISOString(); }
+    function hoursAgoISO(h){ return new Date(Date.now() - h*60*60*1000).toISOString(); }
+    function daysAgoISO(d){ return new Date(Date.now() - d*24*60*60*1000).toISOString(); }
 
-    function fmtRel(iso){
-      const diff = Math.floor((Date.now()-new Date(iso).getTime())/60000);
-      if(diff<1)  return "just now";
-      if(diff<60) return diff+"m ago";
-      const h = Math.floor(diff/60);
-      if(h<24)    return h+"h ago";
-      return new Date(iso).toLocaleDateString(undefined,{day:"2-digit",month:"short"});
+    function fmtRelative(iso){
+      const t = new Date(iso).getTime();
+      const now = Date.now();
+      const diffMin = Math.floor((now - t) / 60000);
+
+      if (diffMin < 1) return "just now";
+      if (diffMin < 60) return `${diffMin}m ago`;
+      const diffHr = Math.floor(diffMin / 60);
+      if (diffHr < 24) return `${diffHr}h ago`;
+
+      const d = new Date(iso);
+      return d.toLocaleDateString(undefined, { day:"2-digit", month:"short" });
     }
 
-    // ─── AIRTABLE LOADER (ready to activate) ─────────────────────
-    async function loadFromAirtable(){
-      // Uncomment and fill in when you have your Airtable details:
-      /*
-      const url = `https://api.airtable.com/v0/${AIRTABLE_BASE}/${AIRTABLE_TABLE}` +
-                  `?sort[0][field]=time&sort[0][direction]=desc&maxRecords=60`;
-      const res = await fetch(url,{headers:{Authorization:`Bearer ${AIRTABLE_TOKEN}`}});
-      if(!res.ok) throw new Error("Airtable fetch failed");
-      const data = await res.json();
-      return data.records.map(r=>({
-        id:        r.id,
-        ticker:    r.fields.ticker   || "",
-        company:   r.fields.company  || "",
-        impact:    r.fields.impact   || 1,
-        sentiment: r.fields.sentiment|| "Neutral",
-        headline:  r.fields.headline || "",
-        summary:   r.fields.summary  || "",
-        context:   r.fields.context  || "",
-        category:  r.fields.category || "",
-        time:      r.fields.time     || new Date().toISOString(),
-        url:       r.fields.url      || "#",
-      }));
-      */
-      return rns; // returns mock data until Airtable is wired
+    function isWithinMinutes(iso, mins){
+      const t = new Date(iso).getTime();
+      return (Date.now() - t) <= mins * 60 * 1000;
     }
 
-    // ─── FILTER / SORT ───────────────────────────────────────────
+    function dots(n, sentiment){
+      const cls =
+        sentiment === "Positive" ? "pos" :
+        sentiment === "Negative" ? "neg" : "neu";
+
+      let out = "";
+      for (let i=1;i<=5;i++){
+        out += `<span class="dot ${i<=n ? `filled ${cls}` : ""}"></span>`;
+      }
+      return out;
+    }
+
+    function sentimentClass(s){
+      if (s === "Positive") return "pos";
+      if (s === "Negative") return "neg";
+      return "neu";
+    }
+
+    function esc(str){
+      return String(str)
+        .replaceAll("&","&amp;")
+        .replaceAll("<","&lt;")
+        .replaceAll(">","&gt;")
+        .replaceAll('"',"&quot;")
+        .replaceAll("'","&#039;");
+    }
+
     function matchFilters(item){
       const f = state.activeFilters;
-      if(f.has("Negative")  && item.sentiment!=="Negative")  return false;
-      if(f.has("Positive")  && item.sentiment!=="Positive")  return false;
-      if(f.has("Neutral")   && item.sentiment!=="Neutral")   return false;
-      if(f.has("Impact>=3") && item.impact<3)                return false;
-      if(f.has("Results")   && item.category!=="Results")    return false;
-      if(f.has("Fundraise") && item.category!=="Fundraise")  return false;
-      if(f.has("Contract")  && item.category!=="Contract")   return false;
+
+      if (f.has("Negative") && item.sentiment !== "Negative") return false;
+      if (f.has("Positive") && item.sentiment !== "Positive") return false;
+      if (f.has("Neutral")  && item.sentiment !== "Neutral")  return false;
+
+      if (f.has("Impact>=3") && item.impact < 3) return false;
+
+      if (f.has("Results") && item.category !== "Results") return false;
+      if (f.has("Fundraise") && item.category !== "Fundraise") return false;
+      if (f.has("Contract") && item.category !== "Contract") return false;
+
       return true;
     }
+
     function matchQuery(item){
       const q = state.query.trim().toLowerCase();
-      if(!q) return true;
-      return item.ticker.toLowerCase().includes(q)||
-             item.company.toLowerCase().includes(q)||
-             item.headline.toLowerCase().includes(q);
-    }
-    function sorted(arr){
-      if(state.sort==="impact")
-        return [...arr].sort((a,b)=>(b.impact-a.impact)||(new Date(b.time)-new Date(a.time)));
-      return [...arr].sort((a,b)=>new Date(b.time)-new Date(a.time));
+      if (!q) return true;
+      return (
+        item.ticker.toLowerCase().includes(q) ||
+        item.company.toLowerCase().includes(q) ||
+        item.headline.toLowerCase().includes(q)
+      );
     }
 
-    // ─── HTML BUILDERS ───────────────────────────────────────────
-    function dots(n){
-      let s="";
-      for(let i=1;i<=5;i++) s+=`<span class="dot ${i<=n?"filled":""}"></span>`;
-      return s;
-    }
-    function sentCls(s){ return s==="Positive"?"pos":s==="Negative"?"neg":"neu" }
-    function esc(s){
-      return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;")
-                      .replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+    function sortItems(items){
+      if (state.sort === "impact"){
+        return [...items].sort((a,b) => (b.impact - a.impact) || (new Date(b.time) - new Date(a.time)));
+      }
+      return [...items].sort((a,b) => new Date(b.time) - new Date(a.time));
     }
 
-    function cardHTML(item,{high=false}={}){
-      const isNew = !state.viewed.has(item.id);
-      const catTag = item.category
-        ? `<span class="cat-tag">${esc(item.category)}</span>` : "";
+    function cardHTML(item, { high=false }={}){
+      const catTag = item.category && item.category !== "Other"
+        ? `<span class="cat-tag">${esc(item.category)}</span>`
+        : "";
+
+      const liveDot = isWithinMinutes(item.time, 15)
+        ? `<span class="live-dot" aria-hidden="true"></span>`
+        : "";
+
       return `
-<article class="card ${high?"high":""}" data-id="${item.id}" data-new="${isNew}">
-  <span class="card-newdot" title="New"></span>
-  ${high?`<div class="hi-label">★ High Impact</div>`:""}
-        <div class="card-top">
-          <div class="left">
-            <div class="ticker-row">
-              <span class="ticker">${esc(item.ticker)}</span>
-              <div class="impact" aria-label="Impact ${item.impact}/5">${dots(item.impact)}</div>
-              <span class="sentiment ${sentCls(item.sentiment)}">${esc(item.sentiment)}</span>
-              ${catTag}
+        <article class="card ${high ? "high" : ""}" data-id="${item.id}">
+          ${high ? `<div class="hi-label"><span class="star">★</span> High Impact</div>` : ``}
+
+          <div class="card-top">
+            <div class="left">
+              <div class="ticker-row">
+                <span class="ticker">${esc(item.ticker)}</span>
+                <div class="impact" aria-label="Impact ${item.impact}/5">${dots(item.impact, item.sentiment)}</div>
+                <span class="sentiment ${sentimentClass(item.sentiment)}">${esc(item.sentiment)}</span>
+                ${catTag}
+              </div>
+
+              <div class="headline">${esc(item.headline)}</div>
             </div>
-            <div class="headline">${esc(item.headline)}</div>
+
+            <div class="meta">
+              ${liveDot}
+              <span class="timestamp" data-time="${item.time}">${fmtRelative(item.time)}</span>
+            </div>
           </div>
-          <div class="meta"><span data-time="${item.time}">${fmtRel(item.time)}</span></div>
-        </div>
-        <p class="summary">${esc(item.summary)}</p>
-        ${item.context?`<p class="context">📌 ${esc(item.context)}</p>`:""}
-        <div class="card-footer">
-          <a class="view" href="${item.url}" data-action="view" target="_blank" rel="noopener">View RNS ↗</a>
-          <span class="meta">${esc(item.company)}</span>
-        </div>
-      </article>`;
+
+          <p class="summary">${esc(item.summary)}</p>
+          ${item.context ? `<p class="context">📌 ${esc(item.context)}</p>` : ``}
+
+          <div class="card-footer">
+            <a class="view" href="${item.url}" target="_blank" rel="noopener">View RNS ↗</a>
+            <span class="meta">${esc(item.company)}</span>
+          </div>
+        </article>
+      `;
     }
 
-    function skeletons(n=3){
-      return Array(n).fill(`<div class="skeleton"></div>`).join("");
-    }
-
-    function emptyState(){
-      return `<div class="empty">No announcements match your filters.</div>`;
-    }
-
-    // ─── RENDER ──────────────────────────────────────────────────
     function render(){
-      const all   = sorted(rns).filter(matchQuery).filter(matchFilters);
-      const hi    = all.filter(x=>x.impact>=4).slice(0,5);
+      const hi = sortItems(rns.filter(x => x.impact >= 4))
+        .filter(matchQuery)
+        .filter(matchFilters)
+        .slice(0,5);
 
-      // High impact section
       document.getElementById("highImpactGrid").innerHTML =
-        hi.length ? hi.map(i=>cardHTML(i,{high:true})).join("") : emptyState();
+        hi.map(item => cardHTML(item, {high:true})).join("");
 
-      // Today panel
+      const items = sortItems(rns)
+        .filter(matchQuery)
+        .filter(matchFilters);
+
       document.getElementById("todayGrid").innerHTML =
-        all.length ? all.map(i=>cardHTML(i)).join("") : emptyState();
+        items.map(item => cardHTML(item)).join("");
 
-      // All Today panel (gated for free users)
       const allGrid = document.getElementById("allGrid");
-      if(state.userPlan==="free"){
-        const first = all.slice(0,3);
-        const rest  = all.slice(3);
+      if (state.userPlan === "free"){
+        const first = items.slice(0,3);
+        const rest = items.slice(3);
+
         allGrid.innerHTML =
-          first.map(i=>cardHTML(i)).join("") +
-          (rest.length
-            ? `<div class="gated" id="gateBlock" style="grid-column:1/-1;border-radius:var(--r)">
-                <div class="grid">${rest.map(i=>cardHTML(i)).join("")}</div>
-                <div class="gate-overlay">
-                  <div class="gate-panel" role="region" aria-label="Upgrade gate">
-                    <div class="gate-text">
-                      <p class="title">Unlock the full-day feed</p>
-                      <p class="sub">See every RNS announcement from today, unfiltered.</p>
-                    </div>
-                    <button class="btn" id="upgradeBtn">Upgrade →</button>
+          first.map(item => cardHTML(item)).join("") +
+          (rest.length ? `
+            <div class="gated" style="grid-column:1 / -1; border-radius:var(--r);">
+              <div class="grid">
+                ${rest.map(item => cardHTML(item)).join("")}
+              </div>
+              <div class="gate-overlay">
+                <div class="gate-panel" role="region" aria-label="Upgrade gate">
+                  <div class="gate-text">
+                    <p class="title">Unlock full-day feed</p>
+                    <p class="sub">See all announcements from today.</p>
                   </div>
+                  <button class="btn" type="button" id="upgradeBtn">Upgrade</button>
                 </div>
-              </div>`
-            : "");
+              </div>
+            </div>
+          ` : "");
       } else {
-        allGrid.innerHTML = all.length ? all.map(i=>cardHTML(i)).join("") : emptyState();
+        allGrid.innerHTML = items.map(item => cardHTML(item)).join("");
       }
 
-      // Refresh timestamps
-      document.querySelectorAll("[data-time]").forEach(el=>{
-        el.textContent = fmtRel(el.getAttribute("data-time"));
+      // Refresh relative timestamps and live-dot eligibility on re-render
+      document.querySelectorAll("[data-time]").forEach(el => {
+        el.textContent = fmtRelative(el.getAttribute("data-time"));
       });
 
-      bindCardEvents();
-      const ub = document.getElementById("upgradeBtn");
-      if(ub) ub.onclick = ()=> alert("Navigate to /account/upgrade here.");
+      bindUpgrade();
     }
 
-    function bindCardEvents(){
-      document.querySelectorAll('.card a[data-action="view"]').forEach(a=>{
-        a.onclick = e=>{
-          const card = e.target.closest(".card");
-          if(!card) return;
-          const id = card.getAttribute("data-id");
-          state.viewed.add(id);
-          localStorage.setItem("sc_viewed",JSON.stringify([...state.viewed]));
-          card.setAttribute("data-new","false");
-        };
-      });
+    function bindUpgrade(){
+      const btn = document.getElementById("upgradeBtn");
+      if (!btn) return;
+      btn.onclick = () => alert("Route to /account/upgrade (no modal).");
     }
 
-    // ─── TABS ────────────────────────────────────────────────────
+    // Tabs
+    const tabToday = document.getElementById("tabToday");
+    const tabAll = document.getElementById("tabAll");
+    const panelToday = document.getElementById("panelToday");
+    const panelAll = document.getElementById("panelAll");
+
     function setTab(which){
-      state.activeTab = which;
-      const isToday = which==="today";
-      document.getElementById("tabToday").setAttribute("aria-selected",String(isToday));
-      document.getElementById("tabAll").setAttribute("aria-selected",String(!isToday));
-      document.getElementById("panelToday").hidden = !isToday;
-      document.getElementById("panelAll").hidden   = isToday;
+      const isToday = which === "today";
+      tabToday.setAttribute("aria-selected", String(isToday));
+      tabAll.setAttribute("aria-selected", String(!isToday));
+      panelToday.hidden = !isToday;
+      panelAll.hidden = isToday;
     }
-    document.getElementById("tabToday").addEventListener("click",()=>setTab("today"));
-    document.getElementById("tabAll").addEventListener("click",()=>setTab("all"));
 
-    // ─── PILLS ───────────────────────────────────────────────────
-    document.querySelectorAll(".pill").forEach(btn=>{
-      btn.addEventListener("click",()=>{
+    tabToday.addEventListener("click", () => setTab("today"));
+    tabAll.addEventListener("click", () => setTab("all"));
+
+    // Filters
+    document.querySelectorAll(".pill").forEach(btn => {
+      btn.addEventListener("click", () => {
         const f = btn.getAttribute("data-filter");
-        if(state.activeFilters.has(f)) state.activeFilters.delete(f);
+        if (state.activeFilters.has(f)) state.activeFilters.delete(f);
         else state.activeFilters.add(f);
-        btn.setAttribute("aria-pressed",String(state.activeFilters.has(f)));
+        btn.setAttribute("aria-pressed", String(state.activeFilters.has(f)));
         render();
       });
     });
 
-    // ─── SORT ────────────────────────────────────────────────────
-    document.getElementById("sortSelect").addEventListener("change",e=>{
+    // Sort
+    document.getElementById("sortSelect").addEventListener("change", (e) => {
       state.sort = e.target.value;
       render();
     });
 
-    // ─── SEARCH ──────────────────────────────────────────────────
-    let searchTimer = null;
-    document.getElementById("search").addEventListener("input",e=>{
-      clearTimeout(searchTimer);
-      searchTimer = setTimeout(()=>{ state.query=e.target.value||""; render(); }, 120);
+    // Search
+    const search = document.getElementById("search");
+    let t = null;
+    search.addEventListener("input", (e) => {
+      clearTimeout(t);
+      t = setTimeout(() => {
+        state.query = e.target.value || "";
+        render();
+      }, 120);
     });
 
-    // ─── INIT + AUTO-REFRESH ─────────────────────────────────────
-    // Show skeletons immediately
-    document.getElementById("highImpactGrid").innerHTML = skeletons(3);
-    document.getElementById("todayGrid").innerHTML      = skeletons(3);
+    render();
 
-    // Load data
-    loadFromAirtable()
-      .then(data=>{ rns=data; render(); document.getElementById("errorBar").style.display="none"; })
-      .catch(()=>{ render(); document.getElementById("errorBar").style.display="block"; });
-
-    // Refresh timestamps every 30s
-    setInterval(()=>{
-      document.querySelectorAll("[data-time]").forEach(el=>{
-        el.textContent = fmtRel(el.getAttribute("data-time"));
-      });
-    }, 30000);
-
-    // Re-fetch data every 5 minutes
-    setInterval(()=>{
-      loadFromAirtable()
-        .then(data=>{ rns=data; render(); document.getElementById("errorBar").style.display="none"; })
-        .catch(()=>  document.getElementById("errorBar").style.display="block");
-    }, 300000);
+    // Keep relative times current; re-render so the 15-min live dot turns off naturally
+    setInterval(() => {
+      render();
+    }, 30_000);
   </script>
 </body>
 </html>
