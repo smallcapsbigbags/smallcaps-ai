@@ -387,11 +387,11 @@
   color:var(--primary);
   font-weight:900;
 }
-    .hi-label .star{
-      color:#D97706; /* amber-600 */
-      font-weight:900;
-      line-height:1;
-    }
+/* Force star to brand blue */
+.hi-label .star{
+  color:var(--primary) !important;
+  font-weight:900;
+}
 
     /* Subtle "live" dot next to timestamp (<= 15 mins old) */
     .live-dot{
