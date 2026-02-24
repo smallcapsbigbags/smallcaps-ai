@@ -196,6 +196,7 @@ main{
   position: relative;   /* anchor for corner dot */
 }
     
+/* Corner dot base */
 .card-newdot{
   position:absolute;
   top:10px;
@@ -203,13 +204,22 @@ main{
   width:8px;
   height:8px;
   border-radius:999px;
-  background:#16A34A; /* green */
+  background:#16A34A;
+  box-shadow:0 0 0 2px #fff; /* subtle white ring */
   display:none;
 }
 
-/* Only show when new */
+/* Soft pulse animation */
+@keyframes softPulse{
+  0%   { transform:scale(1); opacity:1; }
+  50%  { transform:scale(1.2); opacity:.6; }
+  100% { transform:scale(1); opacity:1; }
+}
+
+/* Only show + pulse when new */
 .card[data-new="true"] .card-newdot{
   display:block;
+  animation:softPulse 1.6s ease-in-out 6; /* ~10 seconds total */
 }
 
     .card-top{
@@ -255,10 +265,14 @@ main{
       -webkit-box-orient:vertical;overflow:hidden;
     }
 
-    .meta{
-      display:flex;align-items:center;gap:8px;
-      color:var(--muted);font-size:11px;white-space:nowrap;
-    }
+.meta{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  color:var(--muted);
+  font-size:12px;
+  padding-right:18px;  /* space for corner dot */
+}
 
     .summary{
       margin:0;color:var(--text);font-size:12.5px;
