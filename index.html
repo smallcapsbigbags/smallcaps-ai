@@ -660,19 +660,21 @@
       const liveDot = isWithinMinutes(item.time, 15)
         ? `<span class="live-dot" aria-hidden="true"></span>`
         : "";
-
+const hiPill = high
+  ? `<span class="hi-pill"><span class="star">★</span> High Impact</span>`
+  : "";
       return `
         <article class="card ${high ? "high" : ""}" data-id="${item.id}">
-          ${high ? `<div class="hi-label"><span class="star">★</span> High Impact</div>` : ``}
 
           <div class="card-top">
             <div class="left">
-              <div class="ticker-row">
-                <span class="ticker">${esc(item.ticker)}</span>
-                <div class="impact" aria-label="Impact ${item.impact}/5">${dots(item.impact, item.sentiment)}</div>
-                <span class="sentiment ${sentimentClass(item.sentiment)}">${esc(item.sentiment)}</span>
-                ${catTag}
-              </div>
+            <div class="ticker-row">
+  <span class="ticker">${esc(item.ticker)}</span>
+  <div class="impact" aria-label="Impact ${item.impact}/5">${dots(item.impact, item.sentiment)}</div>
+  <span class="sentiment ${sentimentClass(item.sentiment)}">${esc(item.sentiment)}</span>
+  ${catTag}
+  ${hiPill}
+</div>
 
               <div class="headline">${esc(item.headline)}</div>
             </div>
