@@ -247,24 +247,29 @@
 
     .left{ min-width:0; flex:1; }
 
+    /* Keep ticker row on ONE line */
     .ticker-row{
       display:flex;
       align-items:center;
       gap:10px;
-      flex-wrap:wrap;
+      flex-wrap:nowrap; /* ✅ no wrapping */
+      min-width:0;
     }
+
     .ticker{
       font-family:"Roboto Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
       font-weight:600;
       letter-spacing:0.01em;
       font-size:13px;
       color:var(--text);
+      flex:0 0 auto;
     }
 
     .impact{
       display:flex;
       gap:4px;
       align-items:center;
+      flex:0 0 auto;
     }
     .dot{
       width:8px;
@@ -277,42 +282,46 @@
     .dot.filled.neg{ background: var(--neg-text); }
     .dot.filled.neu{ background: #6B7280; }
 
-    .sentiment{
-      font-weight:800;
-      font-size:11px;
-      padding:4px 8px;
+    /* Pill cluster stays together (and can scroll on tiny screens) */
+    .pill-row{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      min-width:0;
+      overflow:hidden;
+    }
+    @media (max-width: 520px){
+      .pill-row{ overflow:auto; scrollbar-width:none; }
+      .pill-row::-webkit-scrollbar{ display:none; }
+    }
+
+    /* Unified pill sizing (sentiment/category/high-impact all match) */
+    .sentiment, .cat-tag, .hi-pill{
+      display:inline-flex;
+      align-items:center;
+      height:24px;
+      padding:0 10px;
       border-radius:999px;
-      border:1px solid transparent;
+      font-size:11px;
+      font-weight:800;
       white-space:nowrap;
     }
+
+    .sentiment{ border:1px solid transparent; }
     .sentiment.pos{ color:var(--pos-text); background:var(--pos-bg); border-color:rgba(21,128,61,.15); }
     .sentiment.neg{ color:var(--neg-text); background:var(--neg-bg); border-color:rgba(185,28,28,.15); }
     .sentiment.neu{ color:var(--neu-text); background:var(--neu-bg); border-color:rgba(55,65,81,.10); }
 
     .cat-tag{
-      font-weight:800;
-      font-size:11px;
-      padding:4px 8px;
-      border-radius:999px;
       color:#1D4ED8;
       background:#EFF6FF;
       border:1px solid rgba(37,99,235,.18);
-      white-space:nowrap;
     }
 
-    /* Inline High Impact pill (always last) */
     .hi-pill{
-      display:inline-flex;
-      align-items:center;
-      gap:6px;
-      font-weight:800;
-      font-size:11px;
-      padding:4px 8px;
-      border-radius:999px;
       color:var(--primary);
       background:#EFF6FF;
       border:1px solid rgba(37,99,235,.25);
-      white-space:nowrap;
     }
     .hi-pill .star{
       color:var(--primary) !important;
@@ -339,6 +348,7 @@
       color:var(--muted);
       font-size:12px;
       white-space:nowrap;
+      flex:0 0 auto;
     }
     .timestamp{ color:var(--muted); }
 
@@ -665,9 +675,12 @@
               <div class="ticker-row">
                 <span class="ticker">${esc(item.ticker)}</span>
                 <div class="impact" aria-label="Impact ${item.impact}/5">${dots(item.impact, item.sentiment)}</div>
-                <span class="sentiment ${sentimentClass(item.sentiment)}">${esc(item.sentiment)}</span>
-                ${catTag}
-                ${hiPill}
+
+                <div class="pill-row">
+                  <span class="sentiment ${sentimentClass(item.sentiment)}">${esc(item.sentiment)}</span>
+                  ${catTag}
+                  ${hiPill}
+                </div>
               </div>
 
               <div class="headline">${esc(item.headline)}</div>
