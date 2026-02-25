@@ -94,6 +94,7 @@
       margin-top:10px;
       max-width:1040px;
     }
+    .stack{ display:grid; gap:12px; }
 
     .kicker{
       display:inline-flex;
@@ -141,9 +142,6 @@
       padding:var(--pad);
     }
 
-    .stack{ display:grid; gap:12px; }
-
-    /* Unified card title */
     .card-title{
       margin:0 0 8px;
       font-size:15px;
@@ -151,7 +149,7 @@
       font-weight:800;
     }
 
-    /* High impact strip: problem */
+    /* High impact strip (problem) */
     .problem-card{
       padding:18px 18px 18px 20px;
       background:#FFFFFF;
@@ -159,14 +157,6 @@
       border-left:4px solid var(--primary);
       border-radius:var(--r);
     }
-    .result-line{
-      margin-top:10px;
-      font-size:12.5px;
-      line-height:1.45;
-      color:var(--text);
-      font-weight:600;
-    }
-    .problem-card + .solution-line{ margin-top:8px; }
 
     .lead{
       color:var(--text);
@@ -203,7 +193,105 @@
       margin-top:1px;
     }
 
-    /* Founder card */
+    .result-line{
+      margin-top:10px;
+      font-size:12.5px;
+      line-height:1.45;
+      color:var(--text);
+      font-weight:600;
+    }
+    .problem-card + .solution-line{ margin-top:8px; }
+
+    /* Preview */
+    .mock{
+      padding:0;
+      overflow:hidden;
+    }
+    .mock-label{
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      color:var(--muted);
+      font-size:12px;
+      margin:0;
+      padding:12px 16px;
+      border-bottom:1px solid var(--border);
+      background:#fff;
+    }
+    .mock .frame{
+      background:#F9FAFB;
+      padding:14px;
+    }
+    .mock-img{
+      width:100%;
+      height:auto;
+      display:block;
+      border:1px solid var(--border);
+      border-radius:var(--r);
+      background:#fff;
+    }
+
+    .cred-line{
+      margin-top:12px;
+      color:var(--muted);
+      font-size:12.5px;
+      font-weight:700;
+    }
+
+    /* Founder note blockquote (hierarchy-tuned) */
+    .founder-note{
+      margin-top:14px;
+      padding:16px;
+      border:1px solid var(--border);
+      border-radius:var(--r);
+      background:#FFFFFF;
+    }
+    .founder-title{
+      font-size:11px;
+      font-weight:800;
+      margin-bottom:10px;
+      letter-spacing:0.10em;
+      text-transform:uppercase;
+      color:var(--muted);
+      opacity:.85;
+    }
+    .founder-quote{
+      margin:0;
+      padding-left:14px;
+      border-left:3px solid var(--primary);
+      font-size:12.75px;
+      line-height:1.7;
+      font-style:italic;
+      color:var(--text);
+      opacity:.92;
+    }
+    .founder-quote cite{
+      display:block;
+      margin-top:10px;
+      font-style:normal;
+      font-size:12px;
+      color:var(--muted);
+    }
+    .founder-quote a{
+      color:var(--text);
+      text-decoration:underline;
+      text-underline-offset:2px;
+      opacity:.9;
+    }
+    .founder-quote a:hover{
+      color:var(--primary);
+      opacity:1;
+    }
+
+    /* Sections */
+    .section{ margin-top:var(--section); max-width:1040px; }
+    .section h2{
+      margin:0 0 10px;
+      font-size:16px;
+      letter-spacing:-0.01em;
+    }
+
+    /* Founder CTA card (single CTA only at bottom) */
     .founder{ border-color:rgba(37,99,235,.25); }
     .badge{
       display:inline-flex;
@@ -230,7 +318,6 @@
       justify-content:space-between;
       margin-top:10px;
     }
-
     .launch{
       display:flex;
       gap:10px;
@@ -250,7 +337,6 @@
       color:var(--text);
     }
 
-    /* Scarcity bar (fixed) */
     .scarcity{
       margin-top:10px;
       display:grid;
@@ -298,6 +384,12 @@
       font-size:13px;
       opacity:.85;
     }
+    .perday{
+      margin-top:6px;
+      color:var(--muted);
+      font-size:12.5px;
+      font-weight:700;
+    }
 
     form{
       display:flex;
@@ -336,87 +428,7 @@
       line-height:1.45;
     }
 
-    .perday{
-      margin-top:6px;
-      color:var(--muted);
-      font-size:12.5px;
-      font-weight:700;
-    }
-
-    /* Preview (match dashboard mock UX: no cropping, full image, clean frame) */
-    .mock{
-      padding:0;
-      overflow:hidden;
-    }
-    .mock-label{
-      display:flex;
-      justify-content:space-between;
-      gap:10px;
-      color:var(--muted);
-      font-size:12px;
-      margin:0;
-      padding:12px 16px;
-      border-bottom:1px solid var(--border);
-      background:#fff;
-    }
-    .mock .frame{
-      background:#F9FAFB;
-      padding:14px;
-    }
-    .mock-img{
-      width:100%;
-      height:auto;               /* key: no forced height */
-      display:block;
-      border:1px solid var(--border);
-      border-radius:var(--r);
-      background:#fff;
-    }
-
-    /* Credibility line */
-    .cred-line{
-      margin-top:12px;
-      color:var(--muted);
-      font-size:12.5px;
-      font-weight:700;
-    }
-
-    /* Founder note */
-    .founder-note{
-      margin-top:16px;
-      padding:18px;
-      border:1px solid var(--border);
-      border-radius:var(--r);
-      background:#FFFFFF;
-    }
-    .founder-title{
-      font-size:13px;
-      font-weight:800;
-      margin-bottom:8px;
-      letter-spacing:0.02em;
-      text-transform:uppercase;
-      color:var(--muted);
-    }
-    .founder-note p{
-      margin:0;
-      font-size:13px;
-      line-height:1.6;
-      color:var(--text);
-    }
-    .founder-note a{
-      color:var(--text);
-      text-decoration:underline;
-      text-underline-offset:2px;
-    }
-    .founder-note a:hover{ color:var(--primary); }
-
-    /* Sections */
-    .section{ margin-top:var(--section); max-width:1040px; }
-    .section h2{
-      margin:0 0 10px;
-      font-size:16px;
-      letter-spacing:-0.01em;
-    }
-
+    /* FAQ */
     details{
       border:1px solid var(--border);
       border-radius:var(--r);
@@ -502,7 +514,6 @@
       <div class="stack">
         <div class="kicker"><span class="dot"></span> UK Small cap intelligence</div>
 
-        <!-- 3) Updated hero headline -->
         <h1>Small caps move fast. Most investors are late.</h1>
 
         <!-- PROBLEM (high impact strip) -->
@@ -536,64 +547,14 @@
           Launching <strong>April 1st, 2026</strong>. Early access is limited.
         </p>
 
-        <!-- FOUNDERS -->
-        <div id="founders" class="card founder">
-          <div class="badge"><span class="mono">FOUNDERS</span> • first 100 Pro members</div>
-
-          <div class="split">
-            <div class="launch">
-              <span class="label">Launch</span>
-              <span class="date">April 1st 2026</span>
-            </div>
-            <div class="launch">
-              <span class="label">Spots</span>
-              <span class="date">100</span>
-            </div>
-          </div>
-
-          <!-- 2) Fixed spots remaining -->
-          <div class="scarcity" aria-label="Founders spots remaining">
-            <div class="scarcity-top">
-              <span><strong>67</strong> of 100 remaining</span>
-              <span>67% available</span>
-            </div>
-            <div class="bar" role="progressbar" aria-valuenow="67" aria-valuemin="0" aria-valuemax="100">
-              <span style="width:67%"></span>
-            </div>
-          </div>
-
-          <div class="price-row">
-            <div class="price">£24.99</div>
-            <div class="per">/ month (Founders — locked pricing)</div>
-            <div class="strike">£34.99 / month (Pro)</div>
-          </div>
-
-          <div class="perday">≈ £0.82 per day</div>
-
-          <p class="micro" style="margin-top:8px;">
-            Join the founders list to secure first access + founders pricing when doors open.
-            We’ll share only key milestones until launch.
-          </p>
-
-          <form id="waitlistForm" method="post" action="#" novalidate>
-            <input class="input" id="email" name="email" type="email" placeholder="Enter your email" autocomplete="email" required />
-            <button class="btn" id="submitBtn" type="submit">Get founders access →</button>
-          </form>
-
-          <div class="fineprint">
-            No spam. Unsubscribe anytime. Not investment advice.
-          </div>
-        </div>
-
-        <!-- 1) Preview updated to show dashboard mock exactly (no crop) -->
+        <!-- Preview (single image) -->
         <div class="card mock" aria-label="Preview">
           <p class="mock-label">
             <span><strong>Preview</strong></span>
             <span>Minimal • fast • signal-first</span>
           </p>
           <div class="frame">
-            <!-- Use your exact file name in the repo. If you upload the image as mock-dashboardx.png, set src to that. -->
-            <img class="mock-img" src="mock-dashboardx.png" alt="smallcaps.ai dashboard preview" />
+            <img class="mock-img" src="mock-dashboard.png" alt="smallcaps.ai dashboard preview" />
 
             <p class="micro" style="margin:12px 2px 0;">
               We’re keeping details intentionally light pre-launch. Founders get first access.
@@ -601,16 +562,17 @@
 
             <div class="cred-line">Built for active UK small-cap investors.</div>
 
+            <!-- Founder note (blockquote) -->
             <div class="founder-note" aria-label="Founder note">
               <div class="founder-title">Founder’s note</div>
-              <p>
-                I run the UK small-cap blog
-                <a href="https://www.smallcapsbigbags.com" target="_blank" rel="noopener">smallcapsbigbags</a>
-                and have spent years analysing RNS announcements and newsflow.
-                In small caps, announcements can drive asymmetric outcomes — upside and downside.
-                Social commentary is often biased or reactive.
-                Identifying signal early — and responding before the wider market fully prices it — is critical.
-              </p>
+
+              <blockquote class="founder-quote">
+                “I’m a part-time UK small-cap private investor.
+                Over the years I’ve seen how newsflow in smaller companies can drive asymmetric outcomes — both upside and downside.
+                Bulletin boards and social feeds are often biased or reactive.
+                Being able to identify signal early — and react quickly to both opportunity and risk — matters.”
+                <cite>— <a href="https://www.smallcapsbigbags.com" target="_blank" rel="noopener">smallcapsbigbags</a></cite>
+              </blockquote>
             </div>
           </div>
         </div>
@@ -639,7 +601,7 @@
 
       <details>
         <summary>How does founders pricing work?</summary>
-        <p>Founders Pro is <strong>£24.99/month</strong> locked pricing for the first 100 Pro members. After founders spots fill, Pro will be <strong>£34.99/month</strong> for new members.</p>
+        <p>Founders Pro is <strong>£19.99/month</strong> locked pricing for the first 100 Pro members. After founders spots fill, Pro will be <strong>£29.99/month</strong> for new members.</p>
       </details>
 
       <details>
@@ -663,10 +625,21 @@
       </details>
     </section>
 
-    <!-- FINAL CTA -->
+    <!-- FINAL CTA (single founders card) -->
     <section class="section" aria-label="Final CTA">
-      <div class="card founder">
+      <div id="founders" class="card founder">
         <div class="badge"><span class="mono">FOUNDERS</span> • first 100 Pro members</div>
+
+        <div class="split">
+          <div class="launch">
+            <span class="label">Launch</span>
+            <span class="date">April 1st 2026</span>
+          </div>
+          <div class="launch">
+            <span class="label">Spots</span>
+            <span class="date">100</span>
+          </div>
+        </div>
 
         <div class="scarcity" aria-label="Founders spots remaining">
           <div class="scarcity-top">
@@ -679,21 +652,21 @@
         </div>
 
         <div class="price-row" style="margin-top:12px;">
-          <div class="price">£24.99</div>
+          <div class="price">£19.99</div>
           <div class="per">/ month (Founders — locked pricing)</div>
-          <div class="strike">£34.99 / month (Pro)</div>
+          <div class="strike">£29.99 / month (Pro)</div>
         </div>
 
-        <div class="perday">≈ £0.82 per day</div>
+        <div class="perday">≈ £0.66 per day</div>
 
         <p class="micro" style="margin-top:8px;">
           Join the founders list to secure first access + founders pricing when doors open.
           We’ll share only key milestones until launch.
         </p>
 
-        <form id="waitlistForm2" method="post" action="#" novalidate>
-          <input class="input" id="email2" name="email" type="email" placeholder="Enter your email" autocomplete="email" required />
-          <button class="btn" id="submitBtn2" type="submit">Get founders access →</button>
+        <form id="waitlistForm" method="post" action="#" novalidate>
+          <input class="input" id="email" name="email" type="email" placeholder="Enter your email" autocomplete="email" required />
+          <button class="btn" id="submitBtn" type="submit">Get founders access →</button>
         </form>
 
         <div class="fineprint">
@@ -745,21 +718,19 @@
     const emailEl = document.getElementById("email");
     const btn = document.getElementById("submitBtn");
 
-    const form2 = document.getElementById("waitlistForm2");
-    const emailEl2 = document.getElementById("email2");
-    const btn2 = document.getElementById("submitBtn2");
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const email = String(emailEl.value || "").trim().toLowerCase();
 
-    async function handleSubmit(emailRaw, button, input){
-      const email = String(emailRaw || "").trim().toLowerCase();
       if (!isValidEmail(email)){
         showToast("Check your email", "Please enter a valid email address.");
-        input.focus();
+        emailEl.focus();
         return;
       }
 
-      button.disabled = true;
-      const old = button.textContent;
-      button.textContent = "Saving…";
+      btn.disabled = true;
+      const old = btn.textContent;
+      btn.textContent = "Saving…";
 
       try{
         const key = "sc_waitlist";
@@ -775,24 +746,14 @@
         // });
 
         showToast("You’re on the founders list.", "We’ll email you when founders access opens.");
-        input.value = "";
+        form.reset();
       } catch(err){
         console.error(err);
         showToast("Something went wrong", "Please try again in a moment.");
       } finally {
-        button.disabled = false;
-        button.textContent = old;
+        btn.disabled = false;
+        btn.textContent = old;
       }
-    }
-
-    form.addEventListener("submit", (e) => {
-      e.preventDefault();
-      handleSubmit(emailEl.value, btn, emailEl);
-    });
-
-    form2.addEventListener("submit", (e) => {
-      e.preventDefault();
-      handleSubmit(emailEl2.value, btn2, emailEl2);
     });
   </script>
 </body>
