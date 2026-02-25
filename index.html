@@ -83,7 +83,7 @@ body{
   padding:0 18px;
 }
 
-/* Layout rhythm */
+/* Tighter + sharper rhythm */
 section{margin:56px 0;}
 section:first-of-type{margin-top:28px;margin-bottom:44px;}
 
@@ -99,44 +99,40 @@ section > ul{max-width:640px;}
 /* CTA */
 .cta-form{
   display:flex;
+  gap:10px;
+  flex-wrap:wrap;
   margin-top:14px;
-  max-width:420px;
 }
 .cta-form input{
-  flex:1;
   padding:12px;
   border:1px solid var(--border);
-  border-right:none;
-  border-radius:4px 0 0 4px;
+  border-radius:var(--r);
   font-size:14px;
+  min-width:240px;
   background:#fff;
   color:var(--text);
 }
 .cta-form button{
+  background:var(--gold);
+  border:1px solid rgba(17,24,39,.12);
+  color:#111827;
   padding:12px 18px;
-  border:1px solid var(--primary);
-  border-left:none;
-  border-radius:0 4px 4px 0;
-  background:var(--primary);
-  color:#fff;
+  border-radius:var(--r);
   font-weight:700;
   cursor:pointer;
 }
-.cta-form button:hover{opacity:.92;}
+.cta-form button:hover{filter:brightness(.98);}
+.cta-next{margin-top:10px;font-size:13px;}
 
-.cta-privacy{
-  margin-top:8px;
-  font-size:12px;
-  color:var(--muted);
+/* Pricing box */
+.price-box{
+  border:1px solid var(--border);
+  border-radius:var(--r);
+  padding:22px;
+  background:#fff;
 }
 
-.cta-next{
-  margin-top:6px;
-  font-size:13px;
-  color:var(--muted);
-}
-
-/* Product media */
+/* Product media (screenshots + captions) */
 .product-media{
   margin-top:18px;
   max-width:720px;
@@ -153,9 +149,10 @@ section > ul{max-width:640px;}
   margin-top:10px;
   font-size:12px;
   color:var(--muted);
+  max-width:720px;
 }
 
-/* Comparison */
+/* Comparison strip */
 .compare{
   display:grid;
   gap:18px;
@@ -174,6 +171,7 @@ section > ul{max-width:640px;}
   border-color:rgba(37,99,235,.35);
 }
 .compare-title{font-weight:700;margin-bottom:10px;}
+.compare ul{padding-left:18px;line-height:1.65;margin:10px 0 0;}
 
 /* Quote */
 .blockquote{
@@ -184,6 +182,7 @@ section > ul{max-width:640px;}
   max-width:640px;
 }
 
+/* Footer */
 footer{
   border-top:1px solid var(--border);
   padding:22px 0;
@@ -195,7 +194,7 @@ footer{
 
 <body>
 
-<div class="scroll-progress">
+<div class="scroll-progress" aria-hidden="true">
   <div class="scroll-progress__bar" id="scrollBar"></div>
 </div>
 
@@ -210,21 +209,24 @@ footer{
 
 <!-- HERO -->
 <section>
+  <div class="muted" style="font-size:13px;margin-top:12px;">
+    Live feed monitoring AIM announcements daily.
+  </div>
+
   <div class="muted">UK Small-Cap Intelligence Platform</div>
 
   <h1>Impact-weighted RNS intelligence for UK small-cap investors.</h1>
 
   <p class="muted">Identify material events before the market fully prices them in.</p>
 
-  <form class="cta-form">
-    <input type="email" placeholder="Enter your email" required>
-    <button type="submit">Join</button>
+  <form class="cta-form" action="#" method="post">
+    <input type="email" name="email" placeholder="Enter your email" required>
+    <button type="submit">Join the Founders List</button>
   </form>
 
-  <div class="cta-privacy">No spam. Unsubscribe anytime.</div>
-  <div class="cta-next">We’ll email founders access when we go live.</div>
+  <div class="muted cta-next">We’ll email founders access when we go live.</div>
 
-  <div class="muted" style="margin-top:10px;font-size:14px;">
+  <div class="muted" style="margin-top:10px;font-size:14px;line-height:1.5;">
     Processing 10,000+ AIM announcements per year<br>
     Founders pricing: £19.99/month for early Pro members
   </div>
@@ -248,7 +250,22 @@ footer{
     <li>Board movements</li>
   </ul>
 
+  <p>Signal and noise are indistinguishable.</p>
   <p><strong>By the time impact is clear, the market has already moved.</strong></p>
+</section>
+
+<!-- MARKET REALITY -->
+<section>
+  <h2>Existing Tools Don’t Structure the Signal</h2>
+
+  <p>Traditional platforms focus on price data, ratios, and historical screening.</p>
+  <p>Raw RNS feeds remain unstructured.</p>
+  <p>Even established research platforms prioritise large-cap institutional workflows.</p>
+
+  <p>AIM remains fragmented, manually interpreted, and reactive.</p>
+  <p><strong>There is no systematic intelligence layer designed specifically for UK small caps.</strong></p>
+
+  <p style="margin-top:16px;"><strong>Until now.</strong></p>
 </section>
 
 <!-- SOLUTION -->
@@ -265,27 +282,69 @@ footer{
     <li>Prioritised in the feed</li>
   </ul>
 
+  <p>High-impact capital events surface immediately.</p>
+  <p>Low-materiality announcements are deprioritised.</p>
+
   <p><strong>The result is a feed ordered by materiality — not chronology.</strong></p>
 
   <figure class="product-media">
     <img src="mock-card-detail.png" alt="smallcaps.ai card detail preview">
-    <figcaption>Structured summary, impact score, category and context in one view.</figcaption>
+    <figcaption>Example output: structured summary, impact score, category, and context in one view.</figcaption>
   </figure>
 </section>
 
-<!-- FEED -->
+<!-- IMPACT SCORING -->
+<section>
+  <h2>Impact Scoring Methodology</h2>
+
+  <p>Impact scores are determined using structured evaluation across:</p>
+  <ul>
+    <li>Capital structure change</li>
+    <li>Revenue implication</li>
+    <li>Guidance variance</li>
+    <li>Balance sheet impact</li>
+    <li>Strategic significance</li>
+  </ul>
+
+  <p>Score 1 → Low materiality<br>
+     Score 5 → Potentially valuation-altering</p>
+
+  <p>This creates hierarchy in a market that lacks it.</p>
+
+  <div style="margin-top:16px;padding:14px;border:1px solid var(--border);border-radius:var(--r);background:#fff;max-width:640px;">
+    <div style="display:flex;justify-content:space-between;font-size:13px;">
+      <span>Score 1 — Admin</span>
+      <span>Score 3 — Moderate</span>
+      <span>Score 5 — Valuation Critical</span>
+    </div>
+    <div style="margin-top:10px;height:6px;background:#E5E7EB;border-radius:4px;">
+      <div style="width:90%;height:100%;background:#2563EB;border-radius:4px;"></div>
+    </div>
+  </div>
+</section>
+
+<!-- FEED + DASHBOARD -->
 <section>
   <h2>Impact-Weighted News Flow</h2>
 
-  <p>High-impact events surface first. Low-materiality announcements are deprioritised.</p>
+  <p>Instead of scrolling through raw announcements, you see:</p>
+  <ul>
+    <li>High-impact events at the top</li>
+    <li>Clean summaries</li>
+    <li>Materiality-first categorisation</li>
+    <li>Clear impact scoring</li>
+    <li>Watchlist integration</li>
+  </ul>
+
+  <p>Designed for clarity. Built for discipline.</p>
 
   <figure class="product-media">
     <img src="mock-dashboard.png" alt="smallcaps.ai dashboard preview">
-    <figcaption>Impact-weighted feed with watchlist integration.</figcaption>
+    <figcaption>Impact-weighted feed: material events surfaced first, with watchlist integration.</figcaption>
   </figure>
 </section>
 
-<!-- COMPARISON -->
+<!-- COMPARISON STRIP -->
 <section>
   <h2>Raw RNS Feed vs smallcaps.ai</h2>
 
@@ -295,6 +354,7 @@ footer{
       <ul>
         <li>Chronological ordering</li>
         <li>Unstructured announcements</li>
+        <li>Boilerplate-heavy documents</li>
         <li>Manual materiality assessment</li>
         <li>Signal buried in noise</li>
       </ul>
@@ -306,10 +366,49 @@ footer{
         <li>Impact-weighted ordering</li>
         <li>Structured categorisation</li>
         <li>Clean executive summaries</li>
+        <li>Systematic impact scoring (1–5)</li>
         <li>Material events surfaced first</li>
       </ul>
     </div>
   </div>
+</section>
+
+<!-- WHO IT'S FOR -->
+<section>
+  <h2>Built for Serious AIM Investors</h2>
+
+  <p>smallcaps.ai is designed for investors who:</p>
+  <ul>
+    <li>Allocate meaningful capital to UK small caps</li>
+    <li>Monitor multiple holdings</li>
+    <li>Care about capital discipline</li>
+    <li>Prefer systematic signal over narrative</li>
+  </ul>
+
+  <p>This is not a chat forum.<br>
+     Not a hype feed.<br>
+     Not a social stream.</p>
+
+  <p><strong>It is an impact-weighted intelligence layer for the AIM market.</strong></p>
+
+  <hr style="border:none;border-top:1px solid var(--border);margin:24px 0;max-width:640px;">
+
+  <p style="max-width:640px;">
+    <strong>Not designed for:</strong><br>
+    Short-term speculation, social commentary, or promotional narratives.
+  </p>
+</section>
+
+<!-- COVERAGE -->
+<section>
+  <h2>Coverage Universe</h2>
+
+  <p><strong>Full AIM universe coverage from launch.</strong></p>
+  <p>All regulatory announcements processed without manual selection or editorial bias.</p>
+
+  <p>No selective coverage.<br>No manual curation bias.</p>
+
+  <p>Systematic processing across the market.</p>
 </section>
 
 <!-- PRICING -->
@@ -317,34 +416,92 @@ footer{
   <div class="price-box">
     <h2>Founders Pro</h2>
 
-    <p>Locked £19.99/month pricing for early Pro members.<br>
-    Standard pricing at launch: £29.99/month.</p>
+    <p>Early access is limited to the first 100 Founders Pro members.</p>
 
-    <form class="cta-form">
-      <input type="email" placeholder="Enter your email" required>
-      <button type="submit">Join</button>
+    <ul>
+      <li>Full platform access at launch</li>
+      <li>Locked £19.99/month pricing</li>
+      <li>Priority feature input</li>
+    </ul>
+
+    <p>
+      Standard Pro pricing at launch: £29.99/month.<br>
+      <strong>Founders Pro members save 33% — permanently.</strong>
+    </p>
+
+    <form class="cta-form" action="#" method="post">
+      <input type="email" name="email" placeholder="Enter your email" required>
+      <button type="submit">Join the Founders List</button>
     </form>
 
-    <div class="cta-privacy">No spam. Unsubscribe anytime.</div>
-    <div class="cta-next">We’ll email founders access when we go live.</div>
+    <div class="muted cta-next">We’ll email founders access when we go live.</div>
   </div>
+</section>
+
+<!-- FOUNDER -->
+<section>
+  <h2>Founder</h2>
+
+  <div class="blockquote">
+    “I built this because AIM announcements are structurally inefficient.
+    Material events are buried in noise.
+    This platform imposes hierarchy.”
+    <br><br>
+    — <a href="https://www.smallcapsbigbags.com" target="_blank" rel="noopener">smallcapsbigbags</a>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section>
+  <h2>FAQ</h2>
+
+  <p><strong>What am I signing up for?</strong><br>
+  You’re joining the founders list for early platform access and the opportunity to subscribe at founders pricing when doors open.</p>
+
+  <p><strong>When do you launch?</strong><br>
+  April 1st, 2026. Founders list members will receive access first.</p>
+
+  <p><strong>When will I be charged?</strong><br>
+  You won’t be charged when joining the founders list. Payment only begins if you choose to subscribe when access opens at launch.</p>
+
+  <p><strong>How does founders pricing work?</strong><br>
+  Founders Pro is £19.99/month locked pricing for the first 100 Founders Pro members. After founders spots fill, Pro will be £29.99/month for new members.</p>
+
+  <p><strong>Will founders pricing ever increase?</strong><br>
+  No. Founders pricing is locked. There will be no inflation-based or future price increases for founders members.</p>
+
+  <p><strong>Can I cancel anytime?</strong><br>
+  Yes. Subscriptions can be cancelled at any time.</p>
+
+  <p><strong>What market coverage will you provide?</strong><br>
+  Initial focus will be UK small-cap companies, starting with AIM.</p>
+
+  <p><strong>Is this investment advice?</strong><br>
+  No. smallcaps.ai is an analysis tool. Nothing on the platform is investment advice.</p>
 </section>
 
 <!-- FINAL CTA -->
 <section id="join">
   <h2>Bring Structure to AIM News Flow</h2>
 
-  <form class="cta-form">
-    <input type="email" placeholder="Enter your email" required>
-    <button type="submit">Join</button>
+  <p>Stop reacting to unstructured feeds.<br>
+     Start working with impact-weighted intelligence.</p>
+
+  <form class="cta-form" action="#" method="post">
+    <input type="email" name="email" placeholder="Enter your email" required>
+    <button type="submit">Join the Founders List</button>
   </form>
 
-  <div class="cta-privacy">No spam. Unsubscribe anytime.</div>
-  <div class="cta-next">We’ll email founders access when we go live.</div>
+  <div class="muted cta-next">We’ll email founders access when we go live.</div>
+
+  <p class="muted">Launching April 1st 2026</p>
 </section>
 
 <footer>
   © 2026 smallcaps.ai — UK Small Cap Intelligence. Not investment advice.
+  <div style="margin-top:8px;">
+    Built independently. No sponsored coverage. No paid promotion.
+  </div>
 </footer>
 
 </div>
@@ -360,6 +517,7 @@ footer{
   }
   update();
   window.addEventListener('scroll',update,{passive:true});
+  window.addEventListener('resize',update);
 })();
 </script>
 
