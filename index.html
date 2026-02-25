@@ -1,760 +1,339 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>smallcaps.ai — UK Small cap intelligence</title>
-  <meta name="description" content="UK Small cap intelligence. Launching April 1st 2026. Join the founders list for early access + founders pricing (first 100)." />
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>smallcaps.ai — UK Small cap intelligence</title>
+<meta name="description" content="Structured, impact-scored RNS analysis for disciplined AIM investors. Launching April 1st 2026." />
 
-  <!-- Open Graph -->
-  <meta property="og:title" content="smallcaps.ai — UK Small cap intelligence" />
-  <meta property="og:description" content="Launching April 1st 2026. Join the founders list. First 100 get founders pricing." />
-  <meta property="og:type" content="website" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-  <!-- Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F6F8FA;
+  --card:#FFFFFF;
+  --border:#E5E7EB;
+  --primary:#2563EB;
+  --text:#111827;
+  --muted:#6B7280;
+  --r:4px;
+  --maxw:980px;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto;
+  background:var(--bg);
+  color:var(--text);
+}
+.container{max-width:var(--maxw);margin:0 auto;padding:0 18px;}
+section{margin:52px 0;}
+h1{font-size:44px;letter-spacing:-.02em;margin:12px 0;}
+h2{font-size:22px;margin-bottom:16px;letter-spacing:-.01em;}
+p{line-height:1.65;margin:10px 0;}
+ul{padding-left:18px;line-height:1.7;margin:10px 0;}
+.btn{
+  display:inline-block;
+  background:var(--primary);
+  color:#fff;
+  padding:12px 16px;
+  border-radius:var(--r);
+  font-weight:700;
+  text-decoration:none;
+}
+.muted{color:var(--muted);}
+.hero-meta{margin-top:12px;font-size:14px;line-height:1.55;}
+.price-box{
+  border:1px solid var(--border);
+  border-radius:var(--r);
+  padding:24px;
+  background:#fff;
+}
+.blockquote{
+  border-left:3px solid var(--primary);
+  padding-left:16px;
+  font-style:italic;
+  opacity:.92;
+}
+.mock-img{
+  width:100%;
+  height:auto;
+  border:1px solid var(--border);
+  border-radius:var(--r);
+  background:#fff;
+  display:block;
+}
 
-  <style>
-    :root{
-      --bg:#F6F8FA;
-      --card:#FFFFFF;
-      --border:#E5E7EB;
-      --primary:#2563EB;
-      --text:#111827;
-      --muted:#6B7280;
-      --r:4px;
-      --topbar-h:56px;
-      --maxw:1120px;
-      --pad:18px;
-      --section:32px;
-    }
+/* Comparison strip */
+.compare{
+  display:grid;
+  gap:18px;
+  margin-top:18px;
+}
+@media (min-width: 760px){
+  .compare{ grid-template-columns:1fr 1fr; }
+}
+.compare-col{
+  background:#FFFFFF;
+  border:1px solid var(--border);
+  border-radius:var(--r);
+  padding:20px;
+}
+.compare-col.highlight{
+  border-color:rgba(37,99,235,.35);
+}
+.compare-title{
+  font-weight:700;
+  margin-bottom:10px;
+}
+.compare ul{ padding-left:18px; line-height:1.7; margin:10px 0 0; }
 
-    *{box-sizing:border-box}
-    html,body{height:100%}
-    body{
-      margin:0;
-      font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-      background:var(--bg);
-      color:var(--text);
-    }
-    a{color:inherit; text-decoration:none}
-    button, input{font:inherit}
-
-    .container{
-      max-width:var(--maxw);
-      margin:0 auto;
-      padding:0 16px;
-    }
-
-    /* Topbar */
-    .topbar{
-      position:sticky;
-      top:0;
-      z-index:50;
-      height:var(--topbar-h);
-      background:#fff;
-      border-bottom:1px solid var(--border);
-    }
-    .topbar-inner{
-      height:100%;
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:12px;
-    }
-    .logo{
-      font-weight:700;
-      letter-spacing:-0.01em;
-      white-space:nowrap;
-    }
-    .brand-accent{ color:var(--primary); font-weight:700; }
-
-    .top-actions{
-      display:flex;
-      gap:8px;
-      align-items:center;
-      color:var(--muted);
-      font-weight:600;
-      font-size:13px;
-      white-space:nowrap;
-      opacity:.78;
-    }
-    .top-actions a{ padding:6px 8px; border-radius:var(--r); }
-    .top-actions a:hover{ background:#F3F4F6; color:var(--text); opacity:1; }
-
-    main{ padding:26px 0 44px; }
-
-    /* Hero */
-    .hero{
-      display:grid;
-      grid-template-columns:1fr;
-      gap:16px;
-      margin-top:10px;
-      max-width:1040px;
-    }
-    .stack{ display:grid; gap:12px; }
-
-    .kicker{
-      display:inline-flex;
-      align-items:center;
-      gap:8px;
-      color:var(--muted);
-      font-weight:700;
-      font-size:12px;
-      letter-spacing:0.02em;
-    }
-    .kicker .dot{
-      width:8px;height:8px;border-radius:999px;background:var(--primary);
-      opacity:.9;
-    }
-
-    h1{
-      margin:10px 0 10px;
-      font-size:38px;
-      line-height:1.08;
-      letter-spacing:-0.015em;
-    }
-    @media (min-width: 920px){
-      h1{ font-size:46px; }
-    }
-
-    .subhead{
-      color:var(--muted);
-      font-size:15px;
-      line-height:1.55;
-      margin:0;
-      max-width:70ch;
-    }
-
-    .micro{
-      color:var(--muted);
-      font-size:12.5px;
-      line-height:1.45;
-      margin:0;
-    }
-
-    .card{
-      background:var(--card);
-      border:1px solid var(--border);
-      border-radius:var(--r);
-      padding:var(--pad);
-    }
-
-    .card-title{
-      margin:0 0 8px;
-      font-size:15px;
-      letter-spacing:-0.01em;
-      font-weight:800;
-    }
-
-    /* High impact strip (problem) */
-    .problem-card{
-      padding:18px 18px 18px 20px;
-      background:#FFFFFF;
-      border:1px solid var(--border);
-      border-left:4px solid var(--primary);
-      border-radius:var(--r);
-    }
-
-    .lead{
-      color:var(--text);
-      font-size:13px;
-      line-height:1.6;
-      margin:0;
-    }
-    .lead strong{ font-weight:900; }
-
-    .list{
-      margin:10px 0 0;
-      padding:0;
-      list-style:none;
-      display:grid;
-      gap:8px;
-      color:var(--muted);
-      font-size:12.5px;
-      line-height:1.45;
-    }
-    .list li{
-      display:flex;
-      gap:10px;
-      align-items:flex-start;
-    }
-    .mark{
-      width:18px;height:18px;border-radius:999px;
-      border:1px solid rgba(37,99,235,.25);
-      background:#EFF6FF;
-      display:flex;align-items:center;justify-content:center;
-      flex:0 0 auto;
-      color:var(--primary);
-      font-weight:900;
-      font-size:12px;
-      margin-top:1px;
-    }
-
-    .result-line{
-      margin-top:10px;
-      font-size:12.5px;
-      line-height:1.45;
-      color:var(--text);
-      font-weight:600;
-    }
-    .problem-card + .solution-line{ margin-top:8px; }
-
-    /* Preview */
-    .mock{
-      padding:0;
-      overflow:hidden;
-    }
-    .mock-label{
-      display:flex;
-      justify-content:space-between;
-      gap:10px;
-      color:var(--muted);
-      font-size:12px;
-      margin:0;
-      padding:12px 16px;
-      border-bottom:1px solid var(--border);
-      background:#fff;
-    }
-    .mock .frame{
-      background:#F9FAFB;
-      padding:14px;
-    }
-    .mock-img{
-      width:100%;
-      height:auto;
-      display:block;
-      border:1px solid var(--border);
-      border-radius:var(--r);
-      background:#fff;
-    }
-
-    .cred-line{
-      margin-top:12px;
-      color:var(--muted);
-      font-size:12.5px;
-      font-weight:700;
-    }
-
-    /* Founder note blockquote (hierarchy-tuned) */
-    .founder-note{
-      margin-top:14px;
-      padding:16px;
-      border:1px solid var(--border);
-      border-radius:var(--r);
-      background:#FFFFFF;
-    }
-    .founder-title{
-      font-size:11px;
-      font-weight:800;
-      margin-bottom:10px;
-      letter-spacing:0.10em;
-      text-transform:uppercase;
-      color:var(--muted);
-      opacity:.85;
-    }
-    .founder-quote{
-      margin:0;
-      padding-left:14px;
-      border-left:3px solid var(--primary);
-      font-size:12.75px;
-      line-height:1.7;
-      font-style:italic;
-      color:var(--text);
-      opacity:.92;
-    }
-    .founder-quote cite{
-      display:block;
-      margin-top:10px;
-      font-style:normal;
-      font-size:12px;
-      color:var(--muted);
-    }
-    .founder-quote a{
-      color:var(--text);
-      text-decoration:underline;
-      text-underline-offset:2px;
-      opacity:.9;
-    }
-    .founder-quote a:hover{
-      color:var(--primary);
-      opacity:1;
-    }
-
-    /* Sections */
-    .section{ margin-top:var(--section); max-width:1040px; }
-    .section h2{
-      margin:0 0 10px;
-      font-size:16px;
-      letter-spacing:-0.01em;
-    }
-
-    /* Founder CTA card (single CTA only at bottom) */
-    .founder{ border-color:rgba(37,99,235,.25); }
-    .badge{
-      display:inline-flex;
-      align-items:center;
-      gap:8px;
-      font-weight:800;
-      font-size:12px;
-      color:var(--primary);
-      background:#EFF6FF;
-      border:1px solid rgba(37,99,235,.25);
-      padding:6px 10px;
-      border-radius:999px;
-      white-space:nowrap;
-      width:fit-content;
-      margin-bottom:2px;
-    }
-    .badge .mono{ font-family:"Roboto Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
-
-    .split{
-      display:flex;
-      flex-wrap:wrap;
-      gap:10px 14px;
-      align-items:center;
-      justify-content:space-between;
-      margin-top:10px;
-    }
-    .launch{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      align-items:baseline;
-    }
-    .launch .label{
-      font-weight:800;
-      font-size:12px;
-      color:var(--muted);
-      letter-spacing:0.02em;
-      text-transform:uppercase;
-    }
-    .launch .date{
-      font-weight:900;
-      font-size:14px;
-      color:var(--text);
-    }
-
-    .scarcity{
-      margin-top:10px;
-      display:grid;
-      gap:8px;
-    }
-    .scarcity-top{
-      display:flex;
-      justify-content:space-between;
-      align-items:baseline;
-      gap:10px;
-      flex-wrap:wrap;
-      color:var(--muted);
-      font-size:12px;
-      font-weight:700;
-    }
-    .scarcity-top strong{ color:var(--text); font-weight:900; }
-    .bar{
-      height:10px;
-      background:#F3F4F6;
-      border:1px solid var(--border);
-      border-radius:999px;
-      overflow:hidden;
-    }
-    .bar > span{ display:block; height:100%; background:var(--primary); }
-
-    .price-row{
-      display:flex;
-      flex-wrap:wrap;
-      gap:10px 14px;
-      align-items:baseline;
-      margin:12px 0 6px;
-      padding-top:10px;
-      border-top:1px solid rgba(229,231,235,.9);
-    }
-    .price{
-      font-size:32px;
-      font-weight:900;
-      letter-spacing:-0.02em;
-    }
-    .per{ color:var(--muted); font-weight:700; font-size:13px; opacity:.9; }
-    .strike{
-      color:var(--muted);
-      text-decoration:line-through;
-      font-weight:700;
-      font-size:13px;
-      opacity:.85;
-    }
-    .perday{
-      margin-top:6px;
-      color:var(--muted);
-      font-size:12.5px;
-      font-weight:700;
-    }
-
-    form{
-      display:flex;
-      gap:10px;
-      margin-top:12px;
-      flex-wrap:wrap;
-    }
-    .input{
-      flex:1;
-      min-width:240px;
-      border:1px solid var(--border);
-      border-radius:var(--r);
-      padding:11px 10px;
-      outline:none;
-      background:#fff;
-      color:var(--text);
-    }
-    .input::placeholder{ color:var(--muted); }
-    .btn{
-      border:1px solid var(--primary);
-      background:var(--primary);
-      color:#fff;
-      border-radius:var(--r);
-      padding:11px 14px;
-      font-weight:900;
-      cursor:pointer;
-      white-space:nowrap;
-    }
-    .btn:hover{ filter:brightness(.98); }
-    .btn:disabled{ opacity:.6; cursor:not-allowed; }
-
-    .fineprint{
-      margin-top:10px;
-      color:var(--muted);
-      font-size:11.5px;
-      line-height:1.45;
-    }
-
-    /* FAQ */
-    details{
-      border:1px solid var(--border);
-      border-radius:var(--r);
-      background:#fff;
-      padding:12px 12px;
-    }
-    details + details{ margin-top:10px; }
-    summary{
-      cursor:pointer;
-      font-weight:900;
-      font-size:13px;
-      color:var(--text);
-      list-style:none;
-    }
-    summary::-webkit-details-marker{ display:none; }
-    details p{
-      margin:8px 0 0;
-      color:var(--muted);
-      font-size:12.5px;
-      line-height:1.55;
-    }
-
-    footer{
-      padding:18px 0 26px;
-      border-top:1px solid var(--border);
-      color:var(--muted);
-      font-size:12px;
-      margin-top:var(--section);
-    }
-    .footer-inner{
-      display:flex;
-      flex-wrap:wrap;
-      gap:10px 16px;
-      justify-content:space-between;
-      align-items:center;
-    }
-    .footer-links{
-      display:flex; gap:12px; flex-wrap:wrap;
-    }
-    .footer-links a{ color:var(--muted); font-weight:700; }
-    .footer-links a:hover{ color:var(--text); }
-    .note{
-      margin-top:10px;
-      font-size:11.5px;
-      line-height:1.45;
-    }
-
-    .toast{
-      position:fixed;
-      left:50%;
-      transform:translateX(-50%);
-      bottom:18px;
-      background:#fff;
-      border:1px solid var(--border);
-      border-radius:var(--r);
-      padding:10px 12px;
-      z-index:60;
-      display:none;
-      width:min(560px, calc(100% - 24px));
-      font-size:13px;
-      color:var(--text);
-    }
-    .toast.show{ display:block; }
-    .toast .muted{ color:var(--muted); font-weight:700; font-size:12px; margin-top:4px; }
-  </style>
+footer{
+  border-top:1px solid var(--border);
+  padding:24px 0;
+  font-size:13px;
+  color:var(--muted);
+}
+</style>
 </head>
 
 <body>
-  <header class="topbar">
-    <div class="container topbar-inner">
-      <div class="logo">smallcaps<span class="brand-accent">.ai</span></div>
-      <div class="top-actions">
-        <a href="#problem">Why now</a>
-        <a href="#founders">Founders</a>
-        <a href="#faq">FAQ</a>
-      </div>
-    </div>
-  </header>
+<div class="container">
 
-  <main class="container">
-    <!-- HERO -->
-    <section class="hero" aria-label="Hero">
-      <div class="stack">
-        <div class="kicker"><span class="dot"></span> UK Small cap intelligence</div>
+<!-- HERO -->
+<section>
+  <div class="muted">UK Small-Cap Intelligence Platform</div>
+  <h1>Structured, impact-scored RNS analysis for disciplined AIM investors.</h1>
 
-        <h1>Small caps move fast. Most investors are late.</h1>
+  <a href="#founders" class="btn">Join the Founders List</a>
 
-        <!-- PROBLEM (high impact strip) -->
-        <div id="problem" class="problem-card" aria-label="Problem">
-          <h2 class="card-title">The problem with UK small-cap news today</h2>
-
-          <p class="lead">
-            UK small-cap investing is still <strong>manual</strong>.
-            Most tools show you everything. Very few tell you what actually matters.
-          </p>
-
-          <ul class="list">
-            <li><span class="mark">✓</span><span>Scan long RNS releases in full, under time pressure.</span></li>
-            <li><span class="mark">✓</span><span>Rely on social feeds for interpretation (often late or biased).</span></li>
-            <li><span class="mark">✓</span><span>React to price moves instead of information.</span></li>
-            <li><span class="mark">✓</span><span>Miss the signal because it’s buried in noise.</span></li>
-          </ul>
-
-          <p class="result-line">
-            The result: you’re <strong>reacting to price</strong> — not to signal.
-          </p>
-        </div>
-
-        <!-- SOLUTION -->
-        <p class="subhead solution-line">
-          We’re building a <strong>signal-first</strong> intelligence layer for UK small-cap investors.
-          Less noise. Faster decisions. A repeatable edge.
-        </p>
-
-        <p class="micro">
-          Launching <strong>April 1st, 2026</strong>. Early access is limited.
-        </p>
-
-        <!-- Preview (single image) -->
-        <div class="card mock" aria-label="Preview">
-          <p class="mock-label">
-            <span><strong>Preview</strong></span>
-            <span>Minimal • fast • signal-first</span>
-          </p>
-          <div class="frame">
-            <img class="mock-img" src="mock-dashboard.png" alt="smallcaps.ai dashboard preview" />
-
-            <p class="micro" style="margin:12px 2px 0;">
-              We’re keeping details intentionally light pre-launch. Founders get first access.
-            </p>
-
-            <div class="cred-line">Built for active UK small-cap investors.</div>
-
-            <!-- Founder note (blockquote) -->
-            <div class="founder-note" aria-label="Founder note">
-              <div class="founder-title">Founder’s note</div>
-
-              <blockquote class="founder-quote">
-                “I’m a part-time UK small-cap private investor.
-                Over the years I’ve seen how newsflow in smaller companies can drive asymmetric outcomes — both upside and downside.
-                Bulletin boards and social feeds are often biased or reactive.
-                Being able to identify signal early — and react quickly to both opportunity and risk — matters.”
-                <cite>— <a href="https://www.smallcapsbigbags.com" target="_blank" rel="noopener">smallcapsbigbags</a></cite>
-              </blockquote>
-            </div>
-          </div>
-        </div>
-
-      </div>
-    </section>
-
-    <!-- FAQ -->
-    <section id="faq" class="section" aria-label="FAQ">
-      <h2>FAQ</h2>
-
-      <details>
-        <summary>What am I signing up for?</summary>
-        <p>You’re joining the founders list for early platform access and the opportunity to subscribe at founders pricing when doors open.</p>
-      </details>
-
-      <details>
-        <summary>When do you launch?</summary>
-        <p><strong>April 1st, 2026</strong>. Founders list members will receive access first.</p>
-      </details>
-
-      <details>
-        <summary>When will I be charged?</summary>
-        <p>You won’t be charged when joining the founders list. Payment only begins if you choose to subscribe when access opens at launch.</p>
-      </details>
-
-      <details>
-        <summary>How does founders pricing work?</summary>
-        <p>Founders Pro is <strong>£19.99/month</strong> locked pricing for the first 100 Pro members. After founders spots fill, Pro will be <strong>£29.99/month</strong> for new members.</p>
-      </details>
-
-      <details>
-        <summary>Will founders pricing ever increase?</summary>
-        <p>No. Founders pricing is locked. There will be no inflation-based or future price increases for founders members.</p>
-      </details>
-
-      <details>
-        <summary>Can I cancel anytime?</summary>
-        <p>Yes. Subscriptions can be cancelled at any time.</p>
-      </details>
-
-      <details>
-        <summary>What market coverage will you provide?</summary>
-        <p>Initial focus will be UK small-cap companies, starting with AIM.</p>
-      </details>
-
-      <details>
-        <summary>Is this investment advice?</summary>
-        <p>No. smallcaps.ai is an analysis tool. Nothing on the platform is investment advice.</p>
-      </details>
-    </section>
-
-    <!-- FINAL CTA (single founders card) -->
-    <section class="section" aria-label="Final CTA">
-      <div id="founders" class="card founder">
-        <div class="badge"><span class="mono">FOUNDERS</span> • first 100 Pro members</div>
-
-        <div class="split">
-          <div class="launch">
-            <span class="label">Launch</span>
-            <span class="date">April 1st 2026</span>
-          </div>
-          <div class="launch">
-            <span class="label">Spots</span>
-            <span class="date">100</span>
-          </div>
-        </div>
-
-        <div class="scarcity" aria-label="Founders spots remaining">
-          <div class="scarcity-top">
-            <span><strong>67</strong> of 100 remaining</span>
-            <span>67% available</span>
-          </div>
-          <div class="bar" role="progressbar" aria-valuenow="67" aria-valuemin="0" aria-valuemax="100">
-            <span style="width:67%"></span>
-          </div>
-        </div>
-
-        <div class="price-row" style="margin-top:12px;">
-          <div class="price">£19.99</div>
-          <div class="per">/ month (Founders — locked pricing)</div>
-          <div class="strike">£29.99 / month (Pro)</div>
-        </div>
-
-        <div class="perday">≈ £0.66 per day</div>
-
-        <p class="micro" style="margin-top:8px;">
-          Join the founders list to secure first access + founders pricing when doors open.
-          We’ll share only key milestones until launch.
-        </p>
-
-        <form id="waitlistForm" method="post" action="#" novalidate>
-          <input class="input" id="email" name="email" type="email" placeholder="Enter your email" autocomplete="email" required />
-          <button class="btn" id="submitBtn" type="submit">Get founders access →</button>
-        </form>
-
-        <div class="fineprint">
-          No spam. Unsubscribe anytime. Not investment advice.
-        </div>
-      </div>
-    </section>
-  </main>
-
-  <footer>
-    <div class="container">
-      <div class="footer-inner">
-        <div class="logo">smallcaps<span class="brand-accent">.ai</span></div>
-        <div class="footer-links">
-          <a href="#problem">Why now</a>
-          <a href="#founders">Founders</a>
-          <a href="#faq">FAQ</a>
-        </div>
-      </div>
-      <div class="note">
-        © <span id="y"></span> smallcaps.ai • UK Small cap intelligence. Not investment advice.
-      </div>
-    </div>
-  </footer>
-
-  <div class="toast" id="toast" role="status" aria-live="polite">
-    <div id="toastTitle" style="font-weight:900;">You’re on the list.</div>
-    <div class="muted" id="toastSub">We’ll email you when founders access opens.</div>
+  <div class="hero-meta muted">
+    Launching April 1st 2026<br>
+    Founders pricing: £19.99/month (67 spots remaining)
   </div>
+</section>
 
-  <script>
-    // Year
-    document.getElementById("y").textContent = String(new Date().getFullYear());
+<!-- SECTION 1 — The Problem -->
+<section>
+  <h2>The Problem With AIM News Flow</h2>
 
-    // Toast
-    const toast = document.getElementById("toast");
-    function showToast(title, sub){
-      document.getElementById("toastTitle").textContent = title;
-      document.getElementById("toastSub").textContent = sub;
-      toast.classList.add("show");
-      setTimeout(() => toast.classList.remove("show"), 3600);
-    }
-    function isValidEmail(v){
-      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v || "").trim());
-    }
+  <p>AIM produces thousands of RNS announcements every year.</p>
+  <p>Most are administrative. Some materially alter valuation.</p>
+  <p>They look identical in the raw feed.</p>
 
-    // Waitlist capture (localStorage demo)
-    const form = document.getElementById("waitlistForm");
-    const emailEl = document.getElementById("email");
-    const btn = document.getElementById("submitBtn");
+  <p>Investors are forced to manually interpret:</p>
+  <ul>
+    <li>Capital raises</li>
+    <li>Trading updates</li>
+    <li>Guidance revisions</li>
+    <li>Contract wins</li>
+    <li>Balance sheet changes</li>
+    <li>Board movements</li>
+  </ul>
 
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const email = String(emailEl.value || "").trim().toLowerCase();
+  <p>Signal and noise are indistinguishable.</p>
+  <p><strong>By the time impact is clear, the market has already moved.</strong></p>
+</section>
 
-      if (!isValidEmail(email)){
-        showToast("Check your email", "Please enter a valid email address.");
-        emailEl.focus();
-        return;
-      }
+<!-- SECTION 2 — Market Reality -->
+<section>
+  <h2>Existing Tools Don’t Structure the Signal</h2>
 
-      btn.disabled = true;
-      const old = btn.textContent;
-      btn.textContent = "Saving…";
+  <p>Traditional platforms focus on price data, ratios, and historical screening.</p>
+  <p>Raw RNS feeds remain unstructured.</p>
+  <p>Even established research platforms like Bloomberg prioritise large-cap institutional workflows.</p>
 
-      try{
-        const key = "sc_waitlist";
-        const current = JSON.parse(localStorage.getItem(key) || "[]");
-        if (!current.includes(email)) current.push(email);
-        localStorage.setItem(key, JSON.stringify(current));
+  <p>AIM remains fragmented, manual, and reactive.</p>
+  <p><strong>There is no systematic intelligence layer designed specifically for UK small caps.</strong></p>
 
-        // Hook here when ready:
-        // await fetch("https://YOUR-ENDPOINT", {
-        //   method: "POST",
-        //   headers: { "Content-Type": "application/json" },
-        //   body: JSON.stringify({ email, source: "landing" })
-        // });
+  <p><strong>Until now.</strong></p>
+</section>
 
-        showToast("You’re on the founders list.", "We’ll email you when founders access opens.");
-        form.reset();
-      } catch(err){
-        console.error(err);
-        showToast("Something went wrong", "Please try again in a moment.");
-      } finally {
-        btn.disabled = false;
-        btn.textContent = old;
-      }
-    });
-  </script>
+<!-- SECTION 3 — The Solution -->
+<section>
+  <h2>How smallcaps.ai Structures AIM</h2>
+
+  <p>Every AIM RNS is processed through a structured intelligence layer.</p>
+
+  <ul>
+    <li>Categorised</li>
+    <li>Impact scored (1–5)</li>
+    <li>Summarised</li>
+    <li>Contextualised</li>
+    <li>Prioritised in the feed</li>
+  </ul>
+
+  <p>High-impact capital events surface immediately.</p>
+  <p>Administrative announcements are suppressed.</p>
+
+  <p><strong>The result is a feed ordered by materiality — not chronology.</strong></p>
+</section>
+
+<!-- SECTION 4 — Impact Scoring Engine -->
+<section>
+  <h2>Impact Scoring Methodology</h2>
+
+  <p>Impact scores are determined using structured evaluation across:</p>
+  <ul>
+    <li>Capital structure change</li>
+    <li>Revenue implication</li>
+    <li>Guidance variance</li>
+    <li>Balance sheet impact</li>
+    <li>Strategic significance</li>
+  </ul>
+
+  <p>Score 1 → Low materiality<br>
+     Score 5 → Potentially valuation-altering</p>
+
+  <p>This creates hierarchy in a market that lacks it.</p>
+</section>
+
+<!-- SECTION 5 — Capital Event Detection -->
+<section>
+  <h2>Dilution &amp; Capital Event Intelligence</h2>
+
+  <p>Placings and capital raises are among the most valuation-sensitive events in AIM.</p>
+
+  <ul>
+    <li>Flags capital events immediately</li>
+    <li>Removes boilerplate</li>
+    <li>Summarises dilution severity</li>
+    <li>Highlights pricing relative to market</li>
+  </ul>
+
+  <p>No more manually parsing 9-page announcements to find one critical paragraph.</p>
+</section>
+
+<!-- SECTION 6 — What the Feed Looks Like -->
+<section>
+  <h2>Impact-Weighted News Flow</h2>
+
+  <p>Instead of scrolling through raw announcements, you see:</p>
+  <ul>
+    <li>High-impact events at the top</li>
+    <li>Clean summaries</li>
+    <li>Structured categorisation</li>
+    <li>Clear materiality scoring</li>
+    <li>Watchlist integration</li>
+  </ul>
+
+  <p>Designed for clarity. Built for discipline.</p>
+
+  <img src="mock-dashboard.png" alt="smallcaps.ai dashboard preview" class="mock-img">
+</section>
+
+<!-- COMPARISON STRIP (added here) -->
+<section>
+  <h2>Raw RNS Feed vs smallcaps.ai</h2>
+
+  <div class="compare">
+    <div class="compare-col">
+      <div class="compare-title muted">Raw RNS Feed</div>
+      <ul>
+        <li>Chronological ordering</li>
+        <li>Unstructured announcements</li>
+        <li>Boilerplate-heavy documents</li>
+        <li>Manual materiality assessment</li>
+        <li>Signal buried in noise</li>
+      </ul>
+    </div>
+
+    <div class="compare-col highlight">
+      <div class="compare-title">smallcaps.ai</div>
+      <ul>
+        <li>Impact-weighted ordering</li>
+        <li>Structured categorisation</li>
+        <li>Clean executive summaries</li>
+        <li>Systematic impact scoring (1–5)</li>
+        <li>Material events surfaced first</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 7 — Who It’s For -->
+<section>
+  <h2>Built for Serious AIM Investors</h2>
+
+  <p>smallcaps.ai is designed for investors who:</p>
+  <ul>
+    <li>Allocate meaningful capital to UK small caps</li>
+    <li>Monitor multiple holdings</li>
+    <li>Care about capital discipline</li>
+    <li>Prefer structured signal over commentary</li>
+  </ul>
+
+  <p>This is not a chat forum.<br>
+     Not a hype feed.<br>
+     Not a social stream.</p>
+
+  <p><strong>It is a structured intelligence layer for the AIM market.</strong></p>
+</section>
+
+<!-- SECTION 8 — Coverage -->
+<section>
+  <h2>Coverage Universe</h2>
+
+  <p>Initial focus: Full AIM universe.</p>
+  <p>All regulatory announcements processed and structured.</p>
+
+  <p>No selective coverage.<br>
+     No manual curation bias.</p>
+
+  <p>Systematic processing across the market.</p>
+</section>
+
+<!-- SECTION 9 — Pricing -->
+<section id="founders">
+  <div class="price-box">
+    <h2>Founders Access</h2>
+
+    <p>Early access is limited.</p>
+
+    <ul>
+      <li>Lifetime £19.99/month pricing</li>
+      <li>Early feature access</li>
+      <li>Direct product feedback channel</li>
+    </ul>
+
+    <p>Standard pricing at launch: £29.99/month.</p>
+    <p><strong>67 founder spots remaining.</strong></p>
+
+    <a href="#join" class="btn">Join the Founders List</a>
+  </div>
+</section>
+
+<!-- SECTION 10 — Founder -->
+<section>
+  <h2>Founder</h2>
+
+  <div class="blockquote">
+    “I built this because AIM announcements are structurally inefficient.
+    Material events are buried in noise.
+    This platform imposes hierarchy.”
+    <br><br>
+    — <a href="https://www.smallcapsbigbags.com" target="_blank" rel="noopener">smallcapsbigbags</a>
+  </div>
+</section>
+
+<!-- SECTION 11 — Final CTA -->
+<section id="join">
+  <h2>Bring Structure to AIM News Flow</h2>
+
+  <p>Stop reacting to unstructured feeds.<br>
+     Start working with impact-weighted intelligence.</p>
+
+  <a href="#founders" class="btn">Join the Founders List</a>
+
+  <p class="muted">Launching April 1st 2026</p>
+</section>
+
+<footer>
+  © 2026 smallcaps.ai — UK Small Cap Intelligence. Not investment advice.
+</footer>
+
+</div>
 </body>
 </html>
