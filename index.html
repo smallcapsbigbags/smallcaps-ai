@@ -1,21 +1,14 @@
-```html
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>smallcaps.ai — UK Small Cap intelligence</title>
-  <meta name="description" content="UK Small Cap intelligence. Launching April 1st 2026. Join the founders list for early access + founders pricing (first 100)." />
+  <title>smallcaps.ai — UK Small cap intelligence</title>
+  <meta name="description" content="UK Small cap intelligence. Launching April 1st 2026. Join the founders list for early access + founders pricing (first 100)." />
 
-  <!-- Open Graph -->
-  <meta property="og:title" content="smallcaps.ai — UK Small cap intelligence" />
-  <meta property="og:description" content="Launching April 1st 2026. Join the founders list. First 100 get founders pricing." />
-  <meta property="og:type" content="website" />
-
-  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Roboto+Mono:wght@500;600&display=swap" rel="stylesheet">
 
   <style>
     :root{
@@ -26,113 +19,59 @@
       --text:#111827;
       --muted:#6B7280;
       --r:4px;
-      --topbar-h:56px;
-      --maxw:1120px;
+      --maxw:860px;
       --pad:16px;
-      --gap:14px;
     }
 
     *{box-sizing:border-box}
-    html,body{height:100%}
     body{
       margin:0;
-      font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      font-family:Inter, system-ui, sans-serif;
       background:var(--bg);
       color:var(--text);
     }
-    a{color:inherit; text-decoration:none}
-    button, input{font:inherit}
 
     .container{
       max-width:var(--maxw);
       margin:0 auto;
-      padding:0 16px;
+      padding:28px 18px 60px;
     }
 
-    /* Topbar */
-    .topbar{
-      position:sticky;
-      top:0;
-      z-index:50;
-      height:var(--topbar-h);
-      background:#fff;
-      border-bottom:1px solid var(--border);
-    }
-    .topbar-inner{
-      height:100%;
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:12px;
-    }
     .logo{
       font-weight:700;
-      letter-spacing:-0.01em;
-      white-space:nowrap;
+      margin-bottom:24px;
     }
-    .brand-accent{ color:var(--primary); font-weight:700; }
-    .top-actions{
-      display:flex;
-      gap:10px;
-      align-items:center;
-      color:var(--muted);
-      font-weight:600;
-      font-size:13px;
-      white-space:nowrap;
-    }
-    .top-actions a{ padding:6px 8px; border-radius:var(--r); }
-    .top-actions a:hover{ background:#F3F4F6; color:var(--text); }
-
-    main{ padding:26px 0 44px; }
-
-    .hero{
-      display:grid;
-      grid-template-columns:1fr;
-      gap:18px;
-      margin-top:10px;
-    }
-    @media (min-width: 920px){
-      .hero{ grid-template-columns: 1.05fr 0.95fr; align-items:start; }
-    }
+    .brand-accent{ color:var(--primary); }
 
     .kicker{
-      display:inline-flex;
-      align-items:center;
-      gap:8px;
-      color:var(--muted);
-      font-weight:700;
       font-size:12px;
-      letter-spacing:0.02em;
-    }
-    .kicker .dot{
-      width:8px;height:8px;border-radius:999px;background:var(--primary);
-      opacity:.9;
+      font-weight:700;
+      color:var(--muted);
+      margin-bottom:12px;
     }
 
     h1{
-      margin:10px 0 10px;
-      font-size:34px;
-      line-height:1.08;
+      font-size:42px;
+      line-height:1.1;
       letter-spacing:-0.02em;
-    }
-    @media (min-width: 920px){
-      h1{ font-size:44px; }
+      margin:0 0 14px;
+      max-width:18ch;
     }
 
     .subhead{
-      color:var(--muted);
       font-size:15px;
-      line-height:1.55;
-      margin:0 0 14px;
-      max-width:58ch;
+      line-height:1.6;
+      color:var(--muted);
+      margin-bottom:14px;
     }
 
     .micro{
+      font-size:13px;
       color:var(--muted);
-      font-size:12.5px;
-      line-height:1.45;
       margin:0;
     }
+
+    .section{ margin-top:22px; }
 
     .card{
       background:var(--card);
@@ -140,71 +79,76 @@
       border-radius:var(--r);
       padding:var(--pad);
     }
-    .stack{ display:grid; gap:12px; }
 
-    /* Founder card */
-    .founder{ border-color:rgba(37,99,235,.25); }
-    .badge{
-      display:inline-flex;
-      align-items:center;
+    .lead{
+      font-size:14px;
+      line-height:1.6;
+      margin-bottom:10px;
+    }
+
+    .list{
+      list-style:none;
+      padding:0;
+      margin:0;
+      display:grid;
       gap:8px;
-      font-weight:800;
+      font-size:13px;
+      color:var(--muted);
+    }
+
+    .list li{
+      display:flex;
+      gap:8px;
+      align-items:flex-start;
+    }
+
+    .mark{
+      width:18px;
+      height:18px;
+      border-radius:50%;
+      background:#EFF6FF;
+      color:var(--primary);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-weight:700;
       font-size:12px;
+    }
+
+    .mock{
+      margin-top:18px;
+    }
+
+    .mock-img{
+      width:100%;
+      border:1px solid var(--border);
+      border-radius:var(--r);
+      aspect-ratio:16/9;
+      object-fit:cover;
+    }
+
+    .badge{
+      display:inline-block;
+      font-size:12px;
+      font-weight:800;
       color:var(--primary);
       background:#EFF6FF;
       border:1px solid rgba(37,99,235,.25);
       padding:6px 10px;
       border-radius:999px;
-      white-space:nowrap;
-      width:fit-content;
-    }
-    .badge .mono{ font-family:"Roboto Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
-
-    .split{
-      display:flex;
-      flex-wrap:wrap;
-      gap:10px 14px;
-      align-items:center;
-      justify-content:space-between;
-      margin-top:10px;
+      margin-bottom:10px;
     }
 
-    .launch{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      align-items:baseline;
-    }
-    .launch .label{
-      font-weight:800;
-      font-size:12px;
-      color:var(--muted);
-      letter-spacing:0.02em;
-      text-transform:uppercase;
-    }
-    .launch .date{
-      font-weight:900;
-      font-size:14px;
-      color:var(--text);
-    }
-
-    .price-row{
-      display:flex;
-      flex-wrap:wrap;
-      gap:10px 14px;
-      align-items:baseline;
-      margin:10px 0 6px;
-    }
     .price{
-      font-size:28px;
+      font-size:32px;
       font-weight:900;
-      letter-spacing:-0.02em;
+      margin:8px 0 4px;
     }
-    .per{ color:var(--muted); font-weight:700; font-size:13px; }
+
     .strike{
-      color:var(--muted);
       text-decoration:line-through;
-      font-weight:700;
+      color:var(--muted);
+      font-weight:600;
       font-size:13px;
     }
 
@@ -214,397 +158,126 @@
       margin-top:12px;
       flex-wrap:wrap;
     }
-    .input{
+
+    input{
       flex:1;
-      min-width:220px;
-      border:1px solid var(--border);
+      padding:10px;
       border-radius:var(--r);
-      padding:10px 10px;
-      outline:none;
-      background:#fff;
-      color:var(--text);
+      border:1px solid var(--border);
+      font-size:14px;
     }
-    .input::placeholder{ color:var(--muted); }
-    .btn{
-      border:1px solid var(--primary);
+
+    button{
       background:var(--primary);
+      border:none;
       color:#fff;
+      padding:10px 14px;
+      font-weight:800;
       border-radius:var(--r);
-      padding:10px 12px;
-      font-weight:900;
       cursor:pointer;
-      white-space:nowrap;
-    }
-    .btn:hover{ filter:brightness(.98); }
-    .btn:disabled{ opacity:.6; cursor:not-allowed; }
-
-    .fineprint{
-      margin-top:10px;
-      color:var(--muted);
-      font-size:11.5px;
-      line-height:1.45;
-    }
-
-    /* Preview */
-    .mock{
-      padding:0;
-      overflow:hidden;
-    }
-    .mock .frame{
-      border-top:1px solid var(--border);
-      background:#fff;
-      padding:12px;
-    }
-    .mock-img{
-      width:100%;
-      display:block;
-      border:1px solid var(--border);
-      border-radius:var(--r);
-      background:#fff;
-      aspect-ratio: 16 / 10;
-      object-fit:cover;
-    }
-    .mock-label{
-      display:flex;
-      justify-content:space-between;
-      gap:10px;
-      color:var(--muted);
-      font-size:12px;
-      margin:0;
-      padding:12px 16px;
-    }
-
-    /* Sections */
-    .section{ margin-top:22px; }
-    .section h2{
-      margin:0 0 10px;
-      font-size:16px;
-      letter-spacing:-0.01em;
-    }
-
-    .grid2{
-      display:grid;
-      gap:12px;
-      grid-template-columns:1fr;
-    }
-    @media (min-width: 760px){
-      .grid2{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    }
-
-    .lead{
-      color:var(--text);
-      font-size:13px;
-      line-height:1.6;
-      margin:0;
-    }
-    .lead strong{ font-weight:900; }
-
-    .list{
-      margin:10px 0 0;
-      padding:0;
-      list-style:none;
-      display:grid;
-      gap:8px;
-      color:var(--muted);
-      font-size:12.5px;
-      line-height:1.45;
-    }
-    .list li{
-      display:flex;
-      gap:10px;
-      align-items:flex-start;
-    }
-    .mark{
-      width:18px;height:18px;border-radius:999px;
-      border:1px solid rgba(37,99,235,.25);
-      background:#EFF6FF;
-      display:flex;align-items:center;justify-content:center;
-      flex:0 0 auto;
-      color:var(--primary);
-      font-weight:900;
-      font-size:12px;
-      margin-top:1px;
-    }
-
-    details{
-      border:1px solid var(--border);
-      border-radius:var(--r);
-      background:#fff;
-      padding:12px 12px;
-    }
-    details + details{ margin-top:10px; }
-    summary{
-      cursor:pointer;
-      font-weight:900;
-      font-size:13px;
-      color:var(--text);
-      list-style:none;
-    }
-    summary::-webkit-details-marker{ display:none; }
-    details p{
-      margin:8px 0 0;
-      color:var(--muted);
-      font-size:12.5px;
-      line-height:1.55;
     }
 
     footer{
-      padding:18px 0 26px;
-      border-top:1px solid var(--border);
-      color:var(--muted);
+      margin-top:40px;
       font-size:12px;
+      color:var(--muted);
+      border-top:1px solid var(--border);
+      padding-top:14px;
     }
-    .footer-inner{
-      display:flex;
-      flex-wrap:wrap;
-      gap:10px 16px;
-      justify-content:space-between;
-      align-items:center;
-    }
-    .footer-links{
-      display:flex; gap:12px; flex-wrap:wrap;
-    }
-    .footer-links a{ color:var(--muted); font-weight:700; }
-    .footer-links a:hover{ color:var(--text); }
-    .note{
-      margin-top:10px;
-      font-size:11.5px;
-      line-height:1.45;
-    }
-
-    .toast{
-      position:fixed;
-      left:50%;
-      transform:translateX(-50%);
-      bottom:18px;
-      background:#fff;
-      border:1px solid var(--border);
-      border-radius:var(--r);
-      padding:10px 12px;
-      z-index:60;
-      display:none;
-      width:min(560px, calc(100% - 24px));
-      font-size:13px;
-      color:var(--text);
-    }
-    .toast.show{ display:block; }
-    .toast .muted{ color:var(--muted); font-weight:700; font-size:12px; margin-top:4px; }
   </style>
 </head>
 
 <body>
-  <header class="topbar">
-    <div class="container topbar-inner">
-      <div class="logo">smallcaps<span class="brand-accent">.ai</span></div>
-      <div class="top-actions">
-        <a href="#problem">Why now</a>
-        <a href="#founders">Founders</a>
-        <a href="#faq">FAQ</a>
-      </div>
-    </div>
-  </header>
+  <div class="container">
 
-  <main class="container">
-    <section class="hero" aria-label="Hero">
-      <!-- Left -->
-      <div class="stack">
-        <div class="kicker"><span class="dot"></span> UK Small cap intelligence</div>
+    <div class="logo">smallcaps<span class="brand-accent">.ai</span></div>
 
-        <h1>UK small caps move fast.<br/>Most investors find out late.</h1>
+    <!-- HERO -->
+    <div class="kicker">UK Small cap intelligence</div>
 
-        <p class="subhead">
-          We’re building a <strong>signal-first</strong> intelligence layer for UK small-cap investors.
-          Less noise. Faster decisions. A repeatable edge.
+    <h1>UK small caps move fast.<br/>Most investors find out late.</h1>
+
+    <p class="subhead">
+      We’re building a <strong>signal-first</strong> intelligence layer for UK small-cap investors.
+      Less noise. Faster decisions. A repeatable edge.
+    </p>
+
+    <p class="micro">
+      Launching <strong>April 1st, 2026</strong>. Early access is limited.
+    </p>
+
+    <!-- PROBLEM -->
+    <div class="section">
+      <div class="card">
+        <h3>The problem with UK small-cap news today</h3>
+
+        <p class="lead">
+          UK small-cap investing is still <strong>manual</strong>. Most tools show you everything — very few help you prioritise what matters.
         </p>
 
+        <ul class="list">
+          <li><span class="mark">✓</span><span>Scan long RNS releases in full, under time pressure.</span></li>
+          <li><span class="mark">✓</span><span>Rely on social feeds for interpretation (often late or biased).</span></li>
+          <li><span class="mark">✓</span><span>React to price moves instead of information.</span></li>
+          <li><span class="mark">✓</span><span>Miss the signal because it’s buried in noise.</span></li>
+        </ul>
+
+        <p class="micro" style="margin-top:10px;">
+          The result: you’re late, overwhelmed, or guessing.
+        </p>
+      </div>
+    </div>
+
+    <!-- PREVIEW -->
+    <div class="section">
+      <div class="card mock">
+        <img class="mock-img" src="mock-dashboard.png" alt="smallcaps.ai dashboard preview">
+        <p class="micro" style="margin-top:10px;">
+          We’re keeping details intentionally light pre-launch. Founders get first access.
+        </p>
+      </div>
+    </div>
+
+    <!-- FOUNDERS -->
+    <div class="section">
+      <div class="card">
+        <div class="badge">FOUNDERS • first 100 Pro members</div>
+
+        <p class="micro"><strong>Launch</strong> April 1st 2026 &nbsp; | &nbsp; <strong>Spots</strong> 100</p>
+
+        <div class="price">£19.99 <span style="font-size:14px;font-weight:600;color:var(--muted)">/ month (Pro)</span></div>
+        <div class="strike">£29.99 / month after founders</div>
+
+        <p class="micro" style="margin-top:8px;">
+          Join the founders list to secure first access + founders pricing when doors open.
+          We’ll share only key milestones until launch.
+        </p>
+
+        <form>
+          <input type="email" placeholder="you@domain.com" required>
+          <button type="submit">Get founders access</button>
+        </form>
+
+        <p class="micro" style="margin-top:8px;">
+          No spam. Unsubscribe anytime. Not investment advice.
+        </p>
+      </div>
+    </div>
+
+    <!-- WHO IT'S FOR -->
+    <div class="section">
+      <div class="card">
+        <h3>Who it’s for</h3>
         <p class="micro">
-          Launching <strong>April 1st, 2026</strong>. Early access is limited.
+          Active UK small-cap investors who want <strong>speed</strong>, <strong>clarity</strong>, and a repeatable process — not hype, tips, or noise.
         </p>
-
-        <!-- PROBLEM SECTION (what exists today + why it fails) -->
-        <div id="problem" class="card">
-          <h2 style="margin:0 0 8px;font-size:16px;letter-spacing:-0.01em;">The problem with UK small-cap news today</h2>
-          <p class="lead">
-            UK small-cap investing is still <strong>manual</strong>.
-            Most tools show you everything — very few help you prioritise what matters.
-          </p>
-
-          <ul class="list">
-            <li><span class="mark">✓</span><span>Scan long RNS releases in full, under time pressure.</span></li>
-            <li><span class="mark">✓</span><span>Rely on social feeds for interpretation (often late or biased).</span></li>
-            <li><span class="mark">✓</span><span>React to price moves instead of information.</span></li>
-            <li><span class="mark">✓</span><span>Miss the signal because it’s buried in noise.</span></li>
-          </ul>
-
-          <p class="micro" style="margin-top:10px;">
-            The result: you’re late, overwhelmed, or guessing.
-          </p>
-        </div>
-
-        <!-- FOUNDERS -->
-        <div id="founders" class="card founder">
-          <div class="badge"><span class="mono">FOUNDERS</span> • first 100 Pro members</div>
-
-          <div class="split">
-            <div class="launch">
-              <span class="label">Launch</span>
-              <span class="date">April 1st 2026</span>
-            </div>
-            <div class="launch">
-              <span class="label">Spots</span>
-              <span class="date">100</span>
-            </div>
-          </div>
-
-          <div class="price-row">
-            <div class="price">£14.99</div>
-            <div class="per">/ month (Pro)</div>
-            <div class="strike">£24.99 / month after founders</div>
-          </div>
-
-          <p class="micro" style="margin-top:6px;">
-            Join the founders list to secure first access + founders pricing when doors open.
-            We’ll share only key milestones until launch.
-          </p>
-
-          <form id="waitlistForm" method="post" action="#" novalidate>
-            <input class="input" id="email" name="email" type="email" placeholder="you@domain.com" autocomplete="email" required />
-            <button class="btn" id="submitBtn" type="submit">Get founders access</button>
-          </form>
-
-          <div class="fineprint">
-            No spam. Unsubscribe anytime. Not investment advice.
-          </div>
-        </div>
-
-        <div class="card">
-          <h2 style="margin:0 0 8px;font-size:16px;letter-spacing:-0.01em;">Who it’s for</h2>
-          <p class="micro" style="margin:0;">
-            Active UK small-cap investors who want <strong>speed</strong>, <strong>clarity</strong>, and a repeatable process — not hype, tips, or noise.
-          </p>
-        </div>
-      </div>
-
-      <!-- Right: mockups -->
-      <div class="card mock" aria-label="Preview">
-        <p class="mock-label">
-          <span><strong>Preview</strong></span>
-          <span>Minimal • fast • signal-first</span>
-        </p>
-        <div class="frame">
-          <!-- Replace these with your real images in repo -->
-          <img class="mock-img" src="mock-dashboard.png" alt="smallcaps.ai dashboard mockup (replace image)" />
-          <div style="height:10px"></div>
-          <img class="mock-img" src="mock-card-detail.png" alt="smallcaps.ai card mockup (replace image)" />
-          <p class="micro" style="margin:12px 2px 0;">
-            We’re keeping details intentionally light pre-launch. Founders get first access.
-          </p>
-        </div>
-      </div>
-    </section>
-
-    <section id="faq" class="section" aria-label="FAQ">
-      <h2>FAQ</h2>
-
-      <details>
-        <summary>What am I signing up for?</summary>
-        <p>You’re joining the founders list for launch access and the opportunity to subscribe at founders pricing when doors open.</p>
-      </details>
-
-      <details>
-        <summary>When do you launch?</summary>
-        <p><strong>April 1st, 2026</strong>. We’ll email the founders list first when access opens.</p>
-      </details>
-
-      <details>
-        <summary>How does founders pricing work?</summary>
-        <p>Founders Pro is <strong>£14.99/month</strong> for the first 100 Pro members. After founders fill, Pro will be <strong>£24.99/month</strong> for new members.</p>
-      </details>
-
-      <details>
-        <summary>Is this investment advice?</summary>
-        <p>No. smallcaps.ai is an analysis tool. Nothing on the platform is investment advice.</p>
-      </details>
-    </section>
-  </main>
-
-  <footer>
-    <div class="container">
-      <div class="footer-inner">
-        <div class="logo">smallcaps<span class="brand-accent">.ai</span></div>
-        <div class="footer-links">
-          <a href="#problem">Why now</a>
-          <a href="#founders">Founders</a>
-          <a href="#faq">FAQ</a>
-        </div>
-      </div>
-      <div class="note">
-        © <span id="y"></span> smallcaps.ai • UK Small cap intelligence. Not investment advice.
       </div>
     </div>
-  </footer>
 
-  <div class="toast" id="toast" role="status" aria-live="polite">
-    <div id="toastTitle" style="font-weight:900;">You’re on the list.</div>
-    <div class="muted" id="toastSub">We’ll email you when founders access opens.</div>
+    <footer>
+      © 2026 smallcaps.ai — UK Small cap intelligence. Not investment advice.
+    </footer>
+
   </div>
-
-  <script>
-    // Demo capture only (localStorage). Replace with a real endpoint when ready.
-    const form = document.getElementById("waitlistForm");
-    const emailEl = document.getElementById("email");
-    const btn = document.getElementById("submitBtn");
-    const toast = document.getElementById("toast");
-    document.getElementById("y").textContent = String(new Date().getFullYear());
-
-    function showToast(title, sub){
-      document.getElementById("toastTitle").textContent = title;
-      document.getElementById("toastSub").textContent = sub;
-      toast.classList.add("show");
-      setTimeout(() => toast.classList.remove("show"), 3600);
-    }
-
-    function isValidEmail(v){
-      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v || "").trim());
-    }
-
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const email = String(emailEl.value || "").trim().toLowerCase();
-
-      if (!isValidEmail(email)){
-        showToast("Check your email", "Please enter a valid email address.");
-        emailEl.focus();
-        return;
-      }
-
-      btn.disabled = true;
-      btn.textContent = "Saving…";
-
-      try{
-        const key = "sc_waitlist";
-        const current = JSON.parse(localStorage.getItem(key) || "[]");
-        if (!current.includes(email)) current.push(email);
-        localStorage.setItem(key, JSON.stringify(current));
-
-        // Hook here when ready:
-        // await fetch("https://YOUR-ENDPOINT", {
-        //   method: "POST",
-        //   headers: { "Content-Type": "application/json" },
-        //   body: JSON.stringify({ email, source: "landing" })
-        // });
-
-        showToast("You’re on the founders list.", "We’ll email you when founders access opens.");
-        form.reset();
-      } catch(err){
-        console.error(err);
-        showToast("Something went wrong", "Please try again in a moment.");
-      } finally {
-        btn.disabled = false;
-        btn.textContent = "Get founders access";
-      }
-    });
-  </script>
 </body>
 </html>
-```
