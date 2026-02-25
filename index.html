@@ -189,6 +189,48 @@ footer{
   font-size:13px;
   color:var(--muted);
 }
+
+/* ---- Mobile CTA form cleanup ---- */
+.cta-form{
+  align-items:stretch;
+}
+
+.cta-form input{
+  min-width:0;              /* allow shrinking on small screens */
+  flex:1 1 260px;           /* grow/shrink nicely */
+  height:44px;              /* consistent control height */
+  font-size:16px;           /* prevents iOS zoom on focus */
+  line-height:1.2;
+  -webkit-appearance:none;  /* reduces Safari quirks */
+  appearance:none;
+}
+
+.cta-form button{
+  height:44px;              /* match input height */
+  flex:0 0 auto;
+}
+
+/* Stack input + button neatly on narrow screens */
+@media (max-width:520px){
+  .cta-form{
+    flex-direction:column;
+    gap:10px;
+  }
+  .cta-form input,
+  .cta-form button{
+    width:100%;
+  }
+}
+
+/* Reduce ugly browser validation styling */
+.cta-form input:invalid{
+  box-shadow:none;
+}
+.cta-form input:focus{
+  outline:none;
+  border-color:rgba(37,99,235,.6);
+  box-shadow:0 0 0 3px rgba(37,99,235,.12);
+}
 </style>
 </head>
 
