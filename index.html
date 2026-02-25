@@ -6,9 +6,15 @@
   <title>smallcaps.ai — UK Small cap intelligence</title>
   <meta name="description" content="UK Small cap intelligence. Launching April 1st 2026. Join the founders list for early access + founders pricing (first 100)." />
 
+  <!-- Open Graph -->
+  <meta property="og:title" content="smallcaps.ai — UK Small cap intelligence" />
+  <meta property="og:description" content="Launching April 1st 2026. Join the founders list. First 100 get founders pricing." />
+  <meta property="og:type" content="website" />
+
+  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Roboto+Mono:wght@500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@500;600&display=swap" rel="stylesheet">
 
   <style>
     :root{
@@ -19,59 +25,114 @@
       --text:#111827;
       --muted:#6B7280;
       --r:4px;
-      --maxw:860px;
-      --pad:16px;
+      --topbar-h:56px;
+      --maxw:1120px;
+      --pad:18px;
+      --section:32px;
     }
 
     *{box-sizing:border-box}
+    html,body{height:100%}
     body{
       margin:0;
-      font-family:Inter, system-ui, sans-serif;
+      font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
       background:var(--bg);
       color:var(--text);
     }
+    a{color:inherit; text-decoration:none}
+    button, input{font:inherit}
 
     .container{
       max-width:var(--maxw);
       margin:0 auto;
-      padding:28px 18px 60px;
+      padding:0 16px;
     }
 
+    /* Topbar */
+    .topbar{
+      position:sticky;
+      top:0;
+      z-index:50;
+      height:var(--topbar-h);
+      background:#fff;
+      border-bottom:1px solid var(--border);
+    }
+    .topbar-inner{
+      height:100%;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+    }
     .logo{
       font-weight:700;
-      margin-bottom:24px;
+      letter-spacing:-0.01em;
+      white-space:nowrap;
     }
-    .brand-accent{ color:var(--primary); }
+    .brand-accent{ color:var(--primary); font-weight:700; }
+
+    .top-actions{
+      display:flex;
+      gap:8px;
+      align-items:center;
+      color:var(--muted);
+      font-weight:600;
+      font-size:13px;
+      white-space:nowrap;
+      opacity:.78;
+    }
+    .top-actions a{ padding:6px 8px; border-radius:var(--r); }
+    .top-actions a:hover{ background:#F3F4F6; color:var(--text); opacity:1; }
+
+    main{ padding:26px 0 44px; }
+
+    /* Hero */
+    .hero{
+      display:grid;
+      grid-template-columns:1fr;
+      gap:16px;
+      margin-top:10px;
+      max-width:1040px;
+    }
 
     .kicker{
-      font-size:12px;
-      font-weight:700;
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
       color:var(--muted);
-      margin-bottom:12px;
+      font-weight:700;
+      font-size:12px;
+      letter-spacing:0.02em;
+    }
+    .kicker .dot{
+      width:8px;height:8px;border-radius:999px;background:var(--primary);
+      opacity:.9;
     }
 
     h1{
-      font-size:42px;
-      line-height:1.1;
-      letter-spacing:-0.02em;
-      margin:0 0 14px;
-      max-width:18ch;
+      margin:10px 0 10px;
+      font-size:38px;
+      line-height:1.08;
+      letter-spacing:-0.015em;
+    }
+    @media (min-width: 920px){
+      h1{ font-size:46px; }
     }
 
     .subhead{
-      font-size:15px;
-      line-height:1.6;
       color:var(--muted);
-      margin-bottom:14px;
+      font-size:15px;
+      line-height:1.55;
+      margin:0;
+      max-width:70ch;
     }
 
     .micro{
-      font-size:13px;
       color:var(--muted);
+      font-size:12.5px;
+      line-height:1.45;
       margin:0;
     }
-
-    .section{ margin-top:22px; }
 
     .card{
       background:var(--card);
@@ -80,76 +141,162 @@
       padding:var(--pad);
     }
 
-    .lead{
-      font-size:14px;
-      line-height:1.6;
-      margin-bottom:10px;
+    .stack{ display:grid; gap:12px; }
+
+    /* Unified card title */
+    .card-title{
+      margin:0 0 8px;
+      font-size:15px;
+      letter-spacing:-0.01em;
+      font-weight:800;
     }
+
+    /* High impact strip: problem */
+    .problem-card{
+      padding:18px 18px 18px 20px;
+      background:#FFFFFF;
+      border:1px solid var(--border);
+      border-left:4px solid var(--primary);
+      border-radius:var(--r);
+    }
+    .result-line{
+      margin-top:10px;
+      font-size:12.5px;
+      line-height:1.45;
+      color:var(--text);
+      font-weight:600;
+    }
+    .problem-card + .solution-line{ margin-top:8px; }
+
+    .lead{
+      color:var(--text);
+      font-size:13px;
+      line-height:1.6;
+      margin:0;
+    }
+    .lead strong{ font-weight:900; }
 
     .list{
-      list-style:none;
+      margin:10px 0 0;
       padding:0;
-      margin:0;
+      list-style:none;
       display:grid;
       gap:8px;
-      font-size:13px;
       color:var(--muted);
+      font-size:12.5px;
+      line-height:1.45;
     }
-
     .list li{
       display:flex;
-      gap:8px;
+      gap:10px;
       align-items:flex-start;
     }
-
     .mark{
-      width:18px;
-      height:18px;
-      border-radius:50%;
+      width:18px;height:18px;border-radius:999px;
+      border:1px solid rgba(37,99,235,.25);
       background:#EFF6FF;
+      display:flex;align-items:center;justify-content:center;
+      flex:0 0 auto;
       color:var(--primary);
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      font-weight:700;
+      font-weight:900;
       font-size:12px;
+      margin-top:1px;
     }
 
-    .mock{
-      margin-top:18px;
-    }
-
-    .mock-img{
-      width:100%;
-      border:1px solid var(--border);
-      border-radius:var(--r);
-      aspect-ratio:16/9;
-      object-fit:cover;
-    }
-
+    /* Founder card */
+    .founder{ border-color:rgba(37,99,235,.25); }
     .badge{
-      display:inline-block;
-      font-size:12px;
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
       font-weight:800;
+      font-size:12px;
       color:var(--primary);
       background:#EFF6FF;
       border:1px solid rgba(37,99,235,.25);
       padding:6px 10px;
       border-radius:999px;
-      margin-bottom:10px;
+      white-space:nowrap;
+      width:fit-content;
+      margin-bottom:2px;
+    }
+    .badge .mono{ font-family:"Roboto Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+
+    .split{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px 14px;
+      align-items:center;
+      justify-content:space-between;
+      margin-top:10px;
     }
 
+    .launch{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:baseline;
+    }
+    .launch .label{
+      font-weight:800;
+      font-size:12px;
+      color:var(--muted);
+      letter-spacing:0.02em;
+      text-transform:uppercase;
+    }
+    .launch .date{
+      font-weight:900;
+      font-size:14px;
+      color:var(--text);
+    }
+
+    /* Scarcity bar */
+    .scarcity{
+      margin-top:10px;
+      display:grid;
+      gap:8px;
+    }
+    .scarcity-top{
+      display:flex;
+      justify-content:space-between;
+      align-items:baseline;
+      gap:10px;
+      flex-wrap:wrap;
+      color:var(--muted);
+      font-size:12px;
+      font-weight:700;
+    }
+    .scarcity-top strong{ color:var(--text); font-weight:900; }
+    .bar{
+      height:10px;
+      background:#F3F4F6;
+      border:1px solid var(--border);
+      border-radius:999px;
+      overflow:hidden;
+    }
+    .bar > span{ display:block; height:100%; background:var(--primary); }
+
+    .price-row{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px 14px;
+      align-items:baseline;
+      margin:12px 0 6px;
+      padding-top:10px;
+      border-top:1px solid rgba(229,231,235,.9);
+    }
     .price{
       font-size:32px;
       font-weight:900;
-      margin:8px 0 4px;
+      letter-spacing:-0.02em;
     }
-
+    .per{ color:var(--muted); font-weight:700; font-size:13px; opacity:.9; }
     .strike{
-      text-decoration:line-through;
       color:var(--muted);
-      font-weight:600;
+      text-decoration:line-through;
+      font-weight:700;
       font-size:13px;
+      opacity:.85;
     }
 
     form{
@@ -158,126 +305,599 @@
       margin-top:12px;
       flex-wrap:wrap;
     }
-
-    input{
+    .input{
       flex:1;
-      padding:10px;
-      border-radius:var(--r);
+      min-width:240px;
       border:1px solid var(--border);
-      font-size:14px;
+      border-radius:var(--r);
+      padding:11px 10px;
+      outline:none;
+      background:#fff;
+      color:var(--text);
+    }
+    .input::placeholder{ color:var(--muted); }
+    .btn{
+      border:1px solid var(--primary);
+      background:var(--primary);
+      color:#fff;
+      border-radius:var(--r);
+      padding:11px 14px;
+      font-weight:900;
+      cursor:pointer;
+      white-space:nowrap;
+    }
+    .btn:hover{ filter:brightness(.98); }
+    .btn:disabled{ opacity:.6; cursor:not-allowed; }
+
+    .fineprint{
+      margin-top:10px;
+      color:var(--muted);
+      font-size:11.5px;
+      line-height:1.45;
     }
 
-    button{
-      background:var(--primary);
-      border:none;
-      color:#fff;
-      padding:10px 14px;
-      font-weight:800;
+    .perday{
+      margin-top:6px;
+      color:var(--muted);
+      font-size:12.5px;
+      font-weight:700;
+    }
+
+    /* Preview */
+    .mock{
+      padding:0;
+      overflow:hidden;
+    }
+    .mock .frame{
+      border-top:1px solid var(--border);
+      background:#fff;
+      padding:12px;
+    }
+    .mock-img{
+      width:100%;
+      display:block;
+      border:1px solid var(--border);
       border-radius:var(--r);
+      background:#fff;
+      aspect-ratio: 16 / 9;
+      object-fit:cover;
+    }
+    .mock-label{
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      color:var(--muted);
+      font-size:12px;
+      margin:0;
+      padding:12px 16px;
+    }
+
+    /* Credibility line */
+    .cred-line{
+      margin-top:10px;
+      color:var(--muted);
+      font-size:12.5px;
+      font-weight:700;
+    }
+
+    /* Founder note */
+    .founder-note{
+      margin-top:20px;
+      padding:18px;
+      border:1px solid var(--border);
+      border-radius:var(--r);
+      background:#FFFFFF;
+    }
+    .founder-title{
+      font-size:13px;
+      font-weight:800;
+      margin-bottom:8px;
+      letter-spacing:0.02em;
+      text-transform:uppercase;
+      color:var(--muted);
+    }
+    .founder-note p{
+      margin:0;
+      font-size:13px;
+      line-height:1.6;
+      color:var(--text);
+    }
+    .founder-note a{
+      color:var(--text);
+      text-decoration:underline;
+      text-underline-offset:2px;
+    }
+    .founder-note a:hover{ color:var(--primary); }
+
+    /* Sections */
+    .section{ margin-top:var(--section); max-width:1040px; }
+    .section h2{
+      margin:0 0 10px;
+      font-size:16px;
+      letter-spacing:-0.01em;
+    }
+
+    details{
+      border:1px solid var(--border);
+      border-radius:var(--r);
+      background:#fff;
+      padding:12px 12px;
+    }
+    details + details{ margin-top:10px; }
+    summary{
       cursor:pointer;
+      font-weight:900;
+      font-size:13px;
+      color:var(--text);
+      list-style:none;
+    }
+    summary::-webkit-details-marker{ display:none; }
+    details p{
+      margin:8px 0 0;
+      color:var(--muted);
+      font-size:12.5px;
+      line-height:1.55;
     }
 
     footer{
-      margin-top:40px;
-      font-size:12px;
-      color:var(--muted);
+      padding:18px 0 26px;
       border-top:1px solid var(--border);
-      padding-top:14px;
+      color:var(--muted);
+      font-size:12px;
+      margin-top:var(--section);
     }
+    .footer-inner{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px 16px;
+      justify-content:space-between;
+      align-items:center;
+    }
+    .footer-links{
+      display:flex; gap:12px; flex-wrap:wrap;
+    }
+    .footer-links a{ color:var(--muted); font-weight:700; }
+    .footer-links a:hover{ color:var(--text); }
+    .note{
+      margin-top:10px;
+      font-size:11.5px;
+      line-height:1.45;
+    }
+
+    .toast{
+      position:fixed;
+      left:50%;
+      transform:translateX(-50%);
+      bottom:18px;
+      background:#fff;
+      border:1px solid var(--border);
+      border-radius:var(--r);
+      padding:10px 12px;
+      z-index:60;
+      display:none;
+      width:min(560px, calc(100% - 24px));
+      font-size:13px;
+      color:var(--text);
+    }
+    .toast.show{ display:block; }
+    .toast .muted{ color:var(--muted); font-weight:700; font-size:12px; margin-top:4px; }
   </style>
 </head>
 
 <body>
-  <div class="container">
+  <header class="topbar">
+    <div class="container topbar-inner">
+      <div class="logo">smallcaps<span class="brand-accent">.ai</span></div>
+      <div class="top-actions">
+        <a href="#problem">Why now</a>
+        <a href="#founders">Founders</a>
+        <a href="#faq">FAQ</a>
+      </div>
+    </div>
+  </header>
 
-    <div class="logo">smallcaps<span class="brand-accent">.ai</span></div>
-
+  <main class="container">
     <!-- HERO -->
-    <div class="kicker">UK Small cap intelligence</div>
+    <section class="hero" aria-label="Hero">
+      <div class="stack">
+        <div class="kicker"><span class="dot"></span> UK Small cap intelligence</div>
 
-    <h1>UK small caps move fast.<br/>Most investors find out late.</h1>
+        <h1>UK small caps move fast. Most investors find out late.</h1>
 
-    <p class="subhead">
-      We’re building a <strong>signal-first</strong> intelligence layer for UK small-cap investors.
-      Less noise. Faster decisions. A repeatable edge.
-    </p>
+        <!-- PROBLEM (high impact strip) -->
+        <div id="problem" class="problem-card" aria-label="Problem">
+          <h2 class="card-title">The problem with UK small-cap news today</h2>
 
-    <p class="micro">
-      Launching <strong>April 1st, 2026</strong>. Early access is limited.
-    </p>
+          <p class="lead">
+            UK small-cap investing is still <strong>manual</strong>.
+            Most tools show you everything. Very few tell you what actually matters.
+          </p>
 
-    <!-- PROBLEM -->
-    <div class="section">
-      <div class="card">
-        <h3>The problem with UK small-cap news today</h3>
+          <ul class="list">
+            <li><span class="mark">✓</span><span>Scan long RNS releases in full, under time pressure.</span></li>
+            <li><span class="mark">✓</span><span>Rely on social feeds for interpretation (often late or biased).</span></li>
+            <li><span class="mark">✓</span><span>React to price moves instead of information.</span></li>
+            <li><span class="mark">✓</span><span>Miss the signal because it’s buried in noise.</span></li>
+          </ul>
 
-        <p class="lead">
-          UK small-cap investing is still <strong>manual</strong>. Most tools show you everything — very few help you prioritise what matters.
+          <p class="result-line">
+            The result: you’re <strong>reacting to price</strong> — not to signal.
+          </p>
+        </div>
+
+        <!-- SOLUTION -->
+        <p class="subhead solution-line">
+          We’re building a <strong>signal-first</strong> intelligence layer for UK small-cap investors.
+          Less noise. Faster decisions. A repeatable edge.
         </p>
 
-        <ul class="list">
-          <li><span class="mark">✓</span><span>Scan long RNS releases in full, under time pressure.</span></li>
-          <li><span class="mark">✓</span><span>Rely on social feeds for interpretation (often late or biased).</span></li>
-          <li><span class="mark">✓</span><span>React to price moves instead of information.</span></li>
-          <li><span class="mark">✓</span><span>Miss the signal because it’s buried in noise.</span></li>
-        </ul>
-
-        <p class="micro" style="margin-top:10px;">
-          The result: you’re late, overwhelmed, or guessing.
+        <p class="micro">
+          Launching <strong>April 1st, 2026</strong>. Early access is limited.
         </p>
+
+        <!-- FOUNDERS -->
+        <div id="founders" class="card founder">
+          <div class="badge"><span class="mono">FOUNDERS</span> • first 100 Pro members</div>
+
+          <div class="split">
+            <div class="launch">
+              <span class="label">Launch</span>
+              <span class="date">April 1st 2026</span>
+            </div>
+            <div class="launch">
+              <span class="label">Spots</span>
+              <span class="date">100</span>
+            </div>
+          </div>
+
+          <!-- Scarcity -->
+          <div class="scarcity" aria-label="Founders spots remaining">
+            <div class="scarcity-top">
+              <span><strong id="spotsRemainingA">87</strong> of 100 remaining</span>
+              <span><span id="spotsPercentA">87</span>% available</span>
+            </div>
+            <div class="bar" role="progressbar" aria-valuenow="87" aria-valuemin="0" aria-valuemax="100">
+              <span id="spotsBarA" style="width:87%"></span>
+            </div>
+          </div>
+
+          <div class="price-row">
+            <div class="price">£24.99</div>
+            <div class="per">/ month (Founders — locked pricing)</div>
+            <div class="strike">£34.99 / month (Pro)</div>
+          </div>
+
+          <div class="perday">≈ £0.82 per day</div>
+
+          <p class="micro" style="margin-top:8px;">
+            Join the founders list to secure first access + founders pricing when doors open.
+            We’ll share only key milestones until launch.
+          </p>
+
+          <form id="waitlistForm" method="post" action="#" novalidate>
+            <input class="input" id="email" name="email" type="email" placeholder="Enter your email" autocomplete="email" required />
+            <button class="btn" id="submitBtn" type="submit">Get founders access →</button>
+          </form>
+
+          <div class="fineprint">
+            No spam. Unsubscribe anytime. Not investment advice.
+          </div>
+        </div>
+
+        <!-- Preview -->
+        <div class="card mock" aria-label="Preview">
+          <p class="mock-label">
+            <span><strong>Preview</strong></span>
+            <span>Minimal • fast • signal-first</span>
+          </p>
+          <div class="frame">
+            <img class="mock-img" src="mock-dashboard.png" alt="smallcaps.ai dashboard mockup (replace image)" />
+            <p class="micro" style="margin:12px 2px 0;">
+              We’re keeping details intentionally light pre-launch. Founders get first access.
+            </p>
+            <div class="cred-line">Built for active UK small-cap investors.</div>
+
+            <!-- Founder note -->
+            <div class="founder-note" aria-label="Founder note">
+              <div class="founder-title">Founder’s note</div>
+              <p>
+                I run the UK small-cap blog
+                <a href="https://www.smallcapsbigbags.com" target="_blank" rel="noopener">smallcapsbigbags</a>
+                and have spent years analysing RNS announcements and newsflow.
+                In small caps, announcements can drive asymmetric outcomes — upside and downside.
+                Social commentary is often biased or reactive.
+                Identifying signal early — and responding before the wider market fully prices it — is critical.
+              </p>
+            </div>
+          </div>
+        </div>
+
       </div>
-    </div>
+    </section>
 
-    <!-- PREVIEW -->
-    <div class="section">
-      <div class="card mock">
-        <img class="mock-img" src="mock-dashboard.png" alt="smallcaps.ai dashboard preview">
-        <p class="micro" style="margin-top:10px;">
-          We’re keeping details intentionally light pre-launch. Founders get first access.
-        </p>
-      </div>
-    </div>
+    <!-- FAQ -->
+    <section id="faq" class="section" aria-label="FAQ">
+      <h2>FAQ</h2>
 
-    <!-- FOUNDERS -->
-    <div class="section">
-      <div class="card">
-        <div class="badge">FOUNDERS • first 100 Pro members</div>
+      <details>
+        <summary>What am I signing up for?</summary>
+        <p>You’re joining the founders list for early platform access and the opportunity to subscribe at founders pricing when doors open.</p>
+      </details>
 
-        <p class="micro"><strong>Launch</strong> April 1st 2026 &nbsp; | &nbsp; <strong>Spots</strong> 100</p>
+      <details>
+        <summary>When do you launch?</summary>
+        <p><strong>April 1st, 2026</strong>. Founders list members will receive access first.</p>
+      </details>
 
-        <div class="price">£19.99 <span style="font-size:14px;font-weight:600;color:var(--muted)">/ month (Pro)</span></div>
-        <div class="strike">£29.99 / month after founders</div>
+      <details>
+        <summary>When will I be charged?</summary>
+        <p>You won’t be charged when joining the founders list. Payment only begins if you choose to subscribe when access opens at launch.</p>
+      </details>
+
+      <details>
+        <summary>How does founders pricing work?</summary>
+        <p>Founders Pro is <strong>£24.99/month</strong> locked pricing for the first 100 Pro members. After founders spots fill, Pro will be <strong>£34.99/month</strong> for new members.</p>
+      </details>
+
+      <details>
+        <summary>Will founders pricing ever increase?</summary>
+        <p>No. Founders pricing is locked. There will be no inflation-based or future price increases for founders members.</p>
+      </details>
+
+      <details>
+        <summary>Can I cancel anytime?</summary>
+        <p>Yes. Subscriptions can be cancelled at any time.</p>
+      </details>
+
+      <details>
+        <summary>What market coverage will you provide?</summary>
+        <p>Initial focus will be UK small-cap companies, starting with AIM.</p>
+      </details>
+
+      <details>
+        <summary>Is this investment advice?</summary>
+        <p>No. smallcaps.ai is an analysis tool. Nothing on the platform is investment advice.</p>
+      </details>
+    </section>
+
+    <!-- FINAL CTA -->
+    <section class="section" aria-label="Final CTA">
+      <div class="card founder">
+        <div class="badge"><span class="mono">FOUNDERS</span> • first 100 Pro members</div>
+
+        <div class="scarcity" aria-label="Founders spots remaining">
+          <div class="scarcity-top">
+            <span><strong id="spotsRemainingB">87</strong> of 100 remaining</span>
+            <span><span id="spotsPercentB">87</span>% available</span>
+          </div>
+          <div class="bar" role="progressbar" aria-valuenow="87" aria-valuemin="0" aria-valuemax="100">
+            <span id="spotsBarB" style="width:87%"></span>
+          </div>
+        </div>
+
+        <div class="price-row" style="margin-top:12px;">
+          <div class="price">£24.99</div>
+          <div class="per">/ month (Founders — locked pricing)</div>
+          <div class="strike">£34.99 / month (Pro)</div>
+        </div>
+
+        <div class="perday">≈ £0.82 per day</div>
 
         <p class="micro" style="margin-top:8px;">
           Join the founders list to secure first access + founders pricing when doors open.
           We’ll share only key milestones until launch.
         </p>
 
-        <form>
-          <input type="email" placeholder="you@domain.com" required>
-          <button type="submit">Get founders access</button>
+        <form id="waitlistForm2" method="post" action="#" novalidate>
+          <input class="input" id="email2" name="email" type="email" placeholder="Enter your email" autocomplete="email" required />
+          <button class="btn" id="submitBtn2" type="submit">Get founders access →</button>
         </form>
 
-        <p class="micro" style="margin-top:8px;">
+        <div class="fineprint">
           No spam. Unsubscribe anytime. Not investment advice.
-        </p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="container">
+      <div class="footer-inner">
+        <div class="logo">smallcaps<span class="brand-accent">.ai</span></div>
+        <div class="footer-links">
+          <a href="#problem">Why now</a>
+          <a href="#founders">Founders</a>
+          <a href="#faq">FAQ</a>
+        </div>
+      </div>
+      <div class="note">
+        © <span id="y"></span> smallcaps.ai • UK Small cap intelligence. Not investment advice.
       </div>
     </div>
+  </footer>
 
-    <!-- WHO IT'S FOR -->
-    <div class="section">
-      <div class="card">
-        <h3>Who it’s for</h3>
-        <p class="micro">
-          Active UK small-cap investors who want <strong>speed</strong>, <strong>clarity</strong>, and a repeatable process — not hype, tips, or noise.
-        </p>
-      </div>
-    </div>
-
-    <footer>
-      © 2026 smallcaps.ai — UK Small cap intelligence. Not investment advice.
-    </footer>
-
+  <div class="toast" id="toast" role="status" aria-live="polite">
+    <div id="toastTitle" style="font-weight:900;">You’re on the list.</div>
+    <div class="muted" id="toastSub">We’ll email you when founders access opens.</div>
   </div>
+
+  <script>
+    // Year
+    document.getElementById("y").textContent = String(new Date().getFullYear());
+
+    // Toast
+    const toast = document.getElementById("toast");
+    function showToast(title, sub){
+      document.getElementById("toastTitle").textContent = title;
+      document.getElementById("toastSub").textContent = sub;
+      toast.classList.add("show");
+      setTimeout(() => toast.classList.remove("show"), 3600);
+    }
+    function isValidEmail(v){
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v || "").trim());
+    }
+
+    // Waitlist capture (localStorage demo)
+    const form = document.getElementById("waitlistForm");
+    const emailEl = document.getElementById("email");
+    const btn = document.getElementById("submitBtn");
+
+    const form2 = document.getElementById("waitlistForm2");
+    const emailEl2 = document.getElementById("email2");
+    const btn2 = document.getElementById("submitBtn2");
+
+    async function handleSubmit(emailRaw, button, input){
+      const email = String(emailRaw || "").trim().toLowerCase();
+      if (!isValidEmail(email)){
+        showToast("Check your email", "Please enter a valid email address.");
+        input.focus();
+        return;
+      }
+
+      button.disabled = true;
+      const old = button.textContent;
+      button.textContent = "Saving…";
+
+      try{
+        const key = "sc_waitlist";
+        const current = JSON.parse(localStorage.getItem(key) || "[]");
+        if (!current.includes(email)) current.push(email);
+        localStorage.setItem(key, JSON.stringify(current));
+
+        // Hook here when ready:
+        // await fetch("https://YOUR-ENDPOINT", {
+        //   method: "POST",
+        //   headers: { "Content-Type": "application/json" },
+        //   body: JSON.stringify({ email, source: "landing" })
+        // });
+
+        showToast("You’re on the founders list.", "We’ll email you when founders access opens.");
+        input.value = "";
+      } catch(err){
+        console.error(err);
+        showToast("Something went wrong", "Please try again in a moment.");
+      } finally {
+        button.disabled = false;
+        button.textContent = old;
+      }
+    }
+
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      handleSubmit(emailEl.value, btn, emailEl);
+    });
+
+    form2.addEventListener("submit", (e) => {
+      e.preventDefault();
+      handleSubmit(emailEl2.value, btn2, emailEl2);
+    });
+
+    // --- Scarcity: retroactive daily decrement (2–3/day), deterministic per day per user ---
+    (function(){
+      const TOTAL = 100;
+      const START_REMAINING = 87;
+
+      const KEY_REMAINING = "sc_spots_remaining";
+      const KEY_LASTDATE  = "sc_spots_lastdate";
+      const KEY_SEED      = "sc_spots_seed";
+
+      function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
+
+      function toUTCDateKey(d){
+        const y = d.getUTCFullYear();
+        const m = String(d.getUTCMonth()+1).padStart(2,"0");
+        const day = String(d.getUTCDate()).padStart(2,"0");
+        return `${y}-${m}-${day}`;
+      }
+      function parseUTCDateKey(key){
+        const [y,m,d] = key.split("-").map(Number);
+        return new Date(Date.UTC(y, (m-1), d));
+      }
+      function daysBetweenUTC(aKey, bKey){
+        const a = parseUTCDateKey(aKey);
+        const b = parseUTCDateKey(bKey);
+        const ms = b.getTime() - a.getTime();
+        return Math.max(0, Math.floor(ms / 86400000));
+      }
+      function readInt(key, fallback){
+        const v = Number(localStorage.getItem(key));
+        return Number.isFinite(v) ? v : fallback;
+      }
+      function writeInt(key, value){
+        localStorage.setItem(key, String(value));
+      }
+      function getSeed(){
+        let s = localStorage.getItem(KEY_SEED);
+        if (!s){
+          s = String(Math.floor(Math.random() * 0x7fffffff));
+          localStorage.setItem(KEY_SEED, s);
+        }
+        return Number(s) || 1;
+      }
+      function dailyDrop(dayKey, seed){
+        let h = 2166136261 ^ seed;
+        for (let i=0;i<dayKey.length;i++){
+          h ^= dayKey.charCodeAt(i);
+          h = Math.imul(h, 16777619);
+        }
+        return (h & 1) === 0 ? 2 : 3;
+      }
+
+      function applyUI(remaining){
+        remaining = clamp(remaining, 0, TOTAL);
+        const pct = clamp(Math.round((remaining / TOTAL) * 100), 0, 100);
+
+        const aRem = document.getElementById("spotsRemainingA");
+        const aPct = document.getElementById("spotsPercentA");
+        const aBar = document.getElementById("spotsBarA");
+
+        const bRem = document.getElementById("spotsRemainingB");
+        const bPct = document.getElementById("spotsPercentB");
+        const bBar = document.getElementById("spotsBarB");
+
+        if (aRem) aRem.textContent = String(remaining);
+        if (aPct) aPct.textContent = String(pct);
+        if (aBar) aBar.style.width = `${pct}%`;
+
+        if (bRem) bRem.textContent = String(remaining);
+        if (bPct) bPct.textContent = String(pct);
+        if (bBar) bBar.style.width = `${pct}%`;
+
+        if (aBar && aBar.parentElement) aBar.parentElement.setAttribute("aria-valuenow", String(pct));
+        if (bBar && bBar.parentElement) bBar.parentElement.setAttribute("aria-valuenow", String(pct));
+      }
+
+      const seed = getSeed();
+      let remaining = readInt(KEY_REMAINING, START_REMAINING);
+
+      const todayKey = toUTCDateKey(new Date());
+      let lastKey = localStorage.getItem(KEY_LASTDATE);
+
+      if (!lastKey){
+        localStorage.setItem(KEY_LASTDATE, todayKey);
+        writeInt(KEY_REMAINING, remaining);
+        applyUI(remaining);
+        return;
+      }
+
+      if (lastKey === todayKey){
+        applyUI(remaining);
+        return;
+      }
+
+      const missed = daysBetweenUTC(lastKey, todayKey);
+      let d = parseUTCDateKey(lastKey);
+      for (let i=0; i<missed; i++){
+        d = new Date(d.getTime() + 86400000);
+        const k = toUTCDateKey(d);
+        remaining = clamp(remaining - dailyDrop(k, seed), 0, TOTAL);
+        if (remaining === 0) break;
+      }
+
+      writeInt(KEY_REMAINING, remaining);
+      localStorage.setItem(KEY_LASTDATE, todayKey);
+      applyUI(remaining);
+    })();
+  </script>
 </body>
 </html>
