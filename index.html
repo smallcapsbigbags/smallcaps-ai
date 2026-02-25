@@ -1,3 +1,4 @@
+```html
 <!doctype html>
 <html lang="en">
 <head>
@@ -19,13 +20,12 @@
   --text:#111827;
   --muted:#6B7280;
   --r:4px;
-  --maxw:980px;
+  --maxw:920px;
   --topbar-h:52px;
 
   --gold:#D6B15A;
   --goldTrack:#F3F4F6;
 }
-
 *{box-sizing:border-box}
 
 body{
@@ -84,24 +84,25 @@ body{
   padding:0 18px;
 }
 
-section{margin:84px 0;}
-h1{font-size:44px;letter-spacing:-.02em;margin:12px 0;}
-h2{font-size:22px;margin-bottom:22px;letter-spacing:-.01em;}
-p{line-height:1.75;margin:14px 0;}
-ul{padding-left:18px;line-height:1.7;margin:10px 0;}
+/* Tighter + sharper rhythm */
+section{margin:56px 0;}
+section:first-of-type{margin-top:28px;margin-bottom:44px;}
+
+h1{font-size:38px;font-weight:600;letter-spacing:-.02em;margin:10px 0;}
+h2{font-size:22px;margin-bottom:18px;letter-spacing:-.01em;}
+p{line-height:1.65;margin:10px 0;}
+ul{padding-left:18px;line-height:1.65;margin:10px 0;}
 .muted{color:var(--muted);}
 
 section > p,
-section > ul{
-  max-width:680px;
-}
+section > ul{max-width:640px;}
 
 /* CTA */
 .cta-form{
   display:flex;
   gap:10px;
   flex-wrap:wrap;
-  margin-top:18px;
+  margin-top:14px;
 }
 .cta-form input{
   padding:12px;
@@ -110,6 +111,7 @@ section > ul{
   font-size:14px;
   min-width:240px;
   background:#fff;
+  color:var(--text);
 }
 .cta-form button{
   background:var(--gold);
@@ -123,35 +125,39 @@ section > ul{
 .cta-form button:hover{filter:brightness(.98);}
 .cta-next{margin-top:10px;font-size:13px;}
 
+/* Pricing box */
 .price-box{
   border:1px solid var(--border);
   border-radius:var(--r);
-  padding:24px;
+  padding:22px;
   background:#fff;
 }
 
-.blockquote{
-  border-left:3px solid var(--primary);
-  padding-left:16px;
-  font-style:italic;
-  opacity:.92;
-  max-width:680px;
+/* Product media (screenshots + captions) */
+.product-media{
+  margin-top:18px;
+  max-width:720px;
 }
-
-.mock-img{
+.product-media img{
   width:100%;
   height:auto;
+  display:block;
   border:1px solid var(--border);
   border-radius:var(--r);
   background:#fff;
-  display:block;
+}
+.product-media figcaption{
+  margin-top:10px;
+  font-size:12px;
+  color:var(--muted);
+  max-width:720px;
 }
 
 /* Comparison strip */
 .compare{
   display:grid;
   gap:18px;
-  margin-top:18px;
+  margin-top:16px;
 }
 @media (min-width:760px){
   .compare{grid-template-columns:1fr 1fr;}
@@ -160,17 +166,27 @@ section > ul{
   background:#fff;
   border:1px solid var(--border);
   border-radius:var(--r);
-  padding:20px;
+  padding:18px;
 }
 .compare-col.highlight{
   border-color:rgba(37,99,235,.35);
 }
 .compare-title{font-weight:700;margin-bottom:10px;}
-.compare ul{padding-left:18px;line-height:1.7;margin:10px 0 0;}
+.compare ul{padding-left:18px;line-height:1.65;margin:10px 0 0;}
 
+/* Quote */
+.blockquote{
+  border-left:3px solid var(--primary);
+  padding-left:16px;
+  font-style:italic;
+  opacity:.92;
+  max-width:640px;
+}
+
+/* Footer */
 footer{
   border-top:1px solid var(--border);
-  padding:24px 0;
+  padding:22px 0;
   font-size:13px;
   color:var(--muted);
 }
@@ -179,7 +195,7 @@ footer{
 
 <body>
 
-<div class="scroll-progress">
+<div class="scroll-progress" aria-hidden="true">
   <div class="scroll-progress__bar" id="scrollBar"></div>
 </div>
 
@@ -194,7 +210,7 @@ footer{
 
 <!-- HERO -->
 <section>
-  <div class="muted" style="font-size:13px;margin-top:18px;">
+  <div class="muted" style="font-size:13px;margin-top:12px;">
     Live feed monitoring AIM announcements daily.
   </div>
 
@@ -202,20 +218,16 @@ footer{
 
   <h1>Impact-weighted RNS intelligence for UK small-cap investors.</h1>
 
-  <p class="muted">
-    Identify material events before the market fully prices them in.
-  </p>
+  <p class="muted">Identify material events before the market fully prices them in.</p>
 
-  <form class="cta-form">
-    <input type="email" placeholder="Enter your email" required>
+  <form class="cta-form" action="#" method="post">
+    <input type="email" name="email" placeholder="Enter your email" required>
     <button type="submit">Join the Founders List</button>
   </form>
 
-  <div class="muted cta-next">
-    We’ll email founders access when we go live.
-  </div>
+  <div class="muted cta-next">We’ll email founders access when we go live.</div>
 
-  <div class="muted" style="margin-top:12px;font-size:14px;line-height:1.55;">
+  <div class="muted" style="margin-top:10px;font-size:14px;line-height:1.5;">
     Processing 10,000+ AIM announcements per year<br>
     Founders pricing: £19.99/month for early Pro members
   </div>
@@ -254,7 +266,7 @@ footer{
   <p>AIM remains fragmented, manually interpreted, and reactive.</p>
   <p><strong>There is no systematic intelligence layer designed specifically for UK small caps.</strong></p>
 
-  <p style="margin-top:20px;"><strong>Until now.</strong></p>
+  <p style="margin-top:16px;"><strong>Until now.</strong></p>
 </section>
 
 <!-- SOLUTION -->
@@ -272,16 +284,14 @@ footer{
   </ul>
 
   <p>High-impact capital events surface immediately.</p>
-  <p>Administrative announcements are suppressed.</p>
+  <p>Low-materiality announcements are deprioritised.</p>
 
   <p><strong>The result is a feed ordered by materiality — not chronology.</strong></p>
 
-  <div style="margin-top:20px;padding:16px;border:1px solid var(--border);border-radius:var(--r);background:#fff;max-width:680px;">
-    <strong>Example:</strong><br>
-    £12m placing at an 18% discount → Impact Score: 5<br>
-    Dilution: 22%<br>
-    Estimated cash runway extended by 14 months.
-  </div>
+  <figure class="product-media">
+    <img src="mock-card-detail.png" alt="smallcaps.ai card detail preview">
+    <figcaption>Example output: structured summary, impact score, category, and context in one view.</figcaption>
+  </figure>
 </section>
 
 <!-- IMPACT SCORING -->
@@ -302,35 +312,19 @@ footer{
 
   <p>This creates hierarchy in a market that lacks it.</p>
 
-  <div style="margin-top:18px; padding:16px; border:1px solid var(--border); border-radius:var(--r); background:#fff; max-width:680px;">
-    <div style="display:flex; justify-content:space-between; font-size:14px;">
+  <div style="margin-top:16px;padding:14px;border:1px solid var(--border);border-radius:var(--r);background:#fff;max-width:640px;">
+    <div style="display:flex;justify-content:space-between;font-size:13px;">
       <span>Score 1 — Admin</span>
       <span>Score 3 — Moderate</span>
       <span>Score 5 — Valuation Critical</span>
     </div>
-    <div style="margin-top:10px; height:6px; background:#E5E7EB; border-radius:4px;">
-      <div style="width:90%; height:100%; background:#2563EB; border-radius:4px;"></div>
+    <div style="margin-top:10px;height:6px;background:#E5E7EB;border-radius:4px;">
+      <div style="width:90%;height:100%;background:#2563EB;border-radius:4px;"></div>
     </div>
   </div>
 </section>
 
-<!-- CAPITAL EVENTS -->
-<section>
-  <h2>Dilution &amp; Capital Event Intelligence</h2>
-
-  <p>Placings and capital raises are among the most valuation-sensitive events in AIM.</p>
-
-  <ul>
-    <li>Flags capital events immediately</li>
-    <li>Removes boilerplate</li>
-    <li>Summarises dilution severity</li>
-    <li>Highlights pricing relative to market</li>
-  </ul>
-
-  <p>No more manually working through 9-page announcements to find one critical paragraph.</p>
-</section>
-
-<!-- FEED + DASHBOARD IMAGE -->
+<!-- FEED + DASHBOARD -->
 <section>
   <h2>Impact-Weighted News Flow</h2>
 
@@ -345,7 +339,10 @@ footer{
 
   <p>Designed for clarity. Built for discipline.</p>
 
-  <img src="mock-dashboard.png" alt="smallcaps.ai dashboard preview" class="mock-img">
+  <figure class="product-media">
+    <img src="mock-dashboard.png" alt="smallcaps.ai dashboard preview">
+    <figcaption>Impact-weighted feed: material events surfaced first, with watchlist integration.</figcaption>
+  </figure>
 </section>
 
 <!-- COMPARISON STRIP -->
@@ -395,9 +392,9 @@ footer{
 
   <p><strong>It is an impact-weighted intelligence layer for the AIM market.</strong></p>
 
-  <hr style="border:none;border-top:1px solid var(--border);margin:32px 0;max-width:680px;">
+  <hr style="border:none;border-top:1px solid var(--border);margin:24px 0;max-width:640px;">
 
-  <p style="max-width:680px;">
+  <p style="max-width:640px;">
     <strong>Not designed for:</strong><br>
     Short-term speculation, social commentary, or promotional narratives.
   </p>
@@ -433,14 +430,12 @@ footer{
       <strong>Founders Pro members save 33% — permanently.</strong>
     </p>
 
-    <form class="cta-form">
-      <input type="email" placeholder="Enter your email" required>
+    <form class="cta-form" action="#" method="post">
+      <input type="email" name="email" placeholder="Enter your email" required>
       <button type="submit">Join the Founders List</button>
     </form>
 
-    <div class="muted cta-next">
-      We’ll email founders access when we go live.
-    </div>
+    <div class="muted cta-next">We’ll email founders access when we go live.</div>
   </div>
 </section>
 
@@ -493,14 +488,12 @@ footer{
   <p>Stop reacting to unstructured feeds.<br>
      Start working with impact-weighted intelligence.</p>
 
-  <form class="cta-form">
-    <input type="email" placeholder="Enter your email" required>
+  <form class="cta-form" action="#" method="post">
+    <input type="email" name="email" placeholder="Enter your email" required>
     <button type="submit">Join the Founders List</button>
   </form>
 
-  <div class="muted cta-next">
-    We’ll email founders access when we go live.
-  </div>
+  <div class="muted cta-next">We’ll email founders access when we go live.</div>
 
   <p class="muted">Launching April 1st 2026</p>
 </section>
@@ -516,16 +509,16 @@ footer{
 
 <script>
 (function(){
-  const bar = document.getElementById('scrollBar');
+  const bar=document.getElementById('scrollBar');
   function update(){
-    const d = document.documentElement;
-    const scrollHeight = d.scrollHeight - d.clientHeight;
-    const pct = scrollHeight > 0 ? (d.scrollTop / scrollHeight) * 100 : 0;
-    bar.style.width = pct.toFixed(2) + "%";
+    const d=document.documentElement;
+    const scrollHeight=d.scrollHeight-d.clientHeight;
+    const pct=scrollHeight>0?(d.scrollTop/scrollHeight)*100:0;
+    bar.style.width=pct.toFixed(2)+"%";
   }
   update();
-  window.addEventListener('scroll', update, { passive:true });
-  window.addEventListener('resize', update);
+  window.addEventListener('scroll',update,{passive:true});
+  window.addEventListener('resize',update);
 })();
 </script>
 
