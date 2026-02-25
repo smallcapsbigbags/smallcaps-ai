@@ -250,7 +250,7 @@
       color:var(--text);
     }
 
-    /* Scarcity bar */
+    /* Scarcity bar (fixed) */
     .scarcity{
       margin-top:10px;
       display:grid;
@@ -343,24 +343,10 @@
       font-weight:700;
     }
 
-    /* Preview */
+    /* Preview (match dashboard mock UX: no cropping, full image, clean frame) */
     .mock{
       padding:0;
       overflow:hidden;
-    }
-    .mock .frame{
-      border-top:1px solid var(--border);
-      background:#fff;
-      padding:12px;
-    }
-    .mock-img{
-      width:100%;
-      display:block;
-      border:1px solid var(--border);
-      border-radius:var(--r);
-      background:#fff;
-      aspect-ratio: 16 / 9;
-      object-fit:cover;
     }
     .mock-label{
       display:flex;
@@ -370,11 +356,25 @@
       font-size:12px;
       margin:0;
       padding:12px 16px;
+      border-bottom:1px solid var(--border);
+      background:#fff;
+    }
+    .mock .frame{
+      background:#F9FAFB;
+      padding:14px;
+    }
+    .mock-img{
+      width:100%;
+      height:auto;               /* key: no forced height */
+      display:block;
+      border:1px solid var(--border);
+      border-radius:var(--r);
+      background:#fff;
     }
 
     /* Credibility line */
     .cred-line{
-      margin-top:10px;
+      margin-top:12px;
       color:var(--muted);
       font-size:12.5px;
       font-weight:700;
@@ -382,7 +382,7 @@
 
     /* Founder note */
     .founder-note{
-      margin-top:20px;
+      margin-top:16px;
       padding:18px;
       border:1px solid var(--border);
       border-radius:var(--r);
@@ -502,14 +502,15 @@
       <div class="stack">
         <div class="kicker"><span class="dot"></span> UK Small cap intelligence</div>
 
-        <h1>Small caps move fast. Most investors find out late.</h1>
+        <!-- 3) Updated hero headline -->
+        <h1>Small caps move fast. Most investors are late.</h1>
 
         <!-- PROBLEM (high impact strip) -->
         <div id="problem" class="problem-card" aria-label="Problem">
           <h2 class="card-title">The problem with UK small-cap news today</h2>
 
           <p class="lead">
-            Small-cap investing is still <strong>manual</strong>.
+            UK small-cap investing is still <strong>manual</strong>.
             Most tools show you everything. Very few tell you what actually matters.
           </p>
 
@@ -550,14 +551,14 @@
             </div>
           </div>
 
-          <!-- Scarcity -->
+          <!-- 2) Fixed spots remaining -->
           <div class="scarcity" aria-label="Founders spots remaining">
             <div class="scarcity-top">
-              <span><strong id="spotsRemainingA">87</strong> of 100 remaining</span>
-              <span><span id="spotsPercentA">87</span>% available</span>
+              <span><strong>67</strong> of 100 remaining</span>
+              <span>67% available</span>
             </div>
-            <div class="bar" role="progressbar" aria-valuenow="87" aria-valuemin="0" aria-valuemax="100">
-              <span id="spotsBarA" style="width:87%"></span>
+            <div class="bar" role="progressbar" aria-valuenow="67" aria-valuemin="0" aria-valuemax="100">
+              <span style="width:67%"></span>
             </div>
           </div>
 
@@ -584,26 +585,28 @@
           </div>
         </div>
 
-        <!-- Preview -->
+        <!-- 1) Preview updated to show dashboard mock exactly (no crop) -->
         <div class="card mock" aria-label="Preview">
           <p class="mock-label">
             <span><strong>Preview</strong></span>
             <span>Minimal • fast • signal-first</span>
           </p>
           <div class="frame">
-            <img class="mock-img" src="mock-dashboard.png" alt="smallcaps.ai dashboard mockup (replace image)" />
+            <!-- Use your exact file name in the repo. If you upload the image as mock-dashboardx.png, set src to that. -->
+            <img class="mock-img" src="mock-dashboardx.png" alt="smallcaps.ai dashboard preview" />
+
             <p class="micro" style="margin:12px 2px 0;">
               We’re keeping details intentionally light pre-launch. Founders get first access.
             </p>
+
             <div class="cred-line">Built for active UK small-cap investors.</div>
 
-            <!-- Founder note -->
             <div class="founder-note" aria-label="Founder note">
               <div class="founder-title">Founder’s note</div>
               <p>
-                As an active small cap investor and equity commentator at
+                I run the UK small-cap blog
                 <a href="https://www.smallcapsbigbags.com" target="_blank" rel="noopener">smallcapsbigbags</a>
-                I have spent years analysing RNS announcements and newsflow.
+                and have spent years analysing RNS announcements and newsflow.
                 In small caps, announcements can drive asymmetric outcomes — upside and downside.
                 Social commentary is often biased or reactive.
                 Identifying signal early — and responding before the wider market fully prices it — is critical.
@@ -651,7 +654,7 @@
 
       <details>
         <summary>What market coverage will you provide?</summary>
-        <p>Initial focus will be UK small-cap companies, starting with AIM exclusively.</p>
+        <p>Initial focus will be UK small-cap companies, starting with AIM.</p>
       </details>
 
       <details>
@@ -667,11 +670,11 @@
 
         <div class="scarcity" aria-label="Founders spots remaining">
           <div class="scarcity-top">
-            <span><strong id="spotsRemainingB">87</strong> of 100 remaining</span>
-            <span><span id="spotsPercentB">87</span>% available</span>
+            <span><strong>67</strong> of 100 remaining</span>
+            <span>67% available</span>
           </div>
-          <div class="bar" role="progressbar" aria-valuenow="87" aria-valuemin="0" aria-valuemax="100">
-            <span id="spotsBarB" style="width:87%"></span>
+          <div class="bar" role="progressbar" aria-valuenow="67" aria-valuemin="0" aria-valuemax="100">
+            <span style="width:67%"></span>
           </div>
         </div>
 
@@ -791,113 +794,6 @@
       e.preventDefault();
       handleSubmit(emailEl2.value, btn2, emailEl2);
     });
-
-    // --- Scarcity: retroactive daily decrement (2–3/day), deterministic per day per user ---
-    (function(){
-      const TOTAL = 100;
-      const START_REMAINING = 87;
-
-      const KEY_REMAINING = "sc_spots_remaining";
-      const KEY_LASTDATE  = "sc_spots_lastdate";
-      const KEY_SEED      = "sc_spots_seed";
-
-      function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
-
-      function toUTCDateKey(d){
-        const y = d.getUTCFullYear();
-        const m = String(d.getUTCMonth()+1).padStart(2,"0");
-        const day = String(d.getUTCDate()).padStart(2,"0");
-        return `${y}-${m}-${day}`;
-      }
-      function parseUTCDateKey(key){
-        const [y,m,d] = key.split("-").map(Number);
-        return new Date(Date.UTC(y, (m-1), d));
-      }
-      function daysBetweenUTC(aKey, bKey){
-        const a = parseUTCDateKey(aKey);
-        const b = parseUTCDateKey(bKey);
-        const ms = b.getTime() - a.getTime();
-        return Math.max(0, Math.floor(ms / 86400000));
-      }
-      function readInt(key, fallback){
-        const v = Number(localStorage.getItem(key));
-        return Number.isFinite(v) ? v : fallback;
-      }
-      function writeInt(key, value){
-        localStorage.setItem(key, String(value));
-      }
-      function getSeed(){
-        let s = localStorage.getItem(KEY_SEED);
-        if (!s){
-          s = String(Math.floor(Math.random() * 0x7fffffff));
-          localStorage.setItem(KEY_SEED, s);
-        }
-        return Number(s) || 1;
-      }
-      function dailyDrop(dayKey, seed){
-        let h = 2166136261 ^ seed;
-        for (let i=0;i<dayKey.length;i++){
-          h ^= dayKey.charCodeAt(i);
-          h = Math.imul(h, 16777619);
-        }
-        return (h & 1) === 0 ? 2 : 3;
-      }
-
-      function applyUI(remaining){
-        remaining = clamp(remaining, 0, TOTAL);
-        const pct = clamp(Math.round((remaining / TOTAL) * 100), 0, 100);
-
-        const aRem = document.getElementById("spotsRemainingA");
-        const aPct = document.getElementById("spotsPercentA");
-        const aBar = document.getElementById("spotsBarA");
-
-        const bRem = document.getElementById("spotsRemainingB");
-        const bPct = document.getElementById("spotsPercentB");
-        const bBar = document.getElementById("spotsBarB");
-
-        if (aRem) aRem.textContent = String(remaining);
-        if (aPct) aPct.textContent = String(pct);
-        if (aBar) aBar.style.width = `${pct}%`;
-
-        if (bRem) bRem.textContent = String(remaining);
-        if (bPct) bPct.textContent = String(pct);
-        if (bBar) bBar.style.width = `${pct}%`;
-
-        if (aBar && aBar.parentElement) aBar.parentElement.setAttribute("aria-valuenow", String(pct));
-        if (bBar && bBar.parentElement) bBar.parentElement.setAttribute("aria-valuenow", String(pct));
-      }
-
-      const seed = getSeed();
-      let remaining = readInt(KEY_REMAINING, START_REMAINING);
-
-      const todayKey = toUTCDateKey(new Date());
-      let lastKey = localStorage.getItem(KEY_LASTDATE);
-
-      if (!lastKey){
-        localStorage.setItem(KEY_LASTDATE, todayKey);
-        writeInt(KEY_REMAINING, remaining);
-        applyUI(remaining);
-        return;
-      }
-
-      if (lastKey === todayKey){
-        applyUI(remaining);
-        return;
-      }
-
-      const missed = daysBetweenUTC(lastKey, todayKey);
-      let d = parseUTCDateKey(lastKey);
-      for (let i=0; i<missed; i++){
-        d = new Date(d.getTime() + 86400000);
-        const k = toUTCDateKey(d);
-        remaining = clamp(remaining - dailyDrop(k, seed), 0, TOTAL);
-        if (remaining === 0) break;
-      }
-
-      writeInt(KEY_REMAINING, remaining);
-      localStorage.setItem(KEY_LASTDATE, todayKey);
-      applyUI(remaining);
-    })();
   </script>
 </body>
 </html>
