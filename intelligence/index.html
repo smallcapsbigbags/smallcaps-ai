@@ -1,1 +1,1571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>smallcaps.ai Intelligence — Structured AIM RNS Analysis</title>
+<meta name="description" content="Impact-scored AIM RNS analysis. Spot valuation-moving signals in London Stock Exchange announcements before the market reprices.">
 
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  --bg:#F6F8FA;
+  --card:#FFFFFF;
+  --border:#E5E7EB;
+  --primary:#2563EB;
+  --text:#111827;
+  --muted:#6B7280;
+  --r:4px;
+  --maxw:920px;
+  --topbar-h:52px;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+
+body{
+  margin:0;
+  font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  padding-top:var(--topbar-h);
+}
+
+.container{
+  max-width:var(--maxw);
+  margin:0 auto;
+  padding:0 18px;
+}
+
+/* Topbar */
+.topbar{
+  position:fixed;
+  top:0;
+  left:0;
+  right:0;
+  height:var(--topbar-h);
+  background:#fff;
+  border-bottom:1px solid var(--border);
+  z-index:50;
+}
+.topbar-inner{
+  height:100%;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+}
+.logo{
+  font-weight:600;
+  letter-spacing:-0.01em;
+  font-size:16px;
+  white-space:nowrap;
+}
+.logo span{color:var(--primary)}
+.topbar-link{
+  font-size:13px;
+  color:var(--muted);
+  text-decoration:none;
+  transition:color 150ms;
+  cursor:pointer;
+}
+.topbar-link:hover{color:var(--text)}
+
+/* Layout rhythm */
+section{margin:44px 0;}
+section:first-of-type{margin-top:28px;margin-bottom:36px;}
+
+h1{
+  font-size:34px;
+  font-weight:600;
+  letter-spacing:-.02em;
+  margin:10px 0 12px;
+  line-height:1.15;
+}
+h2{
+  font-size:22px;
+  margin:32px 0 14px;
+  letter-spacing:-.01em;
+  font-weight:600;
+}
+h3{
+  font-size:16px;
+  font-weight:600;
+  margin:20px 0 10px;
+  letter-spacing:-.01em;
+}
+p{line-height:1.65;margin:12px 0;}
+ul{padding-left:18px;line-height:1.65;margin:12px 0;}
+li{margin-bottom:8px;}
+li:last-child{margin-bottom:0;}
+
+strong{font-weight:700;color:var(--text)}
+.muted{color:var(--muted);}
+
+section > p,
+section > ul,
+section > table{max-width:680px;}
+
+/* Inline code */
+code{
+  background:rgba(37,99,235,.08);
+  color:var(--primary);
+  padding:2px 6px;
+  border-radius:3px;
+  font-family:Monaco,monospace;
+  font-size:13px;
+}
+
+/* Tables */
+table{
+  width:100%;
+  max-width:680px;
+  border-collapse:collapse;
+  margin:16px 0;
+  font-size:14px;
+}
+table th{
+  text-align:left;
+  padding:10px;
+  border-bottom:2px solid var(--border);
+  font-weight:600;
+  background:rgba(37,99,235,.04);
+}
+table td{
+  padding:10px;
+  border-bottom:1px solid var(--border);
+}
+table tr:hover{background:rgba(37,99,235,.02)}
+
+/* CTA */
+.cta-wrap{margin-top:20px;}
+.cta-form{
+  display:flex;
+  margin-top:12px;
+  max-width:440px;
+}
+.cta-form input{
+  flex:1;
+  padding:12px;
+  border:1px solid var(--border);
+  border-right:none;
+  border-radius:4px 0 0 4px;
+  font-size:14px;
+  background:#fff;
+  color:var(--text);
+  outline:none;
+  font-family:Inter,sans-serif;
+}
+.cta-form input::placeholder{color:var(--muted)}
+.cta-form button{
+  padding:12px 18px;
+  border:1px solid var(--primary);
+  border-left:none;
+  border-radius:0 4px 4px 0;
+  background:var(--primary);
+  color:#fff;
+  font-weight:700;
+  cursor:pointer;
+  font-family:Inter,sans-serif;
+  font-size:14px;
+}
+.cta-form button:hover{opacity:.94;}
+.cta-meta{
+  margin-top:8px;
+  font-size:12px;
+  color:var(--muted);
+}
+.cta-meta strong{color:var(--text); font-weight:700;}
+.cta-privacy{
+  margin-top:6px;
+  font-size:12px;
+  color:var(--muted);
+}
+
+/* Signal card */
+.signal-card{
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:var(--r);
+  padding:16px;
+  margin:16px 0;
+  max-width:680px;
+}
+.signal-card h3{margin-top:0;}
+.signal-badge{
+  display:inline-block;
+  background:rgba(37,99,235,.12);
+  color:var(--primary);
+  padding:4px 8px;
+  border-radius:3px;
+  font-size:11px;
+  font-weight:700;
+  text-transform:uppercase;
+  letter-spacing:.05em;
+  margin-bottom:8px;
+}
+
+/* Callout */
+.callout{
+  background:rgba(37,99,235,.06);
+  border-left:3px solid var(--primary);
+  padding:12px 16px;
+  border-radius:0 4px 4px 0;
+  margin:16px 0;
+  max-width:680px;
+}
+.callout p{margin:8px 0;}
+.callout p:first-child{margin-top:0;}
+.callout p:last-child{margin-bottom:0;}
+
+/* Article nav */
+.article-nav{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin:24px 0;
+  padding-bottom:16px;
+  border-bottom:1px solid var(--border);
+}
+.nav-tag{
+  display:inline-block;
+  background:var(--card);
+  border:1px solid var(--border);
+  padding:6px 12px;
+  border-radius:16px;
+  font-size:12px;
+  font-weight:600;
+  color:var(--text);
+  text-decoration:none;
+  transition:all 150ms;
+}
+.nav-tag:hover{
+  border-color:var(--primary);
+  color:var(--primary);
+}
+
+/* Back link */
+.back-link{
+  display:inline-block;
+  font-size:13px;
+  color:var(--primary);
+  text-decoration:none;
+  margin-bottom:24px;
+  transition:color 150ms;
+  cursor:pointer;
+}
+.back-link:hover{color:var(--text)}
+
+/* Article grid */
+.article-grid{
+  display:grid;
+  gap:20px;
+  max-width:680px;
+}
+.article-card{
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:var(--r);
+  padding:18px;
+  cursor:pointer;
+  transition:all 150ms;
+}
+.article-card:hover{
+  border-color:var(--primary);
+  box-shadow:0 4px 12px rgba(37,99,235,.1);
+}
+.article-card h3{margin:0 0 8px;}
+.article-card .meta{color:var(--muted);font-size:13px;margin:0;}
+.article-card p{margin:8px 0 0;line-height:1.6;}
+
+/* Footer */
+footer{
+  border-top:1px solid var(--border);
+  padding:22px 0;
+  font-size:13px;
+  color:var(--muted);
+  margin-top:44px;
+}
+
+/* Responsive */
+@media (max-width:640px){
+  h1{font-size:26px;}
+  h2{font-size:18px;}
+  .cta-form{flex-direction:column;}
+  .cta-form input{border-radius:4px;border-right:1px solid var(--border);margin-bottom:8px;}
+  .cta-form button{border-radius:4px;border:1px solid var(--primary);}
+}
+</style>
+</head>
+
+<body>
+
+<header class="topbar">
+  <div class="container topbar-inner">
+    <div class="logo">smallcaps<span>.ai</span></div>
+    <a class="topbar-link" onclick="showView('hub')">Back to Intelligence</a>
+  </div>
+</header>
+
+<main class="container">
+
+<!-- ============ HUB / INDEX ============ -->
+<article id="hub" style="display:block">
+  <section>
+    <div class="muted">AIM Intelligence</div>
+    <h1>Structured RNS Analysis</h1>
+    <p>Impact-scored London Stock Exchange announcements. Spot valuation-moving signals before the market reprices.</p>
+  </section>
+
+  <section>
+    <div class="article-grid">
+      
+      <div class="article-card" onclick="showView('article-1')">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+          <span class="nav-tag">RNS Fundamentals</span>
+          <span class="nav-tag">Guide</span>
+        </div>
+        <h3>What is an RNS Announcement?</h3>
+        <p class="meta">28 Feb 2026 · 6 min read</p>
+        <p>Complete guide to London Stock Exchange RNS filings — why AIM announcements drive outsized moves and what to watch.</p>
+      </div>
+
+      <div class="article-card" onclick="showView('article-2')">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+          <span class="nav-tag">Dilution Risk</span>
+          <span class="nav-tag">Signals</span>
+        </div>
+        <h3>How to Spot Dilution Risks</h3>
+        <p class="meta">28 Feb 2026 · 7 min read</p>
+        <p>5 red flags in AIM placings and capital raises. Calculate dilution impact before the market reacts.</p>
+      </div>
+
+      <div class="article-card" onclick="showView('article-3')">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+          <span class="nav-tag">Signals</span>
+          <span class="nav-tag">Valuation</span>
+        </div>
+        <h3>Top 7 AIM RNS Signals</h3>
+        <p class="meta">28 Feb 2026 · 8 min read</p>
+        <p>Guidance revisions, contract wins, director buys ranked by typical share price impact.</p>
+      </div>
+
+      <div class="article-card" onclick="showView('article-4')">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+          <span class="nav-tag">Common Mistakes</span>
+          <span class="nav-tag">Psychology</span>
+        </div>
+        <h3>AIM Investing Mistakes</h3>
+        <p class="meta">28 Feb 2026 · 6 min read</p>
+        <p>Chronological RNS feeds bury the signals that matter. How structured prioritisation fixes this.</p>
+      </div>
+
+      <div class="article-card" onclick="showView('article-5')">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+          <span class="nav-tag">Tools</span>
+          <span class="nav-tag">Resources</span>
+        </div>
+        <h3>Best RNS Tracking Tools</h3>
+        <p class="meta">28 Feb 2026 · 7 min read</p>
+        <p>Optimise your AIM RNS workflow. Free sources + when structured intelligence pays for itself.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <footer>
+    © 2026 smallcaps.ai — Structured AIM Intelligence. Not investment advice.
+  </footer>
+</article>
+
+<!-- ============ ARTICLE 1 ============ -->
+<article id="article-1" style="display:none">
+  <a class="back-link" onclick="showView('hub')">← Back to Intelligence Hub</a>
+
+  <section>
+    <div class="article-nav">
+      <span class="nav-tag">RNS Fundamentals</span>
+      <span class="nav-tag">AIM Investing</span>
+      <span class="nav-tag">Guide</span>
+    </div>
+
+    <h1>What is an RNS Announcement? Complete Guide for AIM Investors</h1>
+
+    <p class="muted" style="max-width:680px;">
+      Confused by RNS feeds? This guide breaks down Regulatory News Service basics, types, and why AIM announcements move prices faster than you might think.
+    </p>
+
+    <p class="muted" style="font-size:13px;">Published 28 February 2026 · 6 min read</p>
+  </section>
+
+  <section>
+    <p>
+      If you're investing on AIM, you've probably noticed the volume of announcements. Thousands land every year—trading updates, placings, acquisitions, director dealings. But which ones actually matter?
+    </p>
+
+    <p>
+      RNS stands for <strong>Regulatory News Service</strong>. It's the official platform UK listed companies use to disclose price-sensitive information. On AIM, the volume is particularly high: over 10,000 filings in 2025 alone.
+    </p>
+
+    <p class="muted">
+      The problem: raw RNS feeds don't distinguish between material signals and administrative noise. Investors waste hours scanning, while markets move before they finish reading.
+    </p>
+  </section>
+
+  <section>
+    <h2>The Basics: What Gets Filed on RNS?</h2>
+
+    <p>
+      RNS is mandatory for anything price-sensitive. Companies must file within minutes of an event. The result: a firehose of information across every AIM listing.
+    </p>
+
+    <p>Access is free via londonstockexchange.com/news. You can also monitor through dedicated RNS platforms that syndicate the feed. But free access means no curation. You get everything—director changes, office moves, RNS amendments, and genuine valuation shifts all in one chronological soup.</p>
+  </section>
+
+  <section>
+    <h2>Key RNS Types on AIM</h2>
+
+    <p>Not all RNS are created equal. Here are the ones that move shares:</p>
+
+    <div class="signal-card">
+      <span class="signal-badge">Signal Type</span>
+      <h3>Trading Updates</h3>
+      <p>Revenue guidance shifts, profit warnings, or positive surprises. On AIM, a missed profit target can trigger 20-50% selloffs overnight. Conversely, strong trading can rally a stock 30%+ in minutes.</p>
+    </div>
+
+    <div class="signal-card">
+      <span class="signal-badge">Signal Type</span>
+      <h3>Placings & Capital Raises</h3>
+      <p>New share issuance. Critical detail: at what discount to market price? A 15%+ discount dilutes existing shareholders and often signals cash desperation. Watch the percentage issued—above 20% can trigger sharp declines.</p>
+    </div>
+
+    <div class="signal-card">
+      <span class="signal-badge">Signal Type</span>
+      <h3>Contract Wins & Customer Updates</h3>
+      <p>Material revenue boosters or losses. A significant contract can validate growth; a lost customer can signal headwinds. Context matters—is it 10% of revenue or 50%?</p>
+    </div>
+
+    <div class="signal-card">
+      <span class="signal-badge">Signal Type</span>
+      <h3>Director Dealings</h3>
+      <p>Insiders buying = confidence signal. Insiders selling = potential concern (though often tax-driven). Significant buys (especially near 52-week lows) often precede rallies.</p>
+    </div>
+
+    <div class="signal-card">
+      <span class="signal-badge">Signal Type</span>
+      <h3>Results & Financing Updates</h3>
+      <p>Cash balance reveals runway. Debt restructures signal distress. Fundraising announcements flag dilution ahead. Burn rate calculations determine survival length.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Why AIM RNS Matter More Than Larger Caps</h2>
+
+    <p>
+      On FTSE 100, single announcements rarely swing valuations 30%+. On AIM, they can.
+    </p>
+
+    <p>
+      Small-cap valuations are built on fewer assets, thinner liquidity, and higher growth assumptions. A dilutive placing, missed guidance, or contract loss cascades through the entire valuation model in hours.
+    </p>
+
+    <p><strong>Real impact:</strong> An AIM stock trading at 50p can drop to 30p on a profit warning. A contract win can push a 20p stock to 35p. Markets move fast.</p>
+
+    <div class="callout">
+      <p><strong>The edge?</strong> Investors who structure their RNS analysis—categorizing by signal type, impact-scoring, and surfacing key context—stay ahead of the market noise.</p>
+    </div>
+
+    <p>
+      Manual scanning doesn't scale. By the time you've read 10 RNS announcements, the market has already repriced the material ones.
+    </p>
+  </section>
+
+  <section>
+    <h2>Cut Through the Noise</h2>
+
+    <p>
+      Structured AIM intelligence surfaces the signals that move valuation—without requiring you to scan thousands of announcements manually.
+    </p>
+
+    <p><strong>smallcaps.ai</strong> categorizes every AIM RNS by signal type, impact-scores it (1–5), and surfaces the context you need to assess valuation in minutes instead of hours.</p>
+
+    <div class="cta-wrap">
+      <form class="cta-form" id="cta-1">
+        <input type="email" name="email" placeholder="Enter your email" required autocomplete="email">
+        <button type="submit">Join the Founding Member List</button>
+      </form>
+      <div class="cta-meta">
+        <strong>£19.99/month</strong> Founding Member pricing. Standard launch price <strong>£29.99</strong>.
+      </div>
+      <div class="cta-privacy">No spam. Unsubscribe anytime.</div>
+    </div>
+  </section>
+
+  <footer>
+    © 2026 smallcaps.ai — Structured AIM Intelligence. Not investment advice.
+  </footer>
+</article>
+
+<!-- ============ ARTICLE 2 ============ -->
+<article id="article-2" style="display:none">
+  <a class="back-link" onclick="showView('hub')">← Back to Intelligence Hub</a>
+
+  <section>
+    <div class="article-nav">
+      <span class="nav-tag">Dilution Risk</span>
+      <span class="nav-tag">AIM Investing</span>
+      <span class="nav-tag">Signals</span>
+    </div>
+
+    <h1>How to Spot Dilution Risks in AIM RNS – 5 Red Flags</h1>
+
+    <p class="muted" style="max-width:680px;">
+      Dilution destroys AIM returns. Learn the 5 red flags in RNS filings that signal shareholder value erosion—before the stock price crashes.
+    </p>
+
+    <p class="muted" style="font-size:13px;">Published 28 February 2026 · 7 min read</p>
+  </section>
+
+  <section>
+    <p>
+      If you've held an AIM stock for 6 months and watched your ownership percentage drop despite not selling a share, dilution just happened to you.
+    </p>
+
+    <p><strong>What causes it?</strong> Placings. These are newly issued shares, usually sold at a discount to current market price to attract buyers (investors, institutions, founders).</p>
+
+    <p>
+      Example: Stock trades at 50p. Company places 1m new shares at 42p (16% discount). Existing 10m shareholders wake up owning 10m / 11m = 91% of what they owned yesterday. Valuation is diluted.
+    </p>
+
+    <p class="muted">
+      The kicker: if company issued shares at steep discount, it often signals cash desperation. Markets know this. Dilution announcements trigger selloffs 10-30%+ regardless of what the money is "for."
+    </p>
+  </section>
+
+  <section>
+    <h2>How to Calculate Dilution Impact</h2>
+
+    <p>When you see a placing RNS, extract these numbers:</p>
+
+    <ul>
+      <li><strong>New shares issued</strong> (in the RNS headline)</li>
+      <li><strong>Price per share</strong> (usually discounted 10-25% to market)</li>
+      <li><strong>Total consideration</strong> (new shares × price)</li>
+      <li><strong>Current share count</strong> (searchable via London Stock Exchange or financial data platforms)</li>
+    </ul>
+
+    <p>Then:</p>
+
+    <p><code>Dilution % = (New Shares / Existing Shares) × 100</code></p>
+
+    <p>
+      <strong>Rule of thumb:</strong>
+    </p>
+    <ul>
+      <li>0-5% dilution = mild, usually absorbed</li>
+      <li>5-15% dilution = notable; expect -5 to -15% move</li>
+      <li>15-25% dilution = severe; expect -10 to -30% move</li>
+      <li>25%+ dilution = distress signal; can trigger -30% to -60% crash</li>
+    </ul>
+
+    <p class="muted">
+      These are generalizations. Context matters—a 20% dilution to fund a game-changing acquisition plays differently than 20% dilution because the company ran out of cash.
+    </p>
+  </section>
+
+  <section>
+    <h2>5 Red Flags to Watch in Placing RNS</h2>
+
+    <div class="signal-card">
+      <span class="signal-badge">Red Flag #1</span>
+      <h3>Discount >15% to Market Price</h3>
+      <p>Steep discounts signal urgency. If a stock trades at 50p and they're placing at 40p (20% discount), buyers are betting on downside or the company needs cash badly. Expect negative market reaction.</p>
+      <p class="muted"><strong>Historical pattern:</strong> Capital raises with significant discounts often correlate with subsequent downward repricing.</p>
+    </div>
+
+    <div class="signal-card">
+      <span class="signal-badge">Red Flag #2</span>
+      <h3>Vague Use of Proceeds</h3>
+      <p>RNS says "working capital" or "general corporate purposes"? Red flag. Strong companies raising capital detail exact deployment: acquisition, facilities, product development. Vagueness = lack of strategy or hidden cash burn.</p>
+    </div>
+
+    <div class="signal-card">
+      <span class="signal-badge">Red Flag #3</span>
+      <h3>Multiple Raises Within 12 Months</h3>
+      <p>First placing forgettable. Second within a year? The company is burning cash faster than guidance implied. Third placing? Distress signal. Watch cash runway if >2 raises annually.</p>
+    </div>
+
+    <div class="signal-card">
+      <span class="signal-badge">Red Flag #4</span>
+      <h3>High Volume Relative to Market Cap</h3>
+      <p>Small placing (2-5% dilution) on a £200m company = meh. Same dilution on a £50m company = material. Rule: if new shares are >20% of market cap, impact is structural.</p>
+    </div>
+
+    <div class="signal-card">
+      <span class="signal-badge">Red Flag #5</span>
+      <h3>Bridge Debt or Convertible Overhang</h3>
+      <p>RNS mentions existing convertibles or bridge loans converting? That's future dilution on top of today's placing. Total dilution could be 30-50%+ when all convert. Markets price this in ahead of time—often triggering sharp declines.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Real-World Example: Capital Raise Analysis</h2>
+
+    <p>
+      When analysing a capital raise RNS, apply this framework:
+    </p>
+
+    <table>
+      <tr>
+        <th>Metric</th>
+        <th>Green Flag</th>
+        <th>Red Flag</th>
+      </tr>
+      <tr>
+        <td>Discount to market</td>
+        <td>&lt;10%</td>
+        <td>&gt;20%</td>
+      </tr>
+      <tr>
+        <td>Dilution %</td>
+        <td>&lt;10%</td>
+        <td>&gt;25%</td>
+      </tr>
+      <tr>
+        <td>Use of proceeds</td>
+        <td>Specific, strategic</td>
+        <td>Vague, "working capital"</td>
+      </tr>
+      <tr>
+        <td>Debt overhang</td>
+        <td>None mentioned</td>
+        <td>Convertibles or bridge debt</td>
+      </tr>
+      <tr>
+        <td>Raise frequency</td>
+        <td>First in 24 months</td>
+        <td>Second in 12 months</td>
+      </tr>
+    </table>
+
+    <p>
+      <strong>Market reaction:</strong> Raises with 3+ red flags typically trigger -15% to -40% selloffs. Those with green flags often rally or stay flat.
+    </p>
+  </section>
+
+  <section>
+    <h2>How to Protect Your Capital</h2>
+
+    <p>
+      Manual RNS scanning doesn't flag these risks in time. By the time you've read the placing announcement, the stock has often already repriced 10-20% lower.
+    </p>
+
+    <p><strong>Structured approach:</strong></p>
+
+    <ul>
+      <li>Automate RNS categorization by signal type (placing, guidance, contract, etc.)</li>
+      <li>Impact-score each announcement (1–5 scale)</li>
+      <li>Extract key context: discount %, dilution %, use of proceeds, debt overhang</li>
+      <li>Flag multiple raises within 12 months automatically</li>
+      <li>Prioritize by impact—not chronology</li>
+    </ul>
+
+    <p>
+      This is exactly what <strong>smallcaps.ai</strong> does. Every placing RNS is parsed, scored, and context surfaced within minutes of release.
+    </p>
+
+    <div class="callout">
+      <p><strong>Early signal = edge.</strong> Dilution risks that take retail investors hours to spot are surfaced instantly via structured analysis.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Operate with Clarity on Dilution</h2>
+
+    <div class="cta-wrap">
+      <form class="cta-form" id="cta-2">
+        <input type="email" name="email" placeholder="Enter your email" required autocomplete="email">
+        <button type="submit">Join the Founding Member List</button>
+      </form>
+      <div class="cta-meta">
+        <strong>£19.99/month</strong> Founding Member pricing. Standard launch price <strong>£29.99</strong>.
+      </div>
+      <div class="cta-privacy">No spam. Unsubscribe anytime.</div>
+    </div>
+  </section>
+
+  <footer>
+    © 2026 smallcaps.ai — Structured AIM Intelligence. Not investment advice.
+  </footer>
+</article>
+
+<!-- ============ ARTICLE 3 ============ -->
+<article id="article-3" style="display:none">
+  <a class="back-link" onclick="showView('hub')">← Back to Intelligence Hub</a>
+
+  <section>
+    <div class="article-nav">
+      <span class="nav-tag">Signals</span>
+      <span class="nav-tag">Valuation</span>
+      <span class="nav-tag">AIM Analysis</span>
+    </div>
+
+    <h1>Top 7 AIM RNS Signals That Drive Share Price Moves</h1>
+
+    <p class="muted" style="max-width:680px;">
+      Not all signals are created equal. Learn the 7 RNS announcements that consistently move AIM valuations—and how to prioritize them.
+    </p>
+
+    <p class="muted" style="font-size:13px;">Published 28 February 2026 · 8 min read</p>
+  </section>
+
+  <section>
+    <p>
+      Every working day, hundreds of AIM RNS flood the feed. Most are noise. Some shift valuations 20-50% in minutes.
+    </p>
+
+    <p>
+      The investors who win are those who spot high-impact signals fast—before the market reprices. Slow readers miss the edge.
+    </p>
+
+    <p>
+      Here are the 7 signal types most likely to move AIM share prices, ranked by typical impact.
+    </p>
+  </section>
+
+  <section>
+    <h2>1. Guidance Revisions</h2>
+
+    <p><strong>Market impact: +10% to +40% (upside); -15% to -50% (downside)</strong></p>
+
+    <p>
+      AIM companies guide on profit, revenue, or cash. Revisions trigger repricing. An upside surprise (profit forecast raised) can rally a stock 20-40% in a single day. A downside revision (profit warning) crushes them 20-50%+.
+    </p>
+
+    <p>
+      Why? Small caps trade on growth assumptions. Those assumptions live in guidance numbers. Revise them and the entire valuation model recalibrates.
+    </p>
+
+    <p class="muted">
+      <strong>Pattern to watch:</strong> Guidance raised by established management = material rally. Guidance revised mid-year after earlier forecasts = distress.
+    </p>
+
+    <p><strong>What to watch in guidance RNS:</strong></p>
+    <ul>
+      <li>Magnitude of revision (5% vs. 50%?)</li>
+      <li>Direction (up vs. down?)</li>
+      <li>Reason given (market strength, cost control, headwind, etc.)</li>
+      <li>Full-year vs. half-year guidance</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>2. Dilution & Placings</h2>
+
+    <p><strong>Market impact: -5% to -40% (usually negative)</strong></p>
+
+    <p>
+      Shares issued at discount = ownership dilution. See the dilution guide for deep dive. Quick take: expect -5 to -30% moves depending on discount, volume, and cash burn context.
+    </p>
+
+    <p>
+      Steep discounts (>20%) or large volumes (>15% dilution) signal distress and trigger the heaviest selling.
+    </p>
+  </section>
+
+  <section>
+    <h2>3. Contract Wins or Material Customer Changes</h2>
+
+    <p><strong>Market impact: +5% to +30% (contract wins); -10% to -40% (major customer losses)</strong></p>
+
+    <p>
+      A contract win validates growth thesis. If a B2B company announces a multi-year deal representing 10-30% of projected revenue, markets often rally 15-30%.
+    </p>
+
+    <p>
+      Conversely, loss of a major customer can signal demand weakness and trigger sharp selloffs—especially if that customer was 20%+ of revenue.
+    </p>
+
+    <p class="muted">
+      <strong>Context matters:</strong> A £1m contract for a £50m company is material. A £1m contract for a £500m company is noise.
+    </p>
+
+    <p><strong>What to extract:</strong></p>
+    <ul>
+      <li>Revenue magnitude (£, % of projected total)</li>
+      <li>Duration (1 year, 5 years, ongoing?)</li>
+      <li>Exclusivity or optionality</li>
+      <li>Customer creditworthiness (blue-chip = lower risk)</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>4. Director Dealings (Buys)</h2>
+
+    <p><strong>Market impact: +5% to +25% (insider buys, especially near lows)</strong></p>
+
+    <p>
+      When directors buy their company's stock with personal money, they're betting on appreciation. Insiders have private information; their buys are confidence signals.
+    </p>
+
+    <p>
+      Large director buys—especially near 52-week lows—often precede rallies. Conversely, high-volume selling by insiders can signal caution (though tax-driven selling is common and less meaningful).
+    </p>
+
+    <p class="muted">
+      <strong>Recent pattern:</strong> Multiple AIM company directors bought significant stakes in recent periods, many near stock lows. Several have subsequently rallied 20-40%+.
+    </p>
+
+    <p><strong>What to look for:</strong></p>
+    <ul>
+      <li>Size of buy (£10k vs. £100k vs. £500k?)</li>
+      <li>Buy price vs. recent trading range</li>
+      <li>Director seniority (CEO > CFO > independent director)</li>
+      <li>Pattern (isolated buy vs. multiple directors buying?)</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>5. Cash Runway & Burn Rate Updates</h2>
+
+    <p><strong>Market impact: -10% to -40% (often negative; dependent on context)</strong></p>
+
+    <p>
+      On AIM, cash is survival. A company burning £500k/month with £2m cash has 4 months of runway. Markets hate this—it signals dilution or distress ahead.
+    </p>
+
+    <p>
+      Cash balance disclosures in half-year or full-year results reveal runway. Declining cash balances quarter-on-quarter, especially if paired with guidance misses, trigger selloffs.
+    </p>
+
+    <p class="muted">
+      <strong>Rule of thumb:</strong> If projected runway drops below 12 months, expect fundraising within 6-9 months = dilution ahead. Markets price this risk in early.
+    </p>
+
+    <p><strong>What to calculate:</strong></p>
+    <ul>
+      <li>Cash at period end</li>
+      <li>Cash burn per month (operating expenses - revenue)</li>
+      <li>Runway in months (cash / monthly burn)</li>
+      <li>Trending (improving or deteriorating?)</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>6. M&A or Significant Acquisitions</h2>
+
+    <p><strong>Market impact: -5% to +30% (highly dependent on strategic fit and price)</strong></p>
+
+    <p>
+      Acquisition announcements can go either way. Strategic buys (expanding addressable market, acquiring revenue) often rally. Expensive or poorly-explained buys trigger selling.
+    </p>
+
+    <p>
+      Key consideration: Is the deal funded by cash (reduces balance sheet strength), debt (increases leverage), or shares (dilutes)?
+    </p>
+
+    <p class="muted">
+      <strong>Pattern:</strong> Growth acquisitions funded by modest debt = typically rally. Large acquisitions with >50% debt load = typically sell-off.
+    </p>
+
+    <p><strong>Parse for:</strong></p>
+    <ul>
+      <li>Deal size relative to acquirer's market cap (10%, 50%, 100%+?)</li>
+      <li>Funding method (cash, debt, equity?)</li>
+      <li>Strategic rationale (clear or vague?)</li>
+      <li>Earn-out or contingent considerations (flag future payments)</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>7. Debt Restructuring or Financial Distress Signals</h2>
+
+    <p><strong>Market impact: -10% to -50% (often negative; distress signal)</strong></p>
+
+    <p>
+      Debt restructures, covenant breaches, or lender amendments signal financial stress. Companies restructure debt because they can't service it under current terms.
+    </p>
+
+    <p>
+      These RNS are heavily negative. Expect -20% to -50% moves, especially if paired with dilutive equity raises (which are the solution to debt stress).
+    </p>
+
+    <p class="muted">
+      <strong>Context:</strong> Debt restructures paired with large placings = "company is stressed, needs cash and debt relief." This combination typically triggers 30-50%+ selloffs.
+    </p>
+
+    <p><strong>Flags to watch:</strong></p>
+    <ul>
+      <li>Covenant amendments (lender waiving terms = bad news)</li>
+      <li>Debt-for-equity swaps (creditor converting to shares = distress)</li>
+      <li>Maturity extensions (kicking the can down the road)</li>
+      <li>Paired equity raises (debt stress + dilution = double hit)</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Prioritizing Signals: Impact Scoring</h2>
+
+    <p>Not all signals carry equal weight. Prioritization framework:</p>
+
+    <table>
+      <tr>
+        <th>Signal Type</th>
+        <th>Typical Move</th>
+        <th>Time to Reprice</th>
+        <th>Frequency</th>
+      </tr>
+      <tr>
+        <td>Guidance revision (major)</td>
+        <td>±20-40%</td>
+        <td>Minutes</td>
+        <td>2-4x/year</td>
+      </tr>
+      <tr>
+        <td>Profit warning</td>
+        <td>-25-50%</td>
+        <td>Minutes</td>
+        <td>1-2x/year</td>
+      </tr>
+      <tr>
+        <td>High-dilution placing (>20%)</td>
+        <td>-15-40%</td>
+        <td>Minutes</td>
+        <td>1-3x/year</td>
+      </tr>
+      <tr>
+        <td>Large contract win (>20% revenue)</td>
+        <td>+15-30%</td>
+        <td>Hours</td>
+        <td>Varies</td>
+      </tr>
+      <tr>
+        <td>Debt restructure</td>
+        <td>-20-40%</td>
+        <td>Minutes</td>
+        <td>1-2x/year</td>
+      </tr>
+      <tr>
+        <td>Director buy (significant)</td>
+        <td>+5-15%</td>
+        <td>Days/weeks</td>
+        <td>Monthly</td>
+      </tr>
+      <tr>
+        <td>Administrative updates</td>
+        <td>0-1%</td>
+        <td>No repricing</td>
+        <td>Weekly</td>
+      </tr>
+    </table>
+
+    <p>
+      <strong>The pattern:</strong> Guidance, dilution, debt, and profit warnings trigger <em>immediate</em> repricing (minutes). Contract wins take hours/days. Director buys accumulate over time. Admin updates are noise.
+    </p>
+  </section>
+
+  <section>
+    <h2>Getting the Edge: Structured Signal Analysis</h2>
+
+    <p>
+      Retail investors scanning chronological RNS feeds will catch the high-impact signals—but after the market has already moved 10-20%. The buyers with structural intelligence get there first.
+    </p>
+
+    <p>
+      <strong>smallcaps.ai</strong> categorizes every AIM RNS, impact-scores it, and surfaces the context (dilution %, guidance shift, contract value, cash runway). All within minutes of release.
+    </p>
+
+    <div class="callout">
+      <p><strong>First-mover advantage:</strong> Impact-prioritized newsflow beats chronological. You see valuation-moving signals before 99% of retail investors finish reading.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Prioritize Like a Pro</h2>
+
+    <div class="cta-wrap">
+      <form class="cta-form" id="cta-3">
+        <input type="email" name="email" placeholder="Enter your email" required autocomplete="email">
+        <button type="submit">Join the Founding Member List</button>
+      </form>
+      <div class="cta-meta">
+        <strong>£19.99/month</strong> Founding Member pricing. Standard launch price <strong>£29.99</strong>.
+      </div>
+      <div class="cta-privacy">No spam. Unsubscribe anytime.</div>
+    </div>
+  </section>
+
+  <footer>
+    © 2026 smallcaps.ai — Structured AIM Intelligence. Not investment advice.
+  </footer>
+</article>
+
+<!-- ============ ARTICLE 4 ============ -->
+<article id="article-4" style="display:none">
+  <a class="back-link" onclick="showView('hub')">← Back to Intelligence Hub</a>
+
+  <section>
+    <div class="article-nav">
+      <span class="nav-tag">Common Mistakes</span>
+      <span class="nav-tag">AIM Investing</span>
+      <span class="nav-tag">Psychology</span>
+    </div>
+
+    <h1>AIM Investing Mistakes: Ignoring RNS Noise and Guidance Changes</h1>
+
+    <p class="muted" style="max-width:680px;">
+      Most AIM investors make the same 5 mistakes when reading RNS feeds. Learn what they are—and how to avoid them.
+    </p>
+
+    <p class="muted" style="font-size:13px;">Published 28 February 2026 · 6 min read</p>
+  </section>
+
+  <section>
+    <p>
+      AIM investing is hard. Liquidity is thin, information asymmetry is real, and valuation swings are sharp. But most losses trace back to the same root cause: <strong>investors treat RNS feeds as chronological, not impact-prioritized.</strong>
+    </p>
+
+    <p>
+      They read in order. By the time they reach the material announcement, the market has already moved. They miss the edge.
+    </p>
+
+    <p>
+      Here are the 5 biggest mistakes—and how to fix them.
+    </p>
+  </section>
+
+  <section>
+    <h2>Mistake #1: Chronological Over Impact-Based Reading</h2>
+
+    <p>
+      Raw RNS feeds display newest first. On any given day: 40-50 new announcements across AIM. You start reading. By announcement #30, you've spent 90 minutes and skimmed <em>just</em> 60% of volume.
+    </p>
+
+    <p>
+      Meanwhile, the profit warning buried at #17 has already crashed the market 25%. You missed it.
+    </p>
+
+    <p><strong>The fix:</strong> Impact-score every announcement before reading. Profit warnings, major dilution, guidance revisions, and debt restructures get priority. Admin updates get skipped.</p>
+
+    <p class="muted">
+      Structuring your workflow by impact reduces time-to-decision from 2 hours to 15 minutes and catches material signals first.
+    </p>
+  </section>
+
+  <section>
+    <h2>Mistake #2: Treating All Guidance the Same</h2>
+
+    <p>
+      "Company updates FY26 guidance" could mean anything. Guidance raised 2%? Barely material. Guidance cut 40%? Distress signal.
+    </p>
+
+    <p>
+      Most investors skim the headline, miss the magnitude, and don't react fast enough. Markets reprice the cut before they process the RNS.
+    </p>
+
+    <p><strong>The fix:</strong> Parse guidance RNS for <em>magnitude</em> of revision, not just direction.</p>
+
+    <ul>
+      <li>0-5% revision = noise</li>
+      <li>5-15% revision = material; expect 5-10% move</li>
+      <li>15-30% revision = significant; expect 15-30% move</li>
+      <li>30%+ revision = distress; expect 30-50%+ move</li>
+    </ul>
+
+    <p>
+      Same for direction. An upgraded guidance (profitable to higher profit) is bullish but less dramatic than a downgrade (profit forecast to loss forecast).
+    </p>
+  </section>
+
+  <section>
+    <h2>Mistake #3: Ignoring Dilution Context in Placings</h2>
+
+    <p>
+      "Company places 500k shares at 45p" lands in your feed. You scan it: "£225k raised." Seems small.
+    </p>
+
+    <p>
+      But if the company has 2m shares outstanding, that's 25% dilution at a 20% discount. Markets will punish this 20-40%. You didn't do the math and missed the signal.
+    </p>
+
+    <p><strong>The fix:</strong> Always calculate dilution % when you see a placing RNS.</p>
+
+    <ul>
+      <li>New shares / existing shares = % dilution</li>
+      <li>Offering price vs. last close = discount %</li>
+      <li>Both >15% = expect -15-30% move</li>
+    </ul>
+
+    <p>
+      Takes 30 seconds. It's the difference between catching the move and being blindsided.
+    </p>
+  </section>
+
+  <section>
+    <h2>Mistake #4: Missing Cash Runway in Results</h2>
+
+    <p>
+      Quarterly results land. Headline revenue is up 10%. You're bullish. You miss the cash balance: down 40% YoY. Runway: 6 months.
+    </p>
+
+    <p>
+      Fundraising is coming. Dilution is coming. The market realizes this days later and sells off 20-30%. You didn't connect the dots.
+    </p>
+
+    <p><strong>The fix:</strong> Build a simple cash runway table for every holding:</p>
+
+    <table>
+      <tr>
+        <th>Period</th>
+        <th>Cash Balance</th>
+        <th>Monthly Burn</th>
+        <th>Runway (months)</th>
+      </tr>
+      <tr>
+        <td>Q4 2025</td>
+        <td>£3.5m</td>
+        <td>£500k</td>
+        <td>7 months</td>
+      </tr>
+      <tr>
+        <td>Q1 2026 (est.)</td>
+        <td>£3.0m</td>
+        <td>£500k</td>
+        <td>6 months</td>
+      </tr>
+      <tr>
+        <td>Q2 2026 (est.)</td>
+        <td>£2.5m</td>
+        <td>£500k</td>
+        <td>5 months</td>
+      </tr>
+    </table>
+
+    <p>
+      When runway drops below 12 months, set an alert. Fundraising RNS (and dilution) is coming. Position yourself before the announcement.
+    </p>
+  </section>
+
+  <section>
+    <h2>Mistake #5: Reacting to Noise Instead of Signal</h2>
+
+    <p>
+      "Change of Company Secretary." "Office address update." "Notice of AGM." These RNS dominate feed volume. Most retail investors waste time on them.
+    </p>
+
+    <p>
+      Result: They're scanning noise while material signals go unread. Classic misdirection of effort.
+    </p>
+
+    <p><strong>The fix:</strong> Use signal categories to filter. Ignore:</p>
+
+    <ul>
+      <li>Administrative changes (officers, addresses, notices)</li>
+      <li>Regulatory housekeeping (PDMR updates, waivers of share dealing restrictions)</li>
+      <li>Non-material amendments to previous RNS</li>
+    </ul>
+
+    <p>
+      Read:
+    </p>
+
+    <ul>
+      <li>Guidance and trading updates</li>
+      <li>Capital raises and dilution</li>
+      <li>Contract wins and customer changes</li>
+      <li>Director dealings (significant buys)</li>
+      <li>Results and cash positions</li>
+      <li>M&A and acquisitions</li>
+      <li>Debt and financing changes</li>
+    </ul>
+
+    <p>
+      Signal filtering cuts signal-to-noise ratio from 1:10 to 1:1. You spend 10x less time and catch 100x more alpha.
+    </p>
+  </section>
+
+  <section>
+    <h2>The Common Thread</h2>
+
+    <p>
+      These 5 mistakes share a theme: <strong>manual processing doesn't scale.</strong>
+    </p>
+
+    <p>
+      When you're reading RNS by hand, you're optimizing for completeness ("I've read everything") instead of speed and signal detection ("I caught the material moves first").
+    </p>
+
+    <p>
+      The market doesn't reward thoroughness. It rewards speed.
+    </p>
+
+    <div class="callout">
+      <p><strong>The edge:</strong> Structured, categorized, impact-scored RNS analysis beats manual chronological reading every single time. You're not trying to be perfect. You're trying to be first to the material signal.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>The Solution: Structured RNS Analysis</h2>
+
+    <p>
+      This is exactly what <strong>smallcaps.ai</strong> automates:
+    </p>
+
+    <ul>
+      <li>Categorizes every RNS by signal type</li>
+      <li>Impact-scores 1–5 based on typical market reaction</li>
+      <li>Extracts key context (dilution %, discount %, guidance shift, cash runway)</li>
+      <li>Surfaces high-impact signals first</li>
+      <li>Filters out administrative noise</li>
+    </ul>
+
+    <p>
+      Result: Decision-ready summaries in minutes. Mistakes become impossible because you're operating on structured data, not raw narrative.
+    </p>
+  </section>
+
+  <section>
+    <h2>Avoid These Mistakes</h2>
+
+    <div class="cta-wrap">
+      <form class="cta-form" id="cta-4">
+        <input type="email" name="email" placeholder="Enter your email" required autocomplete="email">
+        <button type="submit">Join the Founding Member List</button>
+      </form>
+      <div class="cta-meta">
+        <strong>£19.99/month</strong> Founding Member pricing. Standard launch price <strong>£29.99</strong>.
+      </div>
+      <div class="cta-privacy">No spam. Unsubscribe anytime.</div>
+    </div>
+  </section>
+
+  <footer>
+    © 2026 smallcaps.ai — Structured AIM Intelligence. Not investment advice.
+  </footer>
+</article>
+
+<!-- ============ ARTICLE 5 ============ -->
+<article id="article-5" style="display:none">
+  <a class="back-link" onclick="showView('hub')">← Back to Intelligence Hub</a>
+
+  <section>
+    <div class="article-nav">
+      <span class="nav-tag">Tools</span>
+      <span class="nav-tag">RNS Tracking</span>
+      <span class="nav-tag">Resources</span>
+    </div>
+
+    <h1>Best Free Tools to Track AIM RNS in 2026 (And Paid Upgrades)</h1>
+
+    <p class="muted" style="max-width:680px;">
+      You don't need to pay for RNS access. But free tools have limits. Here's what's available, what they do well, and where paid solutions win.
+    </p>
+
+    <p class="muted" style="font-size:13px;">Published 28 February 2026 · 7 min read</p>
+  </section>
+
+  <section>
+    <p>
+      The myth: RNS access costs money. Truth: RNS is free. Anyone can subscribe to updates from London Stock Exchange or dedicated RNS platforms.
+    </p>
+
+    <p>
+      The catch: free tools surface everything chronologically. No prioritization. No context extraction. No impact scoring. You get the firehose; you build the dam yourself.
+    </p>
+
+    <p>
+      Let's break down free options, their strengths and weaknesses, and when paid solutions become worth the cost.
+    </p>
+  </section>
+
+  <section>
+    <h2>Free RNS Platforms</h2>
+
+    <div class="signal-card">
+      <h3>London Stock Exchange (londonstockexchange.com/news)</h3>
+      <p><strong>What it does:</strong> Official RNS feed. All AIM announcements posted here first. Free, official, complete.</p>
+      <p><strong>Strengths:</strong></p>
+      <ul>
+        <li>Authoritative source</li>
+        <li>PDF documents attached (full disclosure)</li>
+        <li>Company-specific RNS history</li>
+      </ul>
+      <p><strong>Weaknesses:</strong></p>
+      <ul>
+        <li>Zero filtering or categorization</li>
+        <li>No alerts (must manually check)</li>
+        <li>Chronological only</li>
+      </ul>
+      <p class="muted"><strong>Best for:</strong> Researchers who need authoritative documents. Not suited for real-time trading.</p>
+    </div>
+
+    <div class="signal-card">
+      <h3>Investegate (investegate.co.uk)</h3>
+      <p><strong>What it does:</strong> Dedicated RNS syndication. Cleaner interface. Free tier includes alerts.</p>
+      <p><strong>Strengths:</strong></p>
+      <ul>
+        <li>Better interface; easier to browse</li>
+        <li>Email alerts available</li>
+        <li>Director dealings clearly flagged</li>
+        <li>Company-specific watchlists</li>
+      </ul>
+      <p><strong>Weaknesses:</strong></p>
+      <ul>
+        <li>Still chronological; no impact prioritization</li>
+        <li>No automated categorization</li>
+        <li>Alerts only by company; not by signal type</li>
+        <li>No context extraction (dilution %, guidance shift, etc.)</li>
+      </ul>
+      <p class="muted"><strong>Best for:</strong> Retail investors watching specific companies. Free alerts + watchlist makes it the best free option for most users.</p>
+    </div>
+
+    <div class="signal-card">
+      <h3>Interactive Investor (ii.co.uk)</h3>
+      <p><strong>What it does:</strong> Retail broker platform. AIM data, commentary, director dealings.</p>
+      <p><strong>Strengths:</strong></p>
+      <ul>
+        <li>Director dealings clearly highlighted</li>
+        <li>Integrated with portfolio tracking</li>
+        <li>Commentary from analysts</li>
+      </ul>
+      <p><strong>Weaknesses:</strong></p>
+      <ul>
+        <li>Broker-centric; not a pure RNS tool</li>
+        <li>Requires account (free signup, but friction)</li>
+        <li>No real-time prioritization of signals</li>
+      </ul>
+      <p class="muted"><strong>Best for:</strong> ii.co.uk users who want integrated broker + RNS experience.</p>
+    </div>
+
+    <div class="signal-card">
+      <h3>ShareCast / Financial Data Aggregators</h3>
+      <p><strong>What it does:</strong> Financial news aggregators. AIM RNS syndicated alongside analysis.</p>
+      <p><strong>Strengths:</strong></p>
+      <ul>
+        <li>Context + narrative (not raw RNS)</li>
+        <li>Analyst commentary</li>
+        <li>Mobile-friendly</li>
+      </ul>
+      <p><strong>Weaknesses:</strong></p>
+      <ul>
+        <li>Selective coverage (not all AIM RNS; filtered by editorial judgment)</li>
+        <li>Delayed; editorial adds latency</li>
+      </ul>
+      <p class="muted"><strong>Best for:</strong> Background reading and context. Not for real-time signal detection.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Where Free Tools Fall Short</h2>
+
+    <p>
+      All free RNS platforms share a core limitation: <strong>they surface announcements, not insights.</strong>
+    </p>
+
+    <p>Here's what you lose by staying free:</p>
+
+    <table>
+      <tr>
+        <th>Feature</th>
+        <th>Free Platforms</th>
+        <th>Paid Solutions</th>
+      </tr>
+      <tr>
+        <td>Chronological feed</td>
+        <td>✓ Yes</td>
+        <td>✓ Yes</td>
+      </tr>
+      <tr>
+        <td>Impact prioritization</td>
+        <td>✗ No</td>
+        <td>✓ Yes</td>
+      </tr>
+      <tr>
+        <td>Signal categorization</td>
+        <td>✗ No</td>
+        <td>✓ Yes</td>
+      </tr>
+      <tr>
+        <td>Context extraction</td>
+        <td>✗ No</td>
+        <td>✓ Yes</td>
+      </tr>
+      <tr>
+        <td>Watchlist monitoring</td>
+        <td>✓ Limited</td>
+        <td>✓ Advanced</td>
+      </tr>
+      <tr>
+        <td>Real-time alerts</td>
+        <td>✓ Email only</td>
+        <td>✓ Instant + prioritized</td>
+      </tr>
+      <tr>
+        <td>Decision-ready summaries</td>
+        <td>✗ No</td>
+        <td>✓ Yes</td>
+      </tr>
+    </table>
+
+    <p>
+      Result: Using only free tools, you're spending 2-3 hours per week scanning RNS to find the material signals. Paid platforms do this in 15 minutes.
+    </p>
+  </section>
+
+  <section>
+    <h2>When Paid RNS Tools Make Sense</h2>
+
+    <p><strong>You should consider paid if:</strong></p>
+
+    <ul>
+      <li>You hold >5 AIM positions and actively trade/adjust</li>
+      <li>You check RNS more than 3x per week</li>
+      <li>You've missed material moves because you were scanning too slowly</li>
+      <li>You're deploying meaningful capital (£50k+) and want decision advantage</li>
+      <li>Time > money (15 mins/day saved x £200/hr effective rate = £750/month value)</li>
+    </ul>
+
+    <p><strong>You should stick with free if:</strong></p>
+
+    <ul>
+      <li>You hold 1-2 AIM positions long-term (buy and hold)</li>
+      <li>You check RNS <1x per week</li>
+      <li>You're learning and capital deployment is small (<£10k)</li>
+      <li>You have time to scan manually</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Paid Solutions: What's Available</h2>
+
+    <p>
+      Most traditional financial tools (Bloomberg, FactSet, Reuters) are enterprise/professional tier and cost £1000+/month. For retail, options are limited.
+    </p>
+
+    <p>
+      The emerging category is <strong>AI-powered RNS analysis</strong>—tools that automate signal detection, categorization, and impact scoring for retail-accessible pricing.
+    </p>
+
+    <div class="signal-card">
+      <h3>smallcaps.ai — Structured AIM Intelligence</h3>
+      <p><strong>What it does:</strong> AI-powered RNS analysis. Every announcement categorized, impact-scored, context extracted.</p>
+      <p><strong>Features:</strong></p>
+      <ul>
+        <li>Signal categorization (guidance, dilution, contracts, director deals, etc.)</li>
+        <li>Impact scoring (1–5 based on market reaction patterns)</li>
+        <li>Context extraction (dilution %, guidance shift %, contract value)</li>
+        <li>Impact-prioritized feed (high-impact first, admin noise filtered)</li>
+        <li>Watchlist integration</li>
+        <li>Decision-ready summaries (time-to-insight: 2 minutes vs. 30-60 minutes manual)</li>
+      </ul>
+      <p><strong>Pricing:</strong></p>
+      <ul>
+        <li>£19.99/month – Founding Member rate (locked for life)</li>
+        <li>£29.99/month – Standard launch price</li>
+        <li>Limited to 100 Founding Members</li>
+      </ul>
+      <p class="muted"><strong>Best for:</strong> Active AIM investors who value decision speed over comprehensiveness. You're not reading every RNS; you're catching every material signal first.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Practical Workflow: Free + Paid Hybrid</h2>
+
+    <p>
+      Many investors use hybrid approach:
+    </p>
+
+    <ul>
+      <li><strong>Free (Investegate):</strong> Check watchlist daily for alerts; browse by company</li>
+      <li><strong>Paid (smallcaps.ai):</strong> Sort by impact; catch high-signal announcements first; extract context</li>
+      <li><strong>Deep dive:</strong> London Stock Exchange for full PDF documents if making trades</li>
+    </ul>
+
+    <p>
+      This workflow surfaces material signals in 20 minutes instead of 120 minutes.
+    </p>
+
+    <div class="callout">
+      <p><strong>Rule of thumb:</strong> If you're actively managing >3 AIM positions and trading >2x per month, paid tools likely save you 5-10 hours/month. At £200+/hr value of time, that's a 2-3x ROI on a £30/month tool.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>TL;DR: Our Recommendation</h2>
+
+    <p><strong>Start free:</strong> Use Investegate + ii.co.uk. Set up watchlist alerts. This costs nothing and covers 80% of basics.</p>
+
+    <p><strong>Upgrade to paid when:</strong> You realize you're spending 2+ hours/week on manual RNS scanning and missing moves because you're too slow. Then, paid tools become ROI-positive immediately.</p>
+
+    <p>
+      The best RNS tool isn't necessarily the most expensive—it's the one that gets you to the material signals first. For AIM, that's impact-prioritized + AI-categorized feeds over raw chronological volume.
+    </p>
+  </section>
+
+  <section>
+    <h2>Get Structured AIM Intelligence</h2>
+
+    <p>
+      Join the Founding Member list for early access to smallcaps.ai. Limited to 100 members. Pricing locked at £19.99/month for life (standard launch: £29.99).
+    </p>
+
+    <div class="cta-wrap">
+      <form class="cta-form" id="cta-5">
+        <input type="email" name="email" placeholder="Enter your email" required autocomplete="email">
+        <button type="submit">Join the Founding Member List</button>
+      </form>
+      <div class="cta-meta">
+        <strong>£19.99/month</strong> for Founding Members. <strong>£29.99/month</strong> standard launch price.
+      </div>
+      <div class="cta-privacy">No spam. Unsubscribe anytime.</div>
+    </div>
+  </section>
+
+  <footer>
+    © 2026 smallcaps.ai — Structured AIM Intelligence. Not investment advice.
+  </footer>
+</article>
+
+</main>
+
+<script>
+function showView(viewId) {
+  document.querySelectorAll('article').forEach(a => a.style.display = 'none');
+  document.getElementById(viewId).style.display = 'block';
+  window.scrollTo(0, 0);
+}
+
+function onSubmit(e){
+  e.preventDefault();
+  const email = (e.target.querySelector('input[type="email"]') || {}).value || "";
+  if(!email) return;
+  alert("Thanks — you're on the Founding Member list.");
+  e.target.reset();
+}
+
+["cta-1","cta-2","cta-3","cta-4","cta-5"].forEach(id=>{
+  const form = document.getElementById(id);
+  if(form) form.addEventListener("submit", onSubmit);
+});
+
+document.querySelectorAll('.back-link').forEach(link => {
+  link.addEventListener('click', (e) => {
+    e.preventDefault();
+    showView('hub');
+  });
+});
+
+document.querySelector('.topbar-link').addEventListener('click', (e) => {
+  e.preventDefault();
+  showView('hub');
+});
+
+document.querySelectorAll('.article-card').forEach(card => {
+  card.style.cursor = 'pointer';
+});
+</script>
+
+</body>
+</html>
