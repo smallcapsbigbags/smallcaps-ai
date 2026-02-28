@@ -1,0 +1,491 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>smallcaps.ai — Structured AIM Intelligence</title>
+<meta name="description" content="smallcaps.ai brings structure and clarity to AIM newsflow by systematically surfacing the signals that materially affect valuation." />
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  --bg:#F6F8FA;
+  --card:#FFFFFF;
+  --border:#E5E7EB;
+  --primary:#2563EB;
+  --text:#111827;
+  --muted:#6B7280;
+  --r:4px;
+  --maxw:920px;
+  --topbar-h:52px;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+
+body{
+  margin:0;
+  font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  padding-top:var(--topbar-h);
+}
+
+.container{
+  max-width:var(--maxw);
+  margin:0 auto;
+  padding:0 18px;
+}
+
+/* Topbar */
+.topbar{
+  position:fixed;
+  top:0;
+  left:0;
+  right:0;
+  height:var(--topbar-h);
+  background:#fff;
+  border-bottom:1px solid var(--border);
+  z-index:50;
+}
+.topbar-inner{
+  height:100%;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+}
+.logo{
+  font-weight:600;
+  letter-spacing:-0.01em;
+  font-size:16px;
+  white-space:nowrap;
+}
+.logo span{color:var(--primary)}
+.topbar-note{
+  font-size:12px;
+  color:var(--muted);
+  white-space:nowrap;
+}
+
+/* Layout rhythm */
+section{margin:56px 0;}
+section:first-of-type{margin-top:28px;margin-bottom:44px;}
+
+h1{
+  font-size:34px;         /* controlled, less “startup-y” */
+  font-weight:600;
+  letter-spacing:-.02em;
+  margin:10px 0 12px;
+  line-height:1.15;
+}
+h2{
+  font-size:22px;
+  margin:0 0 14px;
+  letter-spacing:-.01em;
+}
+p{line-height:1.65;margin:10px 0;}
+ul{padding-left:18px;line-height:1.65;margin:10px 0;}
+.muted{color:var(--muted);}
+
+section > p,
+section > ul{max-width:660px;}
+
+/* CTA */
+.cta-wrap{margin-top:14px;}
+.cta-form{
+  display:flex;
+  margin-top:12px;
+  max-width:440px;
+}
+.cta-form input{
+  flex:1;
+  padding:12px;
+  border:1px solid var(--border);
+  border-right:none;
+  border-radius:4px 0 0 4px;
+  font-size:14px;
+  background:#fff;
+  color:var(--text);
+  outline:none;
+}
+.cta-form input::placeholder{color:var(--muted)}
+.cta-form button{
+  padding:12px 18px;
+  border:1px solid var(--primary);
+  border-left:none;
+  border-radius:0 4px 4px 0;
+  background:var(--primary);
+  color:#fff;
+  font-weight:700;
+  cursor:pointer;
+}
+.cta-form button:hover{opacity:.94;}
+.cta-meta{
+  margin-top:8px;
+  font-size:12px;
+  color:var(--muted);
+}
+.cta-meta strong{color:var(--text); font-weight:700;}
+.cta-privacy{
+  margin-top:6px;
+  font-size:12px;
+  color:var(--muted);
+}
+
+/* Product media */
+.product-media{
+  margin-top:16px;
+  max-width:740px;
+}
+.product-media img{
+  width:100%;
+  height:auto;
+  display:block;
+  border:1px solid var(--border);
+  border-radius:var(--r);
+  background:#fff;
+}
+.product-media figcaption{
+  margin-top:10px;
+  font-size:12px;
+  color:var(--muted);
+}
+
+/* Comparison */
+.compare{
+  display:grid;
+  gap:18px;
+  margin-top:16px;
+}
+@media (min-width:760px){
+  .compare{grid-template-columns:1fr 1fr;}
+}
+.compare-col{
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:var(--r);
+  padding:18px;
+}
+.compare-col.highlight{
+  border-color:rgba(37,99,235,.35);
+}
+.compare-title{font-weight:700;margin-bottom:10px;}
+.compare-title.muted{font-weight:700;color:var(--muted);}
+
+/* Pricing card */
+.price-card{
+  background:#fff;
+  border:1px solid rgba(37,99,235,.35);
+  border-radius:var(--r);
+  padding:18px;
+  max-width:740px;
+}
+.price-grid{
+  display:grid;
+  gap:10px;
+}
+.price-line{
+  display:flex;
+  gap:10px;
+  align-items:baseline;
+  flex-wrap:wrap;
+}
+.price{
+  font-size:26px;
+  font-weight:700;
+  letter-spacing:-.02em;
+}
+.price small{
+  font-size:13px;
+  font-weight:600;
+  color:var(--muted);
+}
+
+/* Q&A */
+.qa{
+  max-width:740px;
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:var(--r);
+  padding:18px;
+}
+.qa h3{
+  margin:0 0 8px;
+  font-size:14px;
+  font-weight:800;
+  letter-spacing:-.01em;
+}
+.qa p{margin:8px 0;color:var(--text);}
+
+/* Footer */
+footer{
+  border-top:1px solid var(--border);
+  padding:22px 0;
+  font-size:13px;
+  color:var(--muted);
+}
+</style>
+</head>
+
+<body>
+
+<header class="topbar" role="banner">
+  <div class="container topbar-inner">
+    <div class="logo">smallcaps<span>.ai</span></div>
+    <div class="topbar-note">Founding Member list now open</div>
+  </div>
+</header>
+
+<main class="container">
+
+  <!-- HERO -->
+  <section aria-label="Hero">
+    <div class="muted">UK Small-Cap Intelligence Platform</div>
+
+    <h1>Structured AIM intelligence that surfaces valuation-moving signals from RNS — without the noise.</h1>
+
+    <p class="muted" style="max-width:680px;">
+      Designed for serious AIM investors who value structured assessment over reactive interpretation.
+    </p>
+
+    <div class="cta-wrap">
+      <form class="cta-form" id="signupTop">
+        <input type="email" name="email" placeholder="Enter your email" required autocomplete="email">
+        <button type="submit">Join the Founding Member List</button>
+      </form>
+
+      <div class="cta-meta">
+        <strong>£19.99/month</strong> Founding Member pricing. Standard launch price <strong>£29.99</strong>.
+      </div>
+      <div class="cta-privacy">No spam. Unsubscribe anytime.</div>
+      <div class="cta-meta" style="font-size:13px;">Built for serious AIM investors deploying meaningful capital.</div>
+    </div>
+  </section>
+
+  <!-- PROBLEM -->
+  <section aria-label="Problem">
+    <h2>The problem with AIM newsflow</h2>
+
+    <p>AIM generates thousands of regulatory announcements every year.</p>
+    <p>Most are administrative. Some materially alter valuation.</p>
+    <p>In the raw feed, they appear indistinguishable.</p>
+
+    <p><strong>In smaller companies, single announcements can materially alter valuation.</strong></p>
+
+    <p>Investors are forced to manually interpret:</p>
+    <ul>
+      <li>Capital raises and dilution</li>
+      <li>Guidance revisions and trading updates</li>
+      <li>Contract wins and material customer changes</li>
+      <li>Balance sheet and liquidity shifts</li>
+      <li>Director dealings and governance changes</li>
+    </ul>
+
+    <p><strong>By the time impact is clear, the market has often already moved.</strong></p>
+  </section>
+
+  <!-- SOLUTION -->
+  <section aria-label="Solution">
+    <h2>How smallcaps.ai brings structure</h2>
+
+    <p>
+      Every AIM RNS is assessed against a structured signal framework designed specifically for the structural realities of the AIM market.
+    </p>
+
+    <ul>
+      <li>Categorised by signal type</li>
+      <li>Impact scored (1–5) with consistent criteria</li>
+      <li>Structured, decision-ready summary</li>
+      <li>Key context surfaced (dilution, guidance, cash, terms)</li>
+      <li>Prioritised by materiality — not just chronology</li>
+    </ul>
+
+    <p><strong>The result: clarity over noise.</strong></p>
+
+    <figure class="product-media">
+      <img src="mock-card-detail.png" alt="smallcaps.ai card detail preview">
+      <figcaption>Structured signals, impact score, category and context in one view.</figcaption>
+    </figure>
+  </section>
+
+  <!-- WHY STRUCTURE MATTERS -->
+  <section aria-label="Why structure matters">
+    <h2>Why structure matters</h2>
+
+    <p>
+      In AIM markets, valuation shifts are often driven by dilution, guidance changes, cash runway pressure, director activity and contract materiality.
+      These signals are frequently embedded within narrative disclosure.
+    </p>
+
+    <p class="muted" style="max-width:680px;">
+      smallcaps.ai surfaces those signals consistently — within minutes of release — so you can assess what changed without scanning every announcement manually.
+    </p>
+  </section>
+
+  <!-- FEED -->
+  <section aria-label="Product preview">
+    <h2>Impact-prioritised newsflow</h2>
+    <p>High-impact events surface first. Low-materiality announcements are deprioritised.</p>
+
+    <figure class="product-media">
+      <img src="mock-dashboard.png" alt="smallcaps.ai dashboard preview">
+      <figcaption>Impact-prioritised feed with watchlist integration and consistent signal framing.</figcaption>
+    </figure>
+  </section>
+
+  <!-- COMPARISON -->
+  <section aria-label="Comparison">
+    <h2>Raw RNS feed vs smallcaps.ai</h2>
+
+    <div class="compare">
+      <div class="compare-col">
+        <div class="compare-title muted">Raw RNS feed</div>
+        <ul>
+          <li>Chronological ordering</li>
+          <li>Unstructured announcements</li>
+          <li>Manual materiality assessment</li>
+          <li>Signals buried in narrative</li>
+        </ul>
+      </div>
+
+      <div class="compare-col highlight">
+        <div class="compare-title">smallcaps.ai</div>
+        <ul>
+          <li>Impact-prioritised ordering</li>
+          <li>Structured categorisation</li>
+          <li>Decision-ready summaries</li>
+          <li>Material signals surfaced clearly</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOUNDERS -->
+  <section id="founders" aria-label="Founding member access">
+    <h2>Founding Member access</h2>
+
+    <div class="price-card">
+      <div class="price-grid">
+        <div class="price-line">
+          <div class="price">£19.99<span class="muted" style="font-size:16px;font-weight:700;">/month</span></div>
+          <div class="muted">Price locked for life · Standard launch price £29.99/month · Limited to 100 members</div>
+        </div>
+
+        <p class="muted" style="margin:6px 0 0;max-width:680px;">
+          Designed for a limited group of serious AIM investors.
+        </p>
+
+        <ul style="margin-top:8px;max-width:680px;">
+          <li>Full structured AIM feed</li>
+          <li>Impact prioritisation and signal tagging</li>
+          <li>Watchlist monitoring</li>
+          <li>Premium Smallcaps Big Bags research</li>
+        </ul>
+
+        <p class="muted" style="margin-top:6px;">Cancel anytime. No contracts.</p>
+
+        <form class="cta-form" id="signupFounders" style="margin-top:10px;">
+          <input type="email" name="email" placeholder="Enter your email" required autocomplete="email">
+          <button type="submit">Join the Founding Member List</button>
+        </form>
+        <div class="cta-privacy">No spam. Unsubscribe anytime.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Q&A -->
+  <section aria-label="FAQ">
+    <h2>Common questions</h2>
+
+<!-- Q&A -->
+<section aria-label="FAQ">
+  <h2>Common questions</h2>
+
+  <div class="qa" style="display:grid; gap:12px;">
+    <div class="qa">
+      <h3>“RNS is free.”</h3>
+      <p>
+        Correct. RNS is unstructured. smallcaps.ai systematically extracts and prioritises the signals that materially affect valuation — without requiring manual interpretation of every announcement.
+      </p>
+      <p class="muted" style="margin-top:8px;">It’s not about access. It’s about clarity.</p>
+    </div>
+
+    <div class="qa">
+      <h3>How fast is it updated?</h3>
+      <p>
+        Updated continuously throughout the trading day. Announcements are structured and surfaced within minutes of publication.
+      </p>
+    </div>
+
+    <div class="qa">
+      <h3>Is this investment advice?</h3>
+      <p>
+        No. smallcaps.ai is a research and intelligence tool that structures public information. It does not provide personalised investment advice.
+      </p>
+    </div>
+
+    <div class="qa">
+      <h3>What markets does it cover?</h3>
+      <p>
+        AIM-focused. The signal framework is designed specifically for the structural realities of UK small-cap newsflow.
+      </p>
+    </div>
+
+    <div class="qa">
+      <h3>What do I get as a Founding Member?</h3>
+      <p>
+        Founding Members lock in £19.99/month pricing for life and receive full platform access at launch, including the structured feed, impact prioritisation and watchlist monitoring.
+      </p>
+    </div>
+
+    <div class="qa">
+      <h3>Can I cancel anytime?</h3>
+      <p>Yes. No contracts.</p>
+    </div>
+  </div>
+</section>
+
+  <!-- FINAL CTA -->
+  <section id="join" aria-label="Final call to action">
+    <h2>Operate with clarity.</h2>
+
+    <form class="cta-form" id="signupBottom">
+      <input type="email" name="email" placeholder="Enter your email" required autocomplete="email">
+      <button type="submit">Join the Founding Member List</button>
+    </form>
+
+    <div class="cta-privacy">No spam. Unsubscribe anytime.</div>
+    <div class="cta-meta">We’ll notify you when Founding Member access opens.</div>
+  </section>
+
+  <footer>
+    © 2026 smallcaps.ai — Structured AIM Intelligence. Not investment advice.
+  </footer>
+
+</main>
+
+<script>
+/*
+  Hook these forms up to your email provider (ConvertKit/Mailchimp/etc).
+  For now, prevent navigation so the page feels complete in a static deploy.
+*/
+(function(){
+  function onSubmit(e){
+    e.preventDefault();
+    const email = (e.target.querySelector('input[type="email"]') || {}).value || "";
+    if(!email) return;
+    alert("Thanks — you're on the Founding Member list.");
+    e.target.reset();
+  }
+  ["signupTop","signupFounders","signupBottom"].forEach(id=>{
+    const form = document.getElementById(id);
+    if(form) form.addEventListener("submit", onSubmit);
+  });
+})();
+</script>
+
+</body>
+</html>
