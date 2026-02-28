@@ -1,0 +1,534 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Stock in Focus: Cordel Group (CRDL) — smallcaps.ai</title>
+  <meta name="description" content="Stock in Focus: Cordel Group (CRDL). Thesis, moat, financials, pipeline, bull/bear case, and catalysts. Published 27 Feb 2026 by SmallcapsBigBags." />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root{
+      --bg:#F6F8FA;
+      --card:#FFFFFF;
+      --border:#E5E7EB;
+      --primary:#2563EB;
+      --text:#111827;
+      --muted:#6B7280;
+      --r:4px;
+      --maxw:980px;
+      --topbar-h:56px;
+
+      --pos-text:#15803D;
+      --pos-bg:#DCFCE7;
+
+      --neg-text:#B91C1C;
+      --neg-bg:#FEE2E2;
+
+      --pill-bg:#F3F4F6;
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      background:var(--bg);
+      color:var(--text);
+      padding-top:var(--topbar-h);
+    }
+
+    a{color:inherit; text-decoration:none}
+    .container{max-width:var(--maxw); margin:0 auto; padding:0 18px;}
+    .topbar{
+      position:fixed; top:0; left:0; right:0;
+      height:var(--topbar-h);
+      background:#fff;
+      border-bottom:1px solid var(--border);
+      z-index:50;
+    }
+    .topbar-inner{
+      height:100%;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:14px;
+    }
+    .logo{
+      font-weight:600;
+      letter-spacing:-0.01em;
+      font-size:16px;
+      white-space:nowrap;
+    }
+    .logo span{color:var(--primary)}
+    .nav{
+      display:flex; gap:14px;
+      color:var(--muted);
+      font-weight:600;
+      white-space:nowrap;
+      font-size:13px;
+    }
+    .nav a{padding:6px 8px; border-radius:var(--r);}
+    .nav a.active{color:var(--text);}
+
+    main{padding:26px 0 40px;}
+
+    /* Article shell */
+    .article{
+      background:var(--card);
+      border:1px solid var(--border);
+      border-radius:var(--r);
+      padding:20px;
+    }
+    .kicker{color:var(--muted); font-weight:700; font-size:12px; letter-spacing:.02em;}
+    h1{
+      margin:10px 0 10px;
+      font-size:34px;
+      letter-spacing:-.02em;
+      line-height:1.15;
+    }
+    .subhead{
+      margin:0 0 14px;
+      color:var(--muted);
+      line-height:1.6;
+      max-width:74ch;
+    }
+    .meta{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      align-items:center;
+      margin:10px 0 18px;
+      color:var(--muted);
+      font-size:12px;
+    }
+    .meta .dot{
+      width:4px; height:4px; border-radius:999px; background:var(--border);
+      display:inline-block;
+    }
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      height:24px;
+      padding:0 10px;
+      border-radius:999px;
+      border:1px solid var(--border);
+      background:var(--pill-bg);
+      font-size:11px;
+      font-weight:800;
+      color:var(--text);
+      white-space:nowrap;
+    }
+    .pill.primary{
+      background:#EFF6FF;
+      border-color:rgba(37,99,235,.25);
+      color:var(--primary);
+    }
+
+    /* Grid blocks */
+    .grid{
+      display:grid;
+      gap:12px;
+      grid-template-columns:1fr;
+      margin:14px 0 6px;
+    }
+    @media (min-width:900px){
+      .grid{ grid-template-columns:1.2fr .8fr; }
+    }
+
+    .card{
+      background:#fff;
+      border:1px solid var(--border);
+      border-radius:var(--r);
+      padding:16px;
+    }
+    .card h2{
+      margin:0 0 10px;
+      font-size:16px;
+      letter-spacing:-.01em;
+    }
+    .card p{margin:10px 0; line-height:1.7;}
+    .card ul{margin:10px 0; padding-left:18px; line-height:1.7;}
+    .muted{color:var(--muted);}
+
+    /* Fact table */
+    .facts{
+      width:100%;
+      border-collapse:collapse;
+      font-size:13px;
+    }
+    .facts tr{border-top:1px solid var(--border);}
+    .facts tr:first-child{border-top:0;}
+    .facts th, .facts td{
+      text-align:left;
+      padding:10px 0;
+      vertical-align:top;
+    }
+    .facts th{
+      color:var(--muted);
+      font-weight:700;
+      width:42%;
+      padding-right:14px;
+    }
+
+    /* Section headings */
+    .section{
+      margin-top:18px;
+      padding-top:18px;
+      border-top:1px solid var(--border);
+    }
+    .section h2{
+      margin:0 0 10px;
+      font-size:18px;
+      letter-spacing:-.01em;
+    }
+    .callout{
+      border-left:3px solid var(--primary);
+      padding:10px 12px;
+      background:#F8FAFF;
+      border-radius:var(--r);
+      margin:12px 0;
+      color:var(--text);
+    }
+    .callout strong{font-weight:800;}
+
+    /* Bull/Bear */
+    .two-col{
+      display:grid;
+      gap:12px;
+      grid-template-columns:1fr;
+    }
+    @media (min-width:760px){
+      .two-col{ grid-template-columns:1fr 1fr; }
+    }
+    .tag{
+      display:inline-flex;
+      align-items:center;
+      height:22px;
+      padding:0 10px;
+      border-radius:999px;
+      font-size:11px;
+      font-weight:900;
+      white-space:nowrap;
+    }
+    .tag.pos{color:var(--pos-text); background:var(--pos-bg);}
+    .tag.neg{color:var(--neg-text); background:var(--neg-bg);}
+
+    /* Score */
+    .score{
+      display:flex;
+      align-items:baseline;
+      gap:10px;
+    }
+    .score .value{
+      font-size:26px;
+      font-weight:800;
+      letter-spacing:-.02em;
+    }
+    .score .label{
+      color:var(--muted);
+      font-weight:700;
+      font-size:12px;
+    }
+
+    /* Disclaimer */
+    .disclaimer{
+      margin-top:18px;
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.6;
+    }
+
+    /* Footer actions */
+    .footer-actions{
+      margin-top:16px;
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+    }
+    .btn{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      height:34px;
+      padding:0 12px;
+      border-radius:var(--r);
+      border:1px solid var(--primary);
+      background:var(--primary);
+      color:#fff;
+      font-weight:800;
+      font-size:13px;
+      cursor:pointer;
+    }
+    .btn.secondary{
+      background:#fff;
+      color:var(--primary);
+      border-color:rgba(37,99,235,.35);
+    }
+  </style>
+</head>
+
+<body>
+  <header class="topbar" role="banner">
+    <div class="container topbar-inner">
+      <div class="logo">smallcaps<span>.ai</span></div>
+      <nav class="nav" aria-label="Primary">
+        <a href="#">Feed</a>
+        <a href="#" class="active">Research</a>
+        <a href="#">Watchlist</a>
+        <a href="#">Account</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <article class="article">
+      <div class="kicker">Stock in Focus</div>
+      <h1>Cordel Group (CRDL)</h1>
+      <p class="subhead">
+        Rail technology / infrastructure software micro-cap combining capture hardware and AI-driven analytics to automate rail asset inspection and compliance workflows.
+      </p>
+
+      <div class="meta">
+        <span class="pill primary">AIM</span>
+        <span class="pill">Infrastructure AI</span>
+        <span class="pill">DaaS / SaaS</span>
+        <span class="dot" aria-hidden="true"></span>
+        <span>Author: <strong>SmallcapsBigBags</strong></span>
+        <span class="dot" aria-hidden="true"></span>
+        <span>Published: <strong>27 Feb 2026</strong></span>
+      </div>
+
+      <div class="grid">
+        <!-- Left: narrative intro -->
+        <div class="card">
+          <h2>What does the company do?</h2>
+          <p>
+            Cordel operates at the intersection of infrastructure and AI. The group provides rail inspection and analytics through a vertically integrated model:
+            LiDAR and video capture hardware mounted on trains feeds Cordel’s proprietary software platform, and AI automates asset detection, clearance monitoring and regulatory workflows.
+            Manual surveys are replaced with automated, repeatable data capture.
+          </p>
+
+          <p class="callout">
+            <strong>Business model:</strong> hardware-enabled Data-as-a-Service. Initial deployments generate hardware and project revenue; over time the value shifts toward higher-quality recurring analytics subscriptions.
+          </p>
+
+          <p class="muted">
+            Mental model: land the contract → embed the hardware → expand the data layer.
+          </p>
+        </div>
+
+        <!-- Right: facts -->
+        <aside class="card" aria-label="Key facts">
+          <h2>Key facts</h2>
+          <table class="facts" role="table">
+            <tr>
+              <th>🏷️ Ticker</th>
+              <td><strong>CRDL</strong></td>
+            </tr>
+            <tr>
+              <th>💰 Market cap</th>
+              <td>£10.5m <span class="muted">(at 27.02.2026)</span></td>
+            </tr>
+            <tr>
+              <th>📈 Share price</th>
+              <td>4.90p <span class="muted">(at 27.02.2026)</span></td>
+            </tr>
+            <tr>
+              <th>📊 52-week range</th>
+              <td>4.35p – 8.13p</td>
+            </tr>
+            <tr>
+              <th>🏭 Industry</th>
+              <td>Rail technology / infrastructure software</td>
+            </tr>
+          </table>
+        </aside>
+      </div>
+
+      <section class="section">
+        <h2>What is PTC Asset Connect?</h2>
+        <p>
+          PTC Asset Connect is the strategic development of the past year. Positive Train Control (PTC) is a mandated US rail safety system designed to automatically prevent collisions,
+          derailments and incorrect switch movements.
+        </p>
+        <p>
+          Running PTC creates a permanent compliance obligation: railroads must continuously audit their digital inventories of every trackside asset. That’s the workflow Cordel automates.
+        </p>
+
+        <div class="card" style="margin-top:12px;">
+          <h2>What Cordel’s AI does</h2>
+          <ul>
+            <li>Detect and classify assets from LiDAR and video datasets</li>
+            <li>Geo-locate assets precisely</li>
+            <li>Update compliance registers and associated workflows</li>
+          </ul>
+          <p class="muted">
+            Cordel secured its first PTC contract before the formal July 2025 launch.
+          </p>
+          <p>
+            In June 2025, a US Class 1 contract was structured as: <strong>US$3.7m</strong> base value over five years plus a <strong>US$3.8m</strong> contingent PTC SaaS component.
+          </p>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>Strategic positioning — US Class 1 penetration</h2>
+        <p>
+          At ~£5m annual revenue, Tier-1 customer upgrades can be material. Cordel now serves three of the seven North American Class 1 freight railroads, plus Amtrak, Genesee &amp; Wyoming and Network Rail.
+        </p>
+
+        <p class="callout">
+          A third Class 1 PTC and clearances contract was announced in February, structured around a <strong>3,000-mile validation phase</strong>. Hardware is being installed on a geometry testing vehicle,
+          with commissioning targeted for <strong>Q1 2026</strong>. Validation success could lead to a larger rollout.
+        </p>
+
+        <p class="muted">
+          The contract appears to have progressed from a prior data-sharing relationship rather than a cold start, which may improve the probability of commercial expansion if commissioning and validation complete successfully.
+        </p>
+      </section>
+
+      <section class="section">
+        <h2>The moat</h2>
+        <p>
+          This is not a “blue-sky AI” story. It is embedded, mission-critical infrastructure. The moat is built on:
+        </p>
+        <ul>
+          <li>Proprietary capture hardware</li>
+          <li>Rail-specific AI models</li>
+          <li>The cloud-based Cordel Connect platform</li>
+          <li>Tier-1 customers such as Amtrak, Genesee &amp; Wyoming and Network Rail</li>
+        </ul>
+      </section>
+
+      <section class="section">
+        <h2>Interim results / latest financials</h2>
+        <p>
+          Commercial traction is evident, but growth and timing are volatile due to procurement cycles and contract timing.
+        </p>
+
+        <div class="two-col">
+          <div class="card">
+            <h2>Reported</h2>
+            <ul>
+              <li><strong>FY24</strong> revenue: £4.44m (+46%)</li>
+              <li><strong>FY25</strong> revenue: £4.79m (+8%) · improved EBITDA · closing cash: £1.50m</li>
+              <li><strong>H1 FY26</strong> revenue: £1.73m (-24%) · cash: £1.02m</li>
+            </ul>
+          </div>
+
+          <div class="card">
+            <h2>Interpretation</h2>
+            <p>
+              H1 FY26 showed a stall in growth. Management cited long procurement cycles and delayed purchase orders in the US and UK, with an expectation of H2 recovery.
+            </p>
+            <p class="muted">
+              If H2 recovery fails to materialise, cash may become tight relative to operating needs.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>Pipeline</h2>
+        <p class="callout">
+          <strong>Qualified pipeline</strong> grew <strong>133% YoY</strong> from <strong>£30m</strong> to <strong>£70m</strong>, spanning <strong>40+</strong> active projects across new and existing customers.
+        </p>
+        <p class="muted">
+          Pipeline does not equal contracts, but relative to a ~£10m market cap it remains a notable indicator of potential opportunity.
+        </p>
+      </section>
+
+      <section class="section">
+        <h2>Bull vs bear</h2>
+        <div class="two-col">
+          <div class="card">
+            <div class="tag pos">Bull case</div>
+            <ul>
+              <li><strong>Tier-1 customers:</strong> three of seven US Class 1 railroads is a meaningful endorsement.</li>
+              <li><strong>Regulatory tailwinds:</strong> PTC compliance mandated in the US.</li>
+              <li><strong>Operating leverage:</strong> at ~£5m revenue, incremental expansion can change the profit profile.</li>
+            </ul>
+          </div>
+
+          <div class="card">
+            <div class="tag neg">Bear case</div>
+            <ul>
+              <li><strong>Lumpy revenue:</strong> long procurement cycles and budget timing reduce visibility.</li>
+              <li><strong>Balance sheet sensitivity:</strong> £1.02m cash (Dec 2025) provides limited buffer if conversion slips.</li>
+              <li><strong>Rollout risk:</strong> validation must convert for PTC to scale.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>Verdict</h2>
+        <p>
+          Cordel presents an unusual combination for an ~£10m AIM micro-cap: international footprint, Tier-1 customers, and a tangible infrastructure AI use case.
+        </p>
+        <p>
+          If PTC rolls out at scale, the business could evolve into a sticky, higher-margin data model. However, it remains small, revenue is lumpy, and cash sensitivity increases if H2 execution disappoints.
+        </p>
+
+        <div class="card" style="margin-top:12px;">
+          <h2>Multi-bagger potential</h2>
+          <div class="score">
+            <div class="value">8/10</div>
+            <div class="label">Tier-1 validation · Regulatory driver · Embedded DaaS upside · £10m market cap</div>
+          </div>
+          <p class="muted" style="margin-top:10px;">
+            At this valuation, positive newsflow can re-rate quickly; equally, another soft period can shift focus to the balance sheet.
+          </p>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>Trade plan</h2>
+        <p class="muted">Share price as at 27.02.2026 (Source: Stockopedia).</p>
+
+        <div class="two-col">
+          <div class="card">
+            <h2>Position</h2>
+            <p>
+              The share price sold off following H1 results and appears to have found support around ~4.5p.
+              A small starter position was taken to monitor developments.
+            </p>
+            <ul>
+              <li>Purchased: <strong>20,000</strong> shares</li>
+              <li>Price: <strong>4.9p</strong></li>
+              <li>Notional: <strong>£980</strong></li>
+              <li>Date: <strong>27.02.2026</strong></li>
+            </ul>
+          </div>
+
+          <div class="card">
+            <h2>Catalysts to monitor</h2>
+            <ul>
+              <li><strong>Q1 2026:</strong> hardware commissioning on third Class 1 contract — first data capture</li>
+              <li><strong>By end Q3 FY26 (Mar 2026):</strong> management target to be ahead of FY25 revenue — first H2 proof point</li>
+              <li><strong>H2 FY26:</strong> PTC pipeline conversion from 40+ project funnel</li>
+              <li><strong>FY26:</strong> consensus revenue £6.2m — meaningful re-rating if achieved</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="footer-actions">
+          <a class="btn secondary" href="#" aria-label="Back to research">Back to Research</a>
+          <a class="btn" href="#" aria-label="Follow SmallcapsBigBags">Follow @SmallCapsBigBags</a>
+        </div>
+      </section>
+
+      <div class="disclaimer">
+        <strong>Disclaimer:</strong> All content is for informational and educational purposes only and reflects personal views. Nothing constitutes financial, investment, legal, or tax advice.
+        Investing in small-cap and AIM stocks involves significant risk, including volatility, illiquidity, and the potential for total loss of capital. You should conduct your own research and seek professional advice where appropriate.
+        The author may hold positions in the stocks mentioned, which may change without notice.
+      </div>
+    </article>
+  </main>
+</body>
+</html>
