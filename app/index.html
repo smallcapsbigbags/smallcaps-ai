@@ -30,9 +30,6 @@
       --neu-text:#374151;
       --neu-bg:#F3F4F6;
 
-      --gold:#B08D57;          /* institutional gold */
-      --gold-border:#9A7A4E;
-
       --r:4px;
       --topbar-h:56px;
       --maxw:1180px;
@@ -113,13 +110,11 @@
       border-radius:var(--r);
     }
     .nav a.active{color:var(--text)}
-
     @media (max-width: 520px){
       .topbar-inner{ gap:10px; }
       .nav{ display:none; }
     }
 
-    /* Main layout */
     main{
       padding-top: 24px;
       padding-bottom:28px;
@@ -250,34 +245,59 @@
       gap:8px;
       min-height:152px;
       position:relative;
+
+      /* injected by JS */
+      --accent:var(--primary);
+      --accent-w:2px;
     }
 
-    .card-top{
+    /* Brand-blue left accent (thickness by materiality) */
+    .card::before{
+      content:"";
+      position:absolute;
+      left:-1px; top:-1px; bottom:-1px;
+      width:var(--accent-w);
+      background:var(--accent);
+      border-top-left-radius:var(--r);
+      border-bottom-left-radius:var(--r);
+      pointer-events:none;
+    }
+
+    /* Watchlist indicator (no emoji): subtle inset ring + small corner tick */
+    .card.watchlist{
+      box-shadow: inset 0 0 0 1px rgba(37,99,235,.20);
+    }
+    .card.watchlist .watch-tick{ display:inline-block; }
+    .watch-tick{
+      display:none;
+      position:absolute;
+      right:8px;
+      top:8px;
+      width:8px;
+      height:8px;
+      border-right:2px solid rgba(37,99,235,.55);
+      border-bottom:2px solid rgba(37,99,235,.55);
+      transform: rotate(-45deg);
+      opacity:.55;
+      pointer-events:none;
+    }
+
+    /* Topline */
+    .topline{
       display:flex;
-      align-items:flex-start;
+      align-items:center;
       justify-content:space-between;
       gap:12px;
     }
 
-    .left{ min-width:0; flex:1; }
-
-    /* top row: ticker+impact left, pills right */
-    .ticker-row{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:10px;
-      min-width:0;
-    }
     .ticker-left{
       display:flex;
       align-items:center;
       gap:10px;
       min-width:0;
-      flex:1 1 auto;
     }
 
-    /* Ticker: bigger + bolder; click toggles watchlist */
+    /* Ticker always black */
     .ticker-btn{
       background:transparent;
       border:0;
@@ -286,7 +306,6 @@
       cursor:pointer;
       display:inline-flex;
       align-items:center;
-      gap:8px;
       color:var(--text);
       font-family:"Roboto Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
       font-weight:800;
@@ -301,13 +320,10 @@
       outline-offset:3px;
       border-radius:6px;
     }
-    /* On watchlist: institutional gold accent (no star icon) */
-    .ticker-btn[aria-pressed="true"]{
-      color:var(--gold-border);
-    }
 
-    .impact{
-      display:flex;
+    /* Materiality dots: count from materiality_score; colour from sentiment */
+    .impact-dots{
+      display:inline-flex;
       gap:4px;
       align-items:center;
       flex:0 0 auto;
@@ -318,59 +334,66 @@
       border-radius:999px;
       background:var(--border);
     }
-    .dot.filled.pos{ background: var(--pos-text); }
-    .dot.filled.neg{ background: var(--neg-text); }
-    .dot.filled.neu{ background: #6B7280; }
+    .dot.filled{ background: var(--dot-color); }
 
-    .pill-row{
+    /* AIM punch: slightly larger extreme dots (sentiment_score 1 or 5) */
+    .dot.extreme{
+      width:9px;
+      height:9px;
+    }
+
+    .top-pills{
       display:flex;
       align-items:center;
       gap:8px;
       flex:0 0 auto;
+      justify-content:flex-end;
       min-width:0;
-      overflow:hidden;
-    }
-    @media (max-width: 520px){
-      .pill-row{ overflow:auto; scrollbar-width:none; }
-      .pill-row::-webkit-scrollbar{ display:none; }
     }
 
-    /* Unified pill sizing */
-    .sentiment, .cat-tag, .hi-pill{
+    /* Pills */
+    .sentiment, .event-pill, .risk-pill, .conf-pill{
       display:inline-flex;
       align-items:center;
       height:var(--pill-h);
       padding:0 9px;
       border-radius:999px;
       font-size:11px;
-      font-weight:800;
       line-height:1;
       white-space:nowrap;
     }
 
-    .sentiment{ border:1px solid transparent; }
+    .sentiment{ border:1px solid transparent; font-weight:800; }
     .sentiment.pos{ color:var(--pos-text); background:var(--pos-bg); border-color:rgba(21,128,61,.15); }
     .sentiment.neg{ color:var(--neg-text); background:var(--neg-bg); border-color:rgba(185,28,28,.15); }
     .sentiment.neu{ color:var(--neu-text); background:var(--neu-bg); border-color:rgba(55,65,81,.10); }
 
-    /* Category pill: clean + consistent */
-    .cat-tag{
-      font-weight:700;
-      color:#1D4ED8;
+    /* Event category pill — brand blue */
+    .event-pill{
+      font-weight:800;
       background:#EFF6FF;
       border:1px solid rgba(37,99,235,.16);
+      color:var(--primary);
     }
 
-    /* High Impact badge (no star) */
-    .hi-pill{
+    /* Risk pill (only when flags exist): outline, not filled */
+    .risk-pill{
       font-weight:800;
-      color:var(--primary);
-      background:#EFF6FF;
-      border:1px solid rgba(37,99,235,.20);
+      background:transparent;
+      border:1px solid rgba(185,28,28,.25);
+      color:rgba(185,28,28,.92);
+    }
+
+    /* Low confidence indicator (quiet) */
+    .conf-pill{
+      font-weight:800;
+      background:transparent;
+      border:1px solid rgba(107,114,128,.22);
+      color:rgba(107,114,128,.95);
     }
 
     .headline{
-      margin-top:6px;
+      margin-top:2px;
       font-weight:700;
       font-size:13px;
       line-height:1.3;
@@ -381,32 +404,27 @@
       overflow:hidden;
     }
 
-    .meta{
-      display:flex;
-      align-items:center;
-      gap:0;
-      color:var(--muted);
-      font-size:12px;
-      white-space:nowrap;
-      flex:0 0 auto;
-    }
-    .timestamp{ color:var(--muted); }
-
-    .summary{
-      margin:0;
-      color:var(--text);
+    .signals{
+      margin-top:2px;
       font-size:12.5px;
-      line-height:1.4;
+      line-height:1.45;
+      color:var(--text);
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+    }
+    .signal-line{
       display:-webkit-box;
-      -webkit-line-clamp:4;
+      -webkit-line-clamp:1;
       -webkit-box-orient:vertical;
       overflow:hidden;
     }
-    .context{
-      margin:0;
-      color:var(--muted);
+
+    /* Italic forward-looking only */
+    .forward-tone{
       font-size:12px;
-      line-height:1.35;
+      color:var(--muted);
+      font-style:italic;
       display:-webkit-box;
       -webkit-line-clamp:1;
       -webkit-box-orient:vertical;
@@ -422,8 +440,6 @@
       gap:10px;
       min-width:0;
     }
-
-    /* Company stays readable; View RNS becomes least important */
     .company{
       overflow:hidden;
       text-overflow:ellipsis;
@@ -435,28 +451,26 @@
       font-weight:600;
     }
 
+    .meta{
+      display:flex;
+      align-items:center;
+      gap:0;
+      color:var(--muted);
+      font-size:12px;
+      white-space:nowrap;
+      flex:0 0 auto;
+    }
+    .timestamp{ color:var(--muted); }
     .view{
       color:var(--muted);
       font-weight:600;
-      font-size:12px;           /* smaller now (old ticker scale) */
+      font-size:12px;
       white-space:nowrap;
       flex:0 0 auto;
     }
     .view:hover{
       color:var(--primary);
       text-decoration:underline;
-    }
-
-    /* High impact styling */
-    .card.high{ border-color:#D1D5DB; }
-    .card.high::before{
-      content:"";
-      position:absolute;
-      left:-1px; top:-1px; bottom:-1px;
-      width:3px;
-      background:var(--primary);
-      border-top-left-radius:var(--r);
-      border-bottom-left-radius:var(--r);
     }
 
     /* Live dot */
@@ -537,6 +551,24 @@
     .sr-only{
       position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); border:0;
     }
+
+    /* MOBILE: deterministic two-row classification */
+    @media (max-width: 640px){
+      .topline{
+        flex-direction:column;
+        align-items:stretch;
+        gap:6px;
+      }
+      .top-pills{
+        justify-content:space-between;
+        gap:8px;
+        flex-wrap:wrap;
+      }
+      .sentiment{ order:1; margin-left:auto; }
+      .event-pill{ order:2; }
+      .risk-pill{ order:3; }
+      .conf-pill{ order:4; }
+    }
   </style>
 </head>
 
@@ -562,14 +594,15 @@
     <!-- HIGH IMPACT SECTION -->
     <div class="section-title">
       <div class="section-left">
-        <div class="label">High Impact</div>
-        <span class="hi-pill" aria-label="High impact section">Impact ≥ 4</span>
+        <div class="label">High Impact (≥7/10)</div>
         <span class="hi-count" id="hiCount">· 0</span>
       </div>
-      <div class="meta"><span class="timestamp" id="hiUpdated">Updated just now</span></div>
+      <div class="meta">
+        <span class="timestamp" id="hiUpdated">Updated just now</span>
+      </div>
     </div>
 
-    <section class="grid" id="highImpactGrid" aria-label="High Impact (impact ≥ 4)"></section>
+    <section class="grid" id="highImpactGrid" aria-label="High Impact (materiality ≥ 7)"></section>
 
     <!-- TABS + SORT -->
     <div class="row" style="margin-top:18px;">
@@ -592,7 +625,7 @@
       <button class="pill" data-filter="Negative" aria-pressed="false">Negative</button>
       <button class="pill" data-filter="Positive" aria-pressed="false">Positive</button>
       <button class="pill" data-filter="Neutral" aria-pressed="false">Neutral</button>
-      <button class="pill" data-filter="Impact>=3" aria-pressed="false">Impact ≥3</button>
+      <button class="pill" data-filter="Impact>=3" aria-pressed="false">Materiality ≥5</button>
       <button class="pill" data-filter="Results" aria-pressed="false">Results</button>
       <button class="pill" data-filter="Fundraise" aria-pressed="false">Fundraise</button>
       <button class="pill" data-filter="Contract" aria-pressed="false">Contract</button>
@@ -613,40 +646,140 @@
   <script>
     // ---- State ----
     const state = {
-      userPlan: "free",          // "free" | "pro"
+      userPlan: "free",                   // "free" | "pro"
       activeFilters: new Set(),
       sort: "recent",
       query: "",
-      watchlist: new Set(),
+      watchlist: new Set(["CRDL","RKT"]),  // demo
     };
 
-    // ---- Mock data (replace with your API) ----
+    // ---- Mock PROMPT-SCHEMA data (replace with your API) ----
+    // Note: published_at and rns_url come from ingestion, not from the AI prompt schema.
     const rns = [
-      { id:"1", ticker:"ABC", company:"Alpha Beta plc", impact:5, sentiment:"Positive", category:"Results", headline:"Trading update: revenue ahead; FY guidance reiterated", summary:"Management notes strong demand across core product lines. FY revenue expected to be ahead of market expectations while margins remain stable.", context:"FY26 revenue guidance reaffirmed; net cash position maintained.", time: minutesAgoISO(12), url:"#", },
-      { id:"2", ticker:"MNO", company:"Mono Group", impact:4, sentiment:"Negative", category:"Fundraise", headline:"Equity placing to strengthen balance sheet", summary:"Company announces an equity raise to support near-term working capital and accelerate delivery timelines. Dilution expected; proceeds earmarked for operations.", context:"Placing at 18% discount; gross proceeds £6.0m.", time: minutesAgoISO(38), url:"#", },
-      { id:"3", ticker:"QRS", company:"Quasar Renewables", impact:4, sentiment:"Positive", category:"Contract", headline:"Material contract win with UK utility partner", summary:"New multi-year agreement expands service footprint and adds recurring revenue profile. Initial phase begins immediately with option to scale.", context:"Contract value up to £12m over 3 years (conditional).", time: minutesAgoISO(75), url:"#", },
-      { id:"4", ticker:"TUV", company:"TUV Tech", impact:3, sentiment:"Neutral", category:"Other", headline:"Director dealing: small on-market purchase", summary:"Non-executive director acquires shares on-market. No change to strategy or outlook disclosed.", context:"Purchase: 25,000 shares at 42.0p.", time: hoursAgoISO(2), url:"#", },
-      { id:"5", ticker:"HJK", company:"HJK Mining", impact:2, sentiment:"Negative", category:"Other", headline:"Operational update: short-term disruption at site", summary:"Temporary interruption impacts near-term output. Remediation underway; company expects to resume normal operations shortly.", context:"FY output range unchanged (subject to recovery timeline).", time: hoursAgoISO(3), url:"#", },
-      { id:"6", ticker:"LMP", company:"Limpet Bio", impact:3, sentiment:"Positive", category:"Other", headline:"Regulatory milestone achieved for lead program", summary:"Regulator accepts filing; next review step scheduled. Company anticipates additional data release in coming weeks.", context:"Submission accepted; timeline dependent on review.", time: hoursAgoISO(5), url:"#", },
-      { id:"7", ticker:"ZED", company:"Zed Systems", impact:1, sentiment:"Neutral", category:"Other", headline:"Notice of AGM and proxy information", summary:"Administrative update including resolutions and voting procedures for the upcoming AGM.", context:"AGM on 19 Mar 2026.", time: daysAgoISO(2), url:"#", },
-      { id:"8", ticker:"RKT", company:"Rocket Fintech", impact:4, sentiment:"Negative", category:"Results", headline:"Guidance revised lower due to churn in SME segment", summary:"Management notes higher churn and slower pipeline conversion. Cost actions announced; focus shifts to retention and unit economics.", context:"FY revenue guide down 8–10%; opex reduction plan initiated.", time: minutesAgoISO(22), url:"#", },
-      { id:"9", ticker:"NIM", company:"Nimbus AI", impact:3, sentiment:"Positive", category:"Other", headline:"Partnership signed; distribution expanded into EU", summary:"New partner provides channel access and onboarding support. Near-term revenue impact expected to be modest; strategic optionality improves.", context:"Initial term 24 months; revenue share disclosed.", time: minutesAgoISO(9), url:"#", },
+      {
+        ticker:"CRDL",
+        company_name:"Cordel Group plc",
+        announcement_date:"2026-03-01",
+        announcement_type:"contract",
+        is_amended:false,
+        currency:"GBP",
+        sentiment:"positive",
+        sentiment_score:4,
+        headline:"£12m multi-year contract secured",
+        key_metric:"£12m",
+        vs_guidance:null,
+        management_tone:"confident in outlook",
+        has_comparatives:false,
+        signal_balance:{positive:2, negative:0, neutral:0},
+        signals:[
+          {level:"positive", label:"Contract £12m secured, 3 years", value:"12", category:"contract"},
+          {level:"positive", label:"Counterparty named; recurring profile", value:null, category:"contract"}
+        ],
+        flags:[],
+        materiality_score:8,
+        category:"contract",
+        confidence:"high",
+
+        // ingestion-only (not from AI)
+        id:"1",
+        published_at: minutesAgoISO(12),
+        rns_url:"#",
+      },
+      {
+        ticker:"MNO",
+        company_name:"Mono Group plc",
+        announcement_date:"2026-03-01",
+        announcement_type:"placing",
+        is_amended:false,
+        currency:"GBP",
+        sentiment:"high_negative",
+        sentiment_score:1,
+        headline:"Placing with going concern warning",
+        key_metric:"£6.0m",
+        vs_guidance:null,
+        management_tone:"material uncertainty",
+        has_comparatives:false,
+        signal_balance:{positive:0, negative:2, neutral:0},
+        signals:[
+          {level:"negative", label:"Placing £6.0m, discount stated", value:"6.0", category:"dilution"},
+          {level:"negative", label:"Going concern flagged explicitly", value:null, category:"balance_sheet"}
+        ],
+        flags:["going_concern"],
+        materiality_score:10,
+        category:"balance_sheet",
+        confidence:"high",
+
+        id:"2",
+        published_at: minutesAgoISO(38),
+        rns_url:"#",
+      },
+      {
+        ticker:"RKT",
+        company_name:"Rocket Fintech plc",
+        announcement_date:"2026-03-01",
+        announcement_type:"results",
+        is_amended:false,
+        currency:"GBP",
+        sentiment:"negative",
+        sentiment_score:2,
+        headline:"Guidance cut 8–10%",
+        key_metric:"8–10%",
+        vs_guidance:"guidance cut",
+        management_tone:"cautious on outlook",
+        has_comparatives:true,
+        signal_balance:{positive:0, negative:1, neutral:1},
+        signals:[
+          {level:"negative", label:"FY revenue guidance cut 8–10%", value:"8–10", category:"earnings"},
+          {level:"neutral", label:"Cost actions announced; timing unclear", value:null, category:"operations"}
+        ],
+        flags:[],
+        materiality_score:7,
+        category:"earnings",
+        confidence:"medium",
+
+        id:"3",
+        published_at: minutesAgoISO(22),
+        rns_url:"#",
+      },
+      {
+        ticker:"ZED",
+        company_name:"Zed Systems plc",
+        announcement_date:"2026-03-01",
+        announcement_type:"other",
+        is_amended:false,
+        currency:"GBP",
+        sentiment:"neutral",
+        sentiment_score:3,
+        headline:"No material investor signal",
+        key_metric:null,
+        vs_guidance:null,
+        management_tone:null,
+        has_comparatives:false,
+        signal_balance:{positive:0, negative:0, neutral:1},
+        signals:[
+          {level:"neutral", label:"No material investor signal", value:null, category:"general"}
+        ],
+        flags:[],
+        materiality_score:2,
+        category:"general",
+        confidence:"low",
+
+        id:"4",
+        published_at: minutesAgoISO(3),
+        rns_url:"#",
+      }
     ];
 
     function minutesAgoISO(m){ return new Date(Date.now() - m*60*1000).toISOString(); }
-    function hoursAgoISO(h){ return new Date(Date.now() - h*60*60*1000).toISOString(); }
-    function daysAgoISO(d){ return new Date(Date.now() - d*24*60*60*1000).toISOString(); }
 
     function fmtRelative(iso){
       const t = new Date(iso).getTime();
       const now = Date.now();
       const diffMin = Math.floor((now - t) / 60000);
-
       if (diffMin < 1) return "just now";
       if (diffMin < 60) return `${diffMin}m ago`;
       const diffHr = Math.floor(diffMin / 60);
       if (diffHr < 24) return `${diffHr}h ago`;
-
       const d = new Date(iso);
       return d.toLocaleDateString(undefined, { day:"2-digit", month:"short" });
     }
@@ -656,26 +789,8 @@
       return (Date.now() - t) <= mins * 60 * 1000;
     }
 
-    function dots(n, sentiment){
-      const cls =
-        sentiment === "Positive" ? "pos" :
-        sentiment === "Negative" ? "neg" : "neu";
-
-      let out = "";
-      for (let i=1;i<=5;i++){
-        out += `<span class="dot ${i<=n ? `filled ${cls}` : ""}"></span>`;
-      }
-      return out;
-    }
-
-    function sentimentClass(s){
-      if (s === "Positive") return "pos";
-      if (s === "Negative") return "neg";
-      return "neu";
-    }
-
     function esc(str){
-      return String(str)
+      return String(str ?? "")
         .replaceAll("&","&amp;")
         .replaceAll("<","&lt;")
         .replaceAll(">","&gt;")
@@ -683,17 +798,96 @@
         .replaceAll("'","&#039;");
     }
 
-    // OR logic within sentiment + category groups; AND across groups
+    // ---- Schema mappings (prompt-aligned) ----
+    function sentimentPillText(sentiment){
+      if (sentiment === "high_positive" || sentiment === "positive") return "Positive";
+      if (sentiment === "high_negative" || sentiment === "negative") return "Negative";
+      return "Neutral";
+    }
+
+    function sentimentClass(sentiment){
+      if (sentiment === "high_positive" || sentiment === "positive") return "pos";
+      if (sentiment === "high_negative" || sentiment === "negative") return "neg";
+      return "neu";
+    }
+
+    function eventLabel(item){
+      const t = item.announcement_type;
+      if (t === "placing") return "Fundraise";
+      if (t === "results") return "Results";
+      if (t === "contract") return "Contract";
+      if (t === "director_dealing") return "Insider";
+      if (t === "acquisition") return "M&A";
+      if (t === "regulatory") return "Regulatory";
+      if (t === "trading_update") return "Trading";
+      return "Other";
+    }
+
+    // Dots colour strictly from sentiment (fixed)
+    function dotColorFixed(sentiment){
+      if (sentiment === "positive" || sentiment === "high_positive") return "#16A34A";
+      if (sentiment === "negative" || sentiment === "high_negative") return "#DC2626";
+      return "#64748B";
+    }
+
+    // Accent thickness from materiality (still brand blue)
+    function accentWidth(materiality){
+      const m = Number(materiality || 1);
+      return (m >= 7) ? "4px" : "2px";
+    }
+
+    // materiality_score (1–10) -> filled dots (1–5)
+    function filledDots(materiality){
+      const m = Math.max(1, Math.min(10, Number(materiality || 1)));
+      if (m <= 2) return 1;
+      if (m <= 4) return 2;
+      if (m <= 6) return 3;
+      if (m <= 8) return 4;
+      return 5;
+    }
+
+    // AIM punch on extremes (sentiment_score 1 or 5)
+    function dotsHTML(materiality, sentimentScore, dotHex, tooltip){
+      const n = filledDots(materiality);
+      const extreme = (Number(sentimentScore) === 1 || Number(sentimentScore) === 5) ? "extreme" : "";
+
+      let out = `<span class="impact-dots" title="${esc(tooltip)}" aria-label="${esc(tooltip)}">`;
+      for (let i=1;i<=5;i++){
+        const filled = i <= n ? "filled" : "";
+        out += `<span class="dot ${filled} ${filled ? extreme : ""}" style="${filled ? `--dot-color:${dotHex}` : ""}"></span>`;
+      }
+      out += `</span>`;
+      return out;
+    }
+
+    function hasRisk(flags){
+      return Array.isArray(flags) && flags.length > 0;
+    }
+
+    function isNoSignal(item){
+      const s0 = item?.signals?.[0]?.label || "";
+      return String(s0) === "No material investor signal";
+    }
+
+    function confidenceLabel(conf){
+      if (conf === "low") return "low";
+      return null;
+    }
+
+    // Filters
     function matchFilters(item){
       const f = state.activeFilters;
 
       const sentiments = ["Negative","Positive","Neutral"].filter(x => f.has(x));
       const categories = ["Results","Fundraise","Contract"].filter(x => f.has(x));
-      const impact3 = f.has("Impact>=3");
+      const mat5 = f.has("Impact>=3"); // label says Materiality ≥5
 
-      if (sentiments.length && !sentiments.includes(item.sentiment)) return false;
-      if (categories.length && !categories.includes(item.category)) return false;
-      if (impact3 && item.impact < 3) return false;
+      const sText = sentimentPillText(item.sentiment);
+      const eText = eventLabel(item);
+
+      if (mat5 && Number(item.materiality_score || 0) < 5) return false;
+      if (sentiments.length && !sentiments.includes(sText)) return false;
+      if (categories.length && !categories.includes(eText)) return false;
 
       return true;
     }
@@ -703,66 +897,110 @@
       if (!q) return true;
       return (
         item.ticker.toLowerCase().includes(q) ||
-        item.company.toLowerCase().includes(q) ||
-        item.headline.toLowerCase().includes(q)
+        item.company_name.toLowerCase().includes(q) ||
+        (item.headline || "").toLowerCase().includes(q)
       );
+    }
+
+    // Impact sort: materiality desc, directionality desc, then recency
+    function directionalityWeight(sentimentScore){
+      const s = Number(sentimentScore || 3);
+      return Math.abs(s - 3);
     }
 
     function sortItems(items){
       if (state.sort === "impact"){
-        return [...items].sort((a,b) => (b.impact - a.impact) || (new Date(b.time) - new Date(a.time)));
+        return [...items].sort((a,b) =>
+          (Number(b.materiality_score) - Number(a.materiality_score)) ||
+          (directionalityWeight(b.sentiment_score) - directionalityWeight(a.sentiment_score)) ||
+          (new Date(b.published_at) - new Date(a.published_at))
+        );
       }
-      return [...items].sort((a,b) => new Date(b.time) - new Date(a.time));
+      return [...items].sort((a,b) => new Date(b.published_at) - new Date(a.published_at));
     }
 
-    function cardHTML(item, { high=false }={}){
-      const catTag = item.category && item.category !== "Other"
-        ? `<span class="cat-tag">${esc(item.category)}</span>`
-        : "";
+    function cardHTML(item){
+      const isWatch = state.watchlist.has(item.ticker);
+      const noSignal = isNoSignal(item);
 
-      const liveDot = isWithinMinutes(item.time, 15)
+      const aW = accentWidth(item.materiality_score);
+      const dotHex = dotColorFixed(noSignal ? "neutral" : item.sentiment);
+
+      const m = Math.max(1, Math.min(10, Number(item.materiality_score || 1)));
+      const dotsN = filledDots(m);
+      const dotTip = `Materiality ${m}/10 (${dotsN}/5 dots)`;
+
+      const liveDot = isWithinMinutes(item.published_at, 15)
         ? `<span class="live-dot" aria-hidden="true"></span>`
         : "";
 
-      const pressed = state.watchlist.has(item.ticker) ? "true" : "false";
+      const tone = item.management_tone
+        ? `<div class="forward-tone">${esc(item.management_tone)}</div>`
+        : "";
+
+      // Signals: 2 by default; 3rd only if materiality >= 8 OR flags exist
+      const showThird = (Number(item.materiality_score || 0) >= 8) || hasRisk(item.flags);
+      const maxLines = showThird ? 3 : 2;
+
+      const sigLines = (item.signals || []).slice(0, maxLines).map(s => (
+        `<div class="signal-line">${esc(s.label)}</div>`
+      )).join("");
+
+      const risk = (!noSignal && hasRisk(item.flags))
+        ? `<span class="risk-pill" title="${esc(item.flags.join(", "))}">Risk</span>`
+        : "";
+
+      const conf = (!noSignal && confidenceLabel(item.confidence))
+        ? `<span class="conf-pill" title="AI extraction confidence low">Low conf</span>`
+        : "";
 
       return `
-        <article class="card ${high ? "high" : ""}" data-id="${item.id}">
-          <div class="card-top">
-            <div class="left">
-              <div class="ticker-row">
-                <div class="ticker-left">
-                  <button class="ticker-btn"
-                    type="button"
-                    aria-label="Toggle watchlist for ${esc(item.ticker)}"
-                    aria-pressed="${pressed}"
-                    data-watch-ticker="${esc(item.ticker)}">
-                    ${esc(item.ticker)}
-                  </button>
-                  <div class="impact" aria-label="Impact ${item.impact}/5">${dots(item.impact, item.sentiment)}</div>
-                </div>
+        <article class="card ${isWatch ? "watchlist" : ""}"
+          style="--accent:var(--primary); --accent-w:${aW}"
+          data-id="${esc(item.id)}" data-ticker="${esc(item.ticker)}">
 
-                <div class="pill-row">
-                  <span class="sentiment ${sentimentClass(item.sentiment)}">${esc(item.sentiment)}</span>
-                  ${catTag}
-                </div>
+          <span class="watch-tick" aria-hidden="true"></span>
+
+          <div class="card-top">
+            <div class="topline">
+              <div class="ticker-left">
+                <button class="ticker-btn"
+                  type="button"
+                  aria-label="Toggle watchlist for ${esc(item.ticker)}"
+                  aria-pressed="${isWatch ? "true" : "false"}"
+                  data-watch-ticker="${esc(item.ticker)}">
+                  ${esc(item.ticker)}
+                </button>
+
+                ${dotsHTML(item.materiality_score, item.sentiment_score, dotHex, dotTip)}
               </div>
 
-              <div class="headline">${esc(item.headline)}</div>
-            </div>
-
-            <div class="meta">
-              ${liveDot}
-              <span class="timestamp" data-time="${item.time}">${fmtRelative(item.time)}</span>
+              <div class="top-pills">
+                <span class="sentiment ${sentimentClass(noSignal ? "neutral" : item.sentiment)}">${esc(sentimentPillText(noSignal ? "neutral" : item.sentiment))}</span>
+                <span class="event-pill">${esc(eventLabel(item))}</span>
+                ${risk}
+                ${conf}
+              </div>
             </div>
           </div>
 
-          <p class="summary">${esc(item.summary)}</p>
-          ${item.context ? `<p class="context">📌 ${esc(item.context)}</p>` : ``}
+          <div class="headline">${esc(item.headline)}</div>
+
+          <div class="signals">
+            ${sigLines || `<div class="signal-line">No material investor signal</div>`}
+          </div>
+
+          ${tone}
 
           <div class="card-footer">
-            <span class="company" title="${esc(item.company)}">${esc(item.company)}</span>
-            <a class="view" href="${item.url}" target="_blank" rel="noopener">View RNS ↗</a>
+            <span class="company" title="${esc(item.company_name)}">${esc(item.company_name)}</span>
+
+            <div class="meta">
+              ${liveDot}
+              <span class="timestamp" data-time="${esc(item.published_at)}">${fmtRelative(item.published_at)}</span>
+              <span style="padding:0 6px; color:transparent;">·</span>
+              <a class="view" href="${esc(item.rns_url)}" target="_blank" rel="noopener">View RNS ↗</a>
+            </div>
           </div>
         </article>
       `;
@@ -796,62 +1034,49 @@
       btn.onclick = () => alert("Route to /account/upgrade (no modal).");
     }
 
-    // Watchlist toggling via ticker click
+    // Watchlist toggle via ticker click (ring + corner tick; no clutter)
     function bindTickerWatch(){
       document.querySelectorAll("[data-watch-ticker]").forEach(btn => {
         const ticker = btn.getAttribute("data-watch-ticker");
-        btn.setAttribute("aria-pressed", String(state.watchlist.has(ticker)));
-
         btn.onclick = (e) => {
           e.preventDefault();
           if (state.watchlist.has(ticker)) state.watchlist.delete(ticker);
           else state.watchlist.add(ticker);
-
-          btn.setAttribute("aria-pressed", String(state.watchlist.has(ticker)));
+          render();
         };
       });
     }
 
     function render(){
-      // High Impact: always sorted by impact desc, then time desc
-      const hiAll = [...rns]
-        .filter(x => x.impact >= 4)
-        .filter(matchQuery)
-        .filter(matchFilters)
-        .sort((a,b) => (b.impact - a.impact) || (new Date(b.time) - new Date(a.time)));
-
-      const hi = hiAll.slice(0,5);
-
-      document.getElementById("highImpactGrid").innerHTML =
-        hi.map(item => cardHTML(item, {high:true})).join("");
-
-      document.getElementById("hiCount").textContent = `· ${hi.length}`;
-
-      // Highlights: ungated
-      const highlights = sortItems(rns)
-        .filter(matchQuery)
-        .filter(matchFilters)
-        .slice(0,9);
-
-      document.getElementById("highlightsGrid").innerHTML =
-        highlights.map(item => cardHTML(item)).join("");
-
-      // Full feed (gated for free users)
-      const items = sortItems(rns)
+      const itemsBase = rns
         .filter(matchQuery)
         .filter(matchFilters);
 
+      // High Impact section: materiality >= 7
+      const hiAll = sortItems(itemsBase).filter(x => Number(x.materiality_score || 0) >= 7);
+      const hi = hiAll.slice(0,6);
+
+      document.getElementById("highImpactGrid").innerHTML = hi.map(cardHTML).join("");
+      document.getElementById("hiCount").textContent = `· ${hi.length}`;
+
+      // Highlights
+      const highlights = sortItems(itemsBase).slice(0,9);
+      document.getElementById("highlightsGrid").innerHTML = highlights.map(cardHTML).join("");
+
+      // Full feed (gated for free users)
+      const allItems = sortItems(itemsBase);
       const allGrid = document.getElementById("allGrid");
+
       if (state.userPlan === "free"){
-        const first = items.slice(0,3);
-        const rest = items.slice(3);
+        const first = allItems.slice(0,3);
+        const rest = allItems.slice(3);
 
         allGrid.innerHTML =
-          first.map(item => cardHTML(item)).join("") +
+          first.map(cardHTML).join("") +
           (rest.length ? `
             <div class="gated" style="grid-column:1 / -1; border-radius:var(--r);">
               <div class="grid">
-                ${rest.map(item => cardHTML(item)).join("")}
+                ${rest.map(cardHTML).join("")}
               </div>
               <div class="gate-overlay">
                 <div class="gate-panel" role="region" aria-label="Upgrade gate">
@@ -865,7 +1090,7 @@
             </div>
           ` : "");
       } else {
-        allGrid.innerHTML = items.map(item => cardHTML(item)).join("");
+        allGrid.innerHTML = allItems.map(cardHTML).join("");
       }
 
       bindUpgrade();
@@ -901,7 +1126,7 @@
       });
     });
 
-    // Sort (affects highlights + full feed; not high impact)
+    // Sort
     document.getElementById("sortSelect").addEventListener("change", (e) => {
       state.sort = e.target.value;
       render();
@@ -922,9 +1147,7 @@
     render();
 
     // Lightweight time updater
-    setInterval(() => {
-      updateTimes();
-    }, 30_000);
+    setInterval(() => updateTimes(), 30_000);
   </script>
 </body>
 </html>
