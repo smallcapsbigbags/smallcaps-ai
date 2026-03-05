@@ -8,36 +8,39 @@
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Roboto+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Roboto+Mono:wght@500;600;700;800&display=swap" rel="stylesheet">
 
   <style>
     :root{
-      --bg:#F6F8FA;
-      --card:#FFFFFF;
-      --border:#E5E7EB;
-      --primary:#2563EB;
-      --text:#111827;
-      --muted:#6B7280;
+      --bg0:#0E101B;
+      --bg1:#171A25;
 
-      --pill-bg:#F3F4F6;
+      --text:#EAF1FA;
+      --muted:rgba(234,241,250,.62);
 
-      --pos-text:#15803D;
-      --pos-bg:#DCFCE7;
+      --primary:#4DCEF4;
+      --pos:#22C55E;
+      --neg:#EF4444;
+      --neu:#94A3B8;
 
-      --neg-text:#B91C1C;
-      --neg-bg:#FEE2E2;
+      --amber:#F59E0B;
+      --danger:#F97316;
+      --redhot:#FB7185;
 
-      --neu-text:#374151;
-      --neu-bg:#F3F4F6;
+      --pos-bg:rgba(34,197,94,.12);
+      --neg-bg:rgba(239,68,68,.12);
+      --neu-bg:rgba(148,163,184,.10);
 
-      --r:4px;
-      --topbar-h:56px;
+      --r:14px;
+      --topbar-h:66px;
       --maxw:1180px;
 
-      --pad-2:12px;
-      --gap:12px;
+      --pad:14px;
+      --gap:14px;
+      --pill-h:24px;
 
-      --pill-h:22px;
+      --glow: 0 0 0 1px rgba(255,255,255,.05), 0 14px 34px rgba(0,0,0,.45);
+      --glow-cyan: 0 0 0 1px rgba(77,206,244,.22), 0 18px 46px rgba(0,0,0,.55);
     }
 
     *{box-sizing:border-box}
@@ -45,28 +48,40 @@
     body{
       margin:0;
       font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-      background:var(--bg);
       color:var(--text);
       padding-top: var(--topbar-h);
+
+      background:
+        radial-gradient(1200px 700px at 55% 28%, rgba(77,206,244,.08), transparent 58%),
+        radial-gradient(900px 600px at 22% 18%, rgba(255,255,255,.05), transparent 60%),
+        radial-gradient(900px 650px at 86% 18%, rgba(255,255,255,.04), transparent 64%),
+        radial-gradient(1400px 900px at 50% 110%, rgba(0,0,0,.35), transparent 60%),
+        linear-gradient(180deg, var(--bg1), var(--bg0));
+    }
+    body::before{
+      content:"";
+      position:fixed;
+      inset:0;
+      pointer-events:none;
+      background: radial-gradient(1200px 900px at 50% 40%, transparent 55%, rgba(0,0,0,.55) 100%);
+      opacity:.55;
     }
 
     a{color:inherit; text-decoration:none}
     button, input, select{font:inherit}
 
-    .container{
-      max-width:var(--maxw);
-      margin:0 auto;
-      padding:0 16px;
-    }
+    .container{ max-width:var(--maxw); margin:0 auto; padding:0 18px; }
 
     /* Header */
     .topbar{
-      position:fixed;
-      top:0; left:0; right:0;
+      position:fixed; top:0; left:0; right:0;
       height:var(--topbar-h);
-      background:#fff;
-      border-bottom:1px solid var(--border);
       z-index:50;
+      background: linear-gradient(180deg, rgba(10,16,26,.82), rgba(10,16,26,.58));
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border-bottom:1px solid rgba(255,255,255,.06);
+      box-shadow: 0 10px 40px rgba(0,0,0,.28);
     }
     .topbar-inner{
       height:100%;
@@ -75,239 +90,134 @@
       gap:16px;
     }
     .logo{
-      font-weight:800;
-      letter-spacing:-0.01em;
+      font-weight:900;
+      letter-spacing:-0.02em;
       white-space:nowrap;
+      font-size:22px;
     }
-    .brand-accent{
-      color:var(--primary);
-      font-weight:800;
-    }
-    .search{
-      flex:1;
-      display:flex;
-      justify-content:center;
-    }
+    .brand-accent{ color:var(--primary); font-weight:900; }
+
+    .search{ flex:1; display:flex; justify-content:center; }
     .search input{
-      width:min(560px, 100%);
-      background:#fff;
-      border:1px solid var(--border);
-      border-radius:var(--r);
-      padding:8px 10px;
+      width:min(640px, 100%);
+      background: rgba(8,12,20,.55);
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:999px;
+      padding:11px 14px;
       outline:none;
       color:var(--text);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.03);
     }
-    .search input::placeholder{color:var(--muted)}
+    .search input::placeholder{color:rgba(234,241,250,.42)}
+    .search input:focus{
+      border-color: rgba(77,206,244,.32);
+      box-shadow: inset 0 0 0 1px rgba(77,206,244,.20), 0 0 0 4px rgba(77,206,244,.10);
+    }
+
     .nav{
       display:flex;
       gap:14px;
       white-space:nowrap;
-      color:var(--muted);
-      font-weight:600;
+      color:rgba(234,241,250,.62);
+      font-weight:800;
+      font-size:13px;
     }
     .nav a{
-      padding:6px 6px;
-      border-radius:var(--r);
-    }
-    .nav a.active{color:var(--text)}
-    @media (max-width: 520px){
-      .topbar-inner{ gap:10px; }
-      .nav{ display:none; }
-    }
-
-    main{
-      padding-top: 24px;
-      padding-bottom:28px;
-    }
-
-    /* Tabs + controls row */
-    .row{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:12px;
-      margin:12px 0 10px;
-      flex-wrap:wrap;
-    }
-
-    .tabs{
-      display:flex;
-      gap:16px;
-      align-items:flex-end;
-    }
-    .tab{
-      background:transparent;
-      border:0;
-      padding:8px 0;
-      color:var(--muted);
-      font-weight:700;
-      cursor:pointer;
-      position:relative;
-    }
-    .tab[aria-selected="true"]{ color:var(--text); }
-    .tab[aria-selected="true"]::after{
-      content:"";
-      position:absolute;
-      left:0; right:0; bottom:-6px;
-      height:2px;
-      background:var(--primary);
-    }
-
-    .sort{
-      display:flex;
-      align-items:center;
-      gap:8px;
-      color:var(--muted);
-      font-weight:600;
-    }
-    .sort select{
-      background:#fff;
-      border:1px solid var(--border);
-      border-radius:var(--r);
-      padding:7px 10px;
-      color:var(--text);
-      outline:none;
-    }
-
-    /* Filter pills */
-    .filters{
-      display:flex;
-      gap:8px;
-      overflow:auto;
-      padding:8px 0 10px;
-      scrollbar-width:thin;
-    }
-    .pill{
-      border:1px solid var(--border);
-      background:var(--pill-bg);
-      color:var(--text);
+      padding:8px 10px;
       border-radius:999px;
-      padding:6px 10px;
-      font-weight:700;
-      font-size:12px;
-      cursor:pointer;
-      white-space:nowrap;
+      border:1px solid transparent;
     }
-    .pill[aria-pressed="true"]{
-      background:var(--primary);
-      border-color:var(--primary);
-      color:#fff;
+    .nav a.active{
+      color:var(--text);
+      border-color: rgba(255,255,255,.08);
+      background: rgba(255,255,255,.03);
     }
+    @media (max-width: 520px){ .nav{ display:none; } }
 
-    /* Section headers */
-    .section-title{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      margin:40px 0 12px;
-    }
-    .section-left{
-      display:flex;
-      align-items:center;
-      gap:10px;
-      min-width:0;
-    }
-    .section-title .label{
-      font-size:12px;
-      color:var(--muted);
-      font-weight:800;
-      letter-spacing:0.02em;
-      white-space:nowrap;
-    }
-    .hi-count{
-      font-size:12px;
-      color:var(--muted);
-      font-weight:700;
-      white-space:nowrap;
-    }
+    main{ padding-top: 22px; padding-bottom:34px; position:relative; z-index:1; }
 
     /* Grid */
-    .grid{
-      display:grid;
-      gap:var(--gap);
-      grid-template-columns:1fr;
-    }
-    @media (min-width: 760px){
-      .grid{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    }
-    @media (min-width: 1120px){
-      .grid{ grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    }
+    .grid{ display:grid; gap:var(--gap); grid-template-columns:1fr; }
+    @media (min-width: 760px){ .grid{ grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (min-width: 1120px){ .grid{ grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 
     /* Cards */
     .card{
-      background:var(--card);
-      border:1px solid var(--border);
+      background: linear-gradient(180deg, rgba(12,18,30,.74), rgba(10,16,26,.62));
+      border:1px solid rgba(255,255,255,.07);
       border-radius:var(--r);
-      padding:var(--pad-2);
+      padding:var(--pad);
       display:flex;
       flex-direction:column;
-      gap:8px;
-      min-height:164px;
+      gap:10px;
+      min-height:176px;
       position:relative;
-
-      /* injected by JS */
-      --accent:var(--primary);
-      --accent-w:2px;
+      box-shadow: var(--glow);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      --accent: var(--primary);
+      --accent-w: 2px;
+      transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
     }
-
-    /* Severity wash states */
-    .card.alert{
-      background:#FFF5F5;
-      border-color: rgba(220,38,38,.25);
+    .card:hover{
+      transform: translateY(-4px);
+      border-color: rgba(255,255,255,.12);
+      box-shadow:
+        0 0 0 1px rgba(255,255,255,.08),
+        0 22px 60px rgba(0,0,0,.55);
     }
-    .card.breakout{
-      background:#F0FDF4;
-      border-color: rgba(22,163,74,.22);
-    }
-
-    /* Left accent (colour encodes severity/direction; thickness encodes materiality) */
     .card::before{
       content:"";
       position:absolute;
       left:-1px; top:-1px; bottom:-1px;
       width:var(--accent-w);
-      background:var(--accent);
+      background: var(--accent);
       border-top-left-radius:var(--r);
       border-bottom-left-radius:var(--r);
       pointer-events:none;
     }
-
-    /* Watchlist indicator (no emoji): subtle inset ring + small corner tick */
-    .card.watchlist{
-      box-shadow: inset 0 0 0 1px rgba(37,99,235,.20);
-    }
+    .card.watchlist{ box-shadow: var(--glow-cyan); }
     .card.watchlist .watch-tick{ display:inline-block; }
     .watch-tick{
       display:none;
       position:absolute;
-      right:8px;
-      top:8px;
-      width:8px;
-      height:8px;
-      border-right:2px solid rgba(37,99,235,.55);
-      border-bottom:2px solid rgba(37,99,235,.55);
+      right:12px;
+      top:12px;
+      width:10px;
+      height:10px;
+      border-right:2px solid rgba(77,206,244,.75);
+      border-bottom:2px solid rgba(77,206,244,.75);
       transform: rotate(-45deg);
-      opacity:.55;
+      opacity:.65;
       pointer-events:none;
     }
 
-    /* Topline */
-    .topline{
+    .card.flash{ animation: flashCard .6s ease; }
+    @keyframes flashCard{
+      0%{ box-shadow: 0 0 0 1px rgba(77,206,244,.45), 0 0 28px rgba(77,206,244,.45); }
+      100%{ box-shadow: 0 0 0 1px rgba(255,255,255,.06), 0 18px 46px rgba(0,0,0,.55); }
+    }
+    .card.new{ animation: newCardFlash 1.2s ease; }
+    @keyframes newCardFlash{
+      0%{
+        transform: translateY(-2px);
+        box-shadow: 0 0 0 1px rgba(77,206,244,.45), 0 0 30px rgba(77,206,244,.45);
+      }
+      100%{
+        transform: translateY(0);
+        box-shadow: 0 0 0 1px rgba(255,255,255,.06), 0 18px 46px rgba(0,0,0,.55);
+      }
+    }
+
+    /* ✅ NEW: “meta header” row sits ABOVE headline (ticker + pills) */
+    .metahead{
       display:flex;
       align-items:center;
       justify-content:space-between;
       gap:12px;
     }
+    .ticker-left{ display:flex; align-items:center; gap:10px; min-width:0; }
 
-    .ticker-left{
-      display:flex;
-      align-items:center;
-      gap:10px;
-      min-width:0;
-    }
-
-    /* Ticker */
     .ticker-btn{
       background:transparent;
       border:0;
@@ -316,147 +226,97 @@
       cursor:pointer;
       display:inline-flex;
       align-items:center;
-      color:var(--text);
+      color:rgba(234,241,250,.92);
       font-family:"Roboto Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-      font-weight:800;
-      font-size:14.5px;
-      letter-spacing:0.01em;
+      font-weight:900;
+      font-size:15px;               /* slightly stronger */
+      letter-spacing:0.02em;
       line-height:1;
       flex:0 0 auto;
     }
     .ticker-btn:hover{ text-decoration:underline; text-decoration-thickness:2px; text-underline-offset:3px; }
-    .ticker-btn:focus-visible{
-      outline:2px solid rgba(37,99,235,.35);
-      outline-offset:3px;
-      border-radius:6px;
-    }
 
-    /* Materiality dots */
-    .impact-dots{
-      display:inline-flex;
-      gap:4px;
-      align-items:center;
-      flex:0 0 auto;
-    }
+    .impact-dots{ display:inline-flex; gap:5px; align-items:center; flex:0 0 auto; }
     .dot{
-      width:8px;
-      height:8px;
+      width:8px; height:8px;
       border-radius:999px;
-      background:var(--border);
+      background: rgba(255,255,255,.10);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.06);
     }
-    .dot.filled{ background: var(--dot-color); }
+    .dot.filled{ background: var(--dot-color); box-shadow:none; }
+    .dot.extreme{ width:12px; height:12px; }
 
-    /* Stronger “extreme” (sentiment_score 1 or 5) */
-    .dot.extreme{
-      width:12px;
-      height:12px;
-    }
+    .top-pills{ display:flex; align-items:center; gap:8px; flex:0 0 auto; justify-content:flex-end; min-width:0; }
 
-    .top-pills{
-      display:flex;
-      align-items:center;
-      gap:8px;
-      flex:0 0 auto;
-      justify-content:flex-end;
-      min-width:0;
-    }
-
-    /* Pills */
-    .sentiment, .event-pill, .risk-pill, .conf-pill, .alert-pill, .caution-pill{
+    .sentiment, .event-pill, .pulse-pill, .more-pill{
       display:inline-flex;
       align-items:center;
       height:var(--pill-h);
-      padding:0 9px;
+      padding:0 10px;
       border-radius:999px;
       font-size:11px;
       line-height:1;
       white-space:nowrap;
+      border:1px solid rgba(255,255,255,.08);
+      background: rgba(255,255,255,.03);
+      color: rgba(234,241,250,.78);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.02);
+      font-weight:900;
     }
+    .sentiment{ border-color: transparent; }
+    .sentiment.pos{ color: rgba(34,197,94,.98); background: var(--pos-bg); border-color: rgba(34,197,94,.18); }
+    .sentiment.neg{ color: rgba(239,68,68,.98); background: var(--neg-bg); border-color: rgba(239,68,68,.18); }
+    .sentiment.neu{ color: rgba(148,163,184,.98); background: var(--neu-bg); border-color: rgba(148,163,184,.16); }
 
-    .sentiment{ border:1px solid transparent; font-weight:800; }
-    .sentiment.pos{ color:var(--pos-text); background:var(--pos-bg); border-color:rgba(21,128,61,.15); }
-    .sentiment.neg{ color:var(--neg-text); background:var(--neg-bg); border-color:rgba(185,28,28,.15); }
-    .sentiment.neu{ color:var(--neu-text); background:var(--neu-bg); border-color:rgba(55,65,81,.10); }
-
-    /* Event category pill — brand blue */
     .event-pill{
-      font-weight:800;
-      background:#EFF6FF;
-      border:1px solid rgba(37,99,235,.16);
-      color:var(--primary);
+      background: rgba(77,206,244,.10);
+      border-color: rgba(77,206,244,.22);
+      color: rgba(77,206,244,.92);
+      text-transform: capitalize;
     }
 
-    /* Risk pill (only when flags exist): outline, not filled */
-    .risk-pill{
-      font-weight:800;
-      background:transparent;
-      border:1px solid rgba(185,28,28,.25);
-      color:rgba(185,28,28,.92);
-    }
-
-    /* Low confidence indicator (quiet) */
-    .conf-pill{
-      font-weight:800;
-      background:transparent;
-      border:1px solid rgba(107,114,128,.22);
-      color:rgba(107,114,128,.95);
-    }
-
-    /* ALERT / CAUTION pills */
-    .alert-pill{
-      font-weight:900;
-      color:#fff;
-      background:#DC2626;
-      border:1px solid rgba(220,38,38,.25);
-    }
-    .caution-pill{
-      font-weight:900;
-      color:#92400E;
-      background:#FFFBEB;
-      border:1px solid rgba(245,158,11,.25);
-    }
-
-    /* Meaning-first hierarchy */
+    /* Headline: second row, bold, clean */
     .headline{
-      margin-top:2px;
-      font-weight:800;
-      font-size:13px;
-      line-height:1.3;
+      margin-top:0;
+      font-weight:900;
+      font-size:14px;
+      line-height:1.28;
       color:var(--text);
+      letter-spacing:-0.01em;
       display:-webkit-box;
       -webkit-line-clamp:2;
       -webkit-box-orient:vertical;
       overflow:hidden;
     }
 
-    .signals-label{
-      font-size:11px;
-      font-weight:800;
-      color:var(--muted);
-      letter-spacing:0.02em;
-      margin-top:2px;
-    }
-
     .signals{
-      font-size:12.5px;
-      line-height:1.45;
-      color:var(--text);
+      font-size:13px;
+      line-height:1.55;
+      letter-spacing:-0.005em;
+      color: rgba(234,241,250,.86);
       display:flex;
       flex-direction:column;
-      gap:2px;
+      gap:6px;
+      margin-top:0;
     }
     .signal-line{
       display:-webkit-box;
-      -webkit-line-clamp:1;
+      -webkit-line-clamp:2;
       -webkit-box-orient:vertical;
       overflow:hidden;
+      position:relative;
+      padding-left:12px;
+      font-weight:600;
     }
-    .signal-main{ font-weight:800; }
-
-    /* Italic forward-looking only */
+    .signal-line::before{
+      content:"•";
+      position:absolute;
+      left:0; top:0;
+      color: rgba(234,241,250,.34);
+    }
     .forward-tone{
-      font-size:12px;
-      color:var(--muted);
+      font-size:12.5px;
+      color: rgba(234,241,250,.54);
       font-style:italic;
       display:-webkit-box;
       -webkit-line-clamp:1;
@@ -469,7 +329,7 @@
       display:flex;
       justify-content:space-between;
       align-items:center;
-      padding-top:4px;
+      padding-top:8px;
       gap:10px;
       min-width:0;
     }
@@ -479,130 +339,358 @@
       white-space:nowrap;
       min-width:0;
       flex:1 1 auto;
-      color:var(--muted);
+      color: rgba(234,241,250,.52);
       font-size:12px;
-      font-weight:600;
+      font-weight:700;
     }
-
     .meta{
       display:flex;
       align-items:center;
       gap:0;
-      color:var(--muted);
+      color: rgba(234,241,250,.52);
       font-size:12px;
       white-space:nowrap;
       flex:0 0 auto;
     }
-    .timestamp{ color:var(--muted); }
     .view{
-      color:var(--muted);
-      font-weight:600;
+      color: rgba(234,241,250,.56);
+      font-weight:800;
       font-size:12px;
       white-space:nowrap;
       flex:0 0 auto;
     }
-    .view:hover{
-      color:var(--primary);
-      text-decoration:underline;
-    }
+    .view:hover{ color: rgba(77,206,244,.92); text-decoration:underline; }
 
-    /* Live dot */
     .live-dot{
-      width:7px;
-      height:7px;
+      width:7px; height:7px;
       border-radius:999px;
-      background:#16A34A;
-      opacity:.42;
+      background: var(--primary);
+      opacity:.40;
       flex:0 0 auto;
-      margin-right:6px;
+      margin-right:7px;
       animation: liveSoftPulse 2.4s ease-in-out infinite;
+      box-shadow: 0 0 18px rgba(77,206,244,.22);
     }
     @keyframes liveSoftPulse{
       0%   { opacity:.16; }
       50%  { opacity:.55; }
       100% { opacity:.16; }
     }
+
     @media (prefers-reduced-motion: reduce){
-      .live-dot{ animation:none; }
+      .live-dot, .card.new, .card.flash{ animation:none; }
+      .card{ transition:none; }
     }
 
-    /* Gating */
-    .gated{
+    /* MARKET PULSE */
+    .pulse-wrap{
+      margin: 6px 0 12px;
+      padding: 16px;
+      border-radius: var(--r);
+      border: 1px solid rgba(255,255,255,.07);
+      background: linear-gradient(180deg, rgba(12,18,30,.55), rgba(10,16,26,.40));
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      box-shadow: var(--glow);
       position:relative;
       overflow:hidden;
     }
-    .gated .card{
-      filter: blur(5px);
-      pointer-events:none;
-      user-select:none;
-    }
-    .gate-overlay{
+    .pulse-wrap::before{
+      content:"";
       position:absolute;
       inset:0;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      padding:14px;
-      background:rgba(246,248,250,.72);
-      border:1px solid transparent;
+      pointer-events:none;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.06), transparent 26%),
+        radial-gradient(900px 260px at 30% 0%, rgba(77,206,244,.08), transparent 65%),
+        radial-gradient(900px 260px at 70% 0%, rgba(255,255,255,.05), transparent 70%);
+      opacity:.9;
+      mix-blend-mode: screen;
     }
-    .gate-panel{
-      width:min(440px, 100%);
-      background:#fff;
-      border:1px solid var(--border);
-      border-radius:var(--r);
-      padding:12px;
+    .pulse-inner{ position:relative; z-index:1; }
+
+    .pulse-top{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-end;
+      gap:12px;
+      flex-wrap:wrap;
+      margin-bottom:10px;
+    }
+
+    /* ✅ date/time aligned LEFT (in pulse-left) */
+    .pulse-left{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      flex-wrap:wrap;
+    }
+    .pulse-title{
+      font-weight:900;
+      letter-spacing:0.10em;
+      text-transform:uppercase;
+      font-size:12px;
+      color: rgba(234,241,250,.62);
+    }
+    .live-badge{
+      display:inline-flex;
+      gap:8px;
+      align-items:center;
+      font-weight:900;
+      font-size:11px;
+      color: rgba(77,206,244,.92);
+      letter-spacing:0.04em;
+      text-transform:uppercase;
+      opacity:.95;
+    }
+    .live-badge i{
+      width:7px; height:7px;
+      border-radius:999px;
+      background: rgba(77,206,244,.95);
+      box-shadow: 0 0 16px rgba(77,206,244,.22);
+      opacity:.55;
+      display:inline-block;
+      animation: liveSoftPulse 2.4s ease-in-out infinite;
+    }
+
+    .pulse-right{
+      display:flex;
+      align-items:flex-end;
+      gap:12px;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+      margin-left:auto;
+    }
+    .pulse-sub{
+      font-size:12px;
+      font-weight:800;
+      color: rgba(234,241,250,.52);
+      white-space:nowrap;
+    }
+    .pulse-time{
+      font-size:12px;
+      font-weight:900;
+      color:rgba(234,241,250,.55);
+      letter-spacing:.02em;
+      white-space:nowrap;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.03);
+      border: 1px solid rgba(255,255,255,.08);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.02);
+    }
+
+    .count-heat{
+      font-weight:900;
+      padding: 2px 8px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.08);
+      background: rgba(255,255,255,.03);
+      color: rgba(234,241,250,.72);
+      font-family:"Roboto Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    }
+    .count-heat.cyan{ color: rgba(77,206,244,.92); border-color: rgba(77,206,244,.22); background: rgba(77,206,244,.08); }
+    .count-heat.amber{ color: rgba(245,158,11,.92); border-color: rgba(245,158,11,.22); background: rgba(245,158,11,.10); }
+    .count-heat.orange{ color: rgba(249,115,22,.92); border-color: rgba(249,115,22,.22); background: rgba(249,115,22,.10); }
+    .count-heat.red{ color: rgba(251,113,133,.95); border-color: rgba(251,113,133,.25); background: rgba(251,113,133,.10); }
+
+    .pulse-bar{
+      height:6px;
+      border-radius:999px;
+      overflow:hidden;
+      display:flex;
+      margin: 0 0 12px;
+      background:rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.06);
+    }
+    .pulse-neg{ background: var(--neg); opacity:.95; }
+    .pulse-neu{ background: var(--neu); opacity:.75; }
+    .pulse-pos{ background: var(--pos); opacity:.95; }
+
+    .pulse-row{
+      display:flex;
+      gap:10px;
+      overflow:auto;
+      padding:2px 0;
+      scrollbar-width:thin;
+      align-items:center;
+    }
+    .pulse-pill{
+      height: 36px;
+      padding: 0 14px;
+      font-size:12px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.08);
+      background: rgba(255,255,255,.03);
+      color: rgba(234,241,250,.82);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.02);
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      user-select:none;
+      cursor:pointer;
+      transition: transform .12s ease, background .12s ease, border-color .12s ease;
+      flex: 0 0 auto;
+      font-weight:900;
+    }
+    .pulse-pill:hover{ transform: translateY(-1px); }
+    .pulse-pill[aria-pressed="true"]{
+      background: rgba(77,206,244,.16);
+      border-color: rgba(77,206,244,.30);
+      color: var(--text);
+      box-shadow: inset 0 0 0 1px rgba(77,206,244,.18), 0 0 18px rgba(77,206,244,.14);
+    }
+    .pill-count{
+      font-family:"Roboto Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-weight:900;
+      font-size:12px;
+      color: rgba(234,241,250,.72);
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.08);
+    }
+    .pulse-pill.neg{ border-color: rgba(239,68,68,.22); }
+    .pulse-pill.neg .pill-count{ background: rgba(239,68,68,.12); border-color: rgba(239,68,68,.18); }
+    .pulse-pill.pos{ border-color: rgba(34,197,94,.22); }
+    .pulse-pill.pos .pill-count{ background: rgba(34,197,94,.12); border-color: rgba(34,197,94,.18); }
+    .pulse-pill.neu{ border-color: rgba(148,163,184,.20); }
+    .pulse-pill.neu .pill-count{ background: rgba(148,163,184,.10); border-color: rgba(148,163,184,.16); }
+
+    .more-pill{
+      height:36px;
+      padding:0 14px;
+      font-size:12px;
+      border-radius:999px;
+      cursor:pointer;
+      user-select:none;
+      transition: transform .12s ease, background .12s ease, border-color .12s ease;
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      flex:0 0 auto;
+      color: rgba(234,241,250,.82);
+    }
+    .more-pill:hover{ transform: translateY(-1px); }
+    .more-pill[aria-expanded="true"]{
+      background: rgba(77,206,244,.14);
+      border-color: rgba(77,206,244,.26);
+      box-shadow: inset 0 0 0 1px rgba(77,206,244,.16), 0 0 18px rgba(77,206,244,.12);
+    }
+    .chev{ display:inline-block; transform: translateY(-1px); opacity:.85; }
+
+    /* Drawer */
+    .drawer{
+      margin-top:12px;
+      border-top:1px solid rgba(255,255,255,.06);
+      padding-top:12px;
+      display:none;
+    }
+    .drawer.open{ display:block; }
+    .drawer-head{
       display:flex;
       align-items:center;
       justify-content:space-between;
-      gap:12px;
+      gap:10px;
+      margin-bottom:10px;
+      flex-wrap:wrap;
     }
-    .gate-text{ min-width:0; }
-    .gate-text .title{
-      font-weight:800;
-      font-size:13px;
-      margin:0 0 2px;
-      color:var(--text);
-    }
-    .gate-text .sub{
-      margin:0;
+    .drawer-title{
+      font-weight:900;
       font-size:12px;
-      color:var(--muted);
+      letter-spacing:.10em;
+      text-transform:uppercase;
+      color: rgba(234,241,250,.55);
     }
-    .btn{
-      border:1px solid var(--primary);
-      background:var(--primary);
-      color:#fff;
-      border-radius:var(--r);
-      padding:8px 10px;
+    .drawer-actions{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      flex-wrap:wrap;
+    }
+    .link-btn{
+      background:transparent;
+      border:0;
+      color: rgba(77,206,244,.92);
       font-weight:900;
       font-size:12px;
       cursor:pointer;
+      padding:6px 8px;
+      border-radius:999px;
+    }
+    .link-btn:hover{ text-decoration:underline; text-underline-offset:3px; }
+
+    .drawer-grid{
+      display:grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap:10px;
+    }
+    @media (min-width: 760px){
+      .drawer-grid{ grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    }
+
+    .cat-pill{
+      height:36px;
+      padding:0 12px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.08);
+      background: rgba(255,255,255,.03);
+      color: rgba(234,241,250,.82);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      cursor:pointer;
+      font-weight:900;
+      transition: transform .12s ease, background .12s ease, border-color .12s ease;
+      user-select:none;
+    }
+    .cat-pill:hover{ transform: translateY(-1px); }
+    .cat-pill[aria-pressed="true"]{
+      background: rgba(77,206,244,.16);
+      border-color: rgba(77,206,244,.30);
+      box-shadow: inset 0 0 0 1px rgba(77,206,244,.18), 0 0 18px rgba(77,206,244,.12);
+    }
+    .cat-pill .pill-count{ flex:0 0 auto; }
+
+    /* Feed title */
+    .feed-title{
+      margin: 18px 0 10px;
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-end;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    .feed-title .label{
+      font-size:12px;
+      color:rgba(234,241,250,.62);
+      font-weight:900;
+      letter-spacing:0.10em;
+      text-transform:uppercase;
       white-space:nowrap;
+    }
+    .sort select{
+      background: rgba(8,12,20,.45);
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:999px;
+      padding:9px 12px;
+      color:var(--text);
+      outline:none;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.03);
     }
 
     .sr-only{
-      position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); border:0;
+      position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+      overflow:hidden; clip:rect(0,0,0,0); border:0;
     }
 
-    /* MOBILE: deterministic two-row classification */
     @media (max-width: 640px){
-      .topline{
-        flex-direction:column;
-        align-items:stretch;
-        gap:6px;
-      }
-      .top-pills{
-        justify-content:space-between;
-        gap:8px;
-        flex-wrap:wrap;
-      }
-      .alert-pill{ order:0; }
-      .caution-pill{ order:0; }
-      .sentiment{ order:1; margin-left:auto; }
-      .event-pill{ order:2; }
-      .risk-pill{ order:3; }
-      .conf-pill{ order:4; }
+      .signal-line{ -webkit-line-clamp:1; }
+      .pulse-pill, .more-pill, .cat-pill{ height: 34px; }
+      .pulse-time{ padding:5px 9px; }
+      .drawer-grid{ grid-template-columns: 1fr; }
+      .metahead{ gap:10px; }
     }
   </style>
 </head>
@@ -614,7 +702,7 @@
       <div class="logo">smallcaps<span class="brand-accent">.ai</span></div>
 
       <div class="search" role="search">
-        <input id="search" type="search" placeholder="Search ticker or company…" autocomplete="off" />
+        <input id="search" type="search" placeholder="Search ticker, company, headline, facts…" autocomplete="off" />
       </div>
 
       <nav class="nav" aria-label="Primary">
@@ -626,24 +714,47 @@
   </header>
 
   <main class="container">
-    <!-- HIGH IMPACT SECTION -->
-    <div class="section-title">
-      <div class="section-left">
-        <div class="label">High Impact (≥7/10)</div>
-        <span class="hi-count" id="hiCount">· 0</span>
-      </div>
-      <div class="meta">
-        <span class="timestamp" id="hiUpdated">Updated just now</span>
-      </div>
-    </div>
+    <!-- MARKET PULSE -->
+    <section class="pulse-wrap" aria-label="Market pulse">
+      <div class="pulse-inner">
+        <div class="pulse-top">
+          <div class="pulse-left">
+            <div class="pulse-title">Market Pulse</div>
+            <div class="live-badge" aria-label="Live"><i aria-hidden="true"></i> Live</div>
+            <div class="pulse-time" id="pulseTime">—</div>
+          </div>
 
-    <section class="grid" id="highImpactGrid" aria-label="High Impact (materiality ≥ 7)"></section>
+          <div class="pulse-right">
+            <div class="pulse-sub" id="pulseSummary">0 announcements today</div>
+          </div>
+        </div>
 
-    <!-- TABS + SORT -->
-    <div class="row" style="margin-top:18px;">
-      <div class="tabs" role="tablist" aria-label="Feed tabs">
-        <button class="tab" role="tab" id="tabHighlights" aria-selected="true" aria-controls="panelHighlights">Highlights</button>
-        <button class="tab" role="tab" id="tabFull" aria-selected="false" aria-controls="panelFull">Full feed</button>
+        <div class="pulse-bar" aria-label="Sentiment distribution">
+          <div class="pulse-neg" id="pulseNeg" style="flex:1"></div>
+          <div class="pulse-neu" id="pulseNeu" style="flex:1"></div>
+          <div class="pulse-pos" id="pulsePos" style="flex:1"></div>
+        </div>
+
+        <div class="pulse-row" id="pulseRow" aria-label="Pulse filters"></div>
+
+        <div class="drawer" id="filterDrawer" role="region" aria-label="More filters" aria-hidden="true">
+          <div class="drawer-head">
+            <div class="drawer-title">Categories</div>
+            <div class="drawer-actions">
+              <button class="link-btn" type="button" id="clearCatsBtn">Clear</button>
+              <button class="link-btn" type="button" id="closeDrawerBtn">Close</button>
+            </div>
+          </div>
+          <div class="drawer-grid" id="drawerGrid"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- MAIN FEED -->
+    <div class="feed-title">
+      <div>
+        <div class="label">Main feed</div>
+        <!-- removed “All announcements” -->
       </div>
 
       <div class="sort">
@@ -655,157 +766,115 @@
       </div>
     </div>
 
-    <!-- FILTER PILLS -->
-    <div class="filters" aria-label="Filters">
-      <button class="pill" data-filter="Negative" aria-pressed="false">Negative</button>
-      <button class="pill" data-filter="Positive" aria-pressed="false">Positive</button>
-      <button class="pill" data-filter="Neutral" aria-pressed="false">Neutral</button>
-      <button class="pill" data-filter="Materiality>=5" aria-pressed="false">Materiality ≥5</button>
-      <button class="pill" data-filter="Results" aria-pressed="false">Results</button>
-      <button class="pill" data-filter="Fundraise" aria-pressed="false">Fundraise</button>
-      <button class="pill" data-filter="Contract" aria-pressed="false">Contract</button>
-    </div>
-
-    <!-- FEED PANELS -->
-    <section id="panelHighlights" role="tabpanel" aria-labelledby="tabHighlights">
-      <div class="grid" id="highlightsGrid" aria-label="Highlights feed"></div>
-    </section>
-
-    <section id="panelFull" role="tabpanel" aria-labelledby="tabFull" hidden>
-      <div id="allWrapper">
-        <div class="grid" id="allGrid" aria-label="Full feed"></div>
-      </div>
-    </section>
+    <section class="grid" id="mainFeedGrid" aria-label="Main feed"></section>
   </main>
 
   <script>
-    // ---- State ----
     const state = {
-      userPlan: "free",                   // "free" | "pro"
-      activeFilters: new Set(),
+      activeSentiment: new Set(), // Negative/Positive/Neutral
+      activeImpact: new Set(),    // High impact
+      activeCats: new Set(),      // earnings/dilution/...
       sort: "recent",
-      query: "",
-      watchlist: new Set(["SCE","CRDL"]),  // demo
+      watchlist: new Set(["SCE","CRDL","IHC"]),
+      drawerOpen: false,
     };
 
-    // ---- Demo data: AI prompt schema + ingestion fields ----
-    // Backend should return: { ...AI fields..., id, published_at, rns_url }
+    let newestSeen = null;
+
     const rns = [
       {
+        id:"sce-1",
         ticker:"SCE",
         company_name:"Surface Transforms plc",
-        announcement_date:null,
-        announcement_type:"contract",
-        is_amended:false,
-        currency:"GBP",
         sentiment:"high_negative",
         sentiment_score:1,
         headline:"Major customer contract lost",
-        key_metric:"£15.3m",
-        vs_guidance:null,
-        management_tone:"intend to engage corporate restructuring advisers",
-        has_comparatives:true,
-        signal_summary:"Major customer contract lost. £15.3m key metric. GM contract lost effective 31 March 2026. **intend to engage corporate restructuring advisers**.",
-        signal_balance:{positive:0, negative:3, neutral:0},
-        signals:[
-          {level:"negative", label:"GM contract lost effective 31 March 2026", value:null, category:"contract"},
-          {level:"negative", label:"GM £15.3m (84%) of FY 2025 revenues", value:"15.3", category:"earnings"},
-          {level:"negative", label:"GM advance payments £14.4m since Nov 2024", value:"14.4", category:"balance_sheet"},
+        headline_short:"Major customer lost (GM)",
+        management_tone:"intend to immediately engage corporate restructuring advisers",
+        key_facts:[
+          "GM represented £15.3m of FY 2025 revenue",
+          "Customer concentration was 84% of revenue",
+          "Supply re-sourced from 31 March 2026"
         ],
-        flags:[],
+        category:"contract",
         impact:"high",
         materiality_score:10,
-        category:"contract",
-        confidence:"high",
-        id:"sce-1",
-        published_at: minutesAgoISO(6),
-        rns_url:"#",
+        published_at: minutesAgoISO(12),
+        rns_url:"#"
       },
       {
-        ticker:"CRDL",
-        company_name:"Cordel Group plc",
-        announcement_date:"2026-03-04",
-        announcement_type:"contract",
-        is_amended:false,
-        currency:"GBP",
-        sentiment:"high_positive",
-        sentiment_score:5,
-        headline:"£12m multi-year contract secured",
-        key_metric:"£12m",
-        vs_guidance:null,
-        management_tone:"confident in outlook",
-        has_comparatives:false,
-        signal_summary:"£12m contract secured. Key metric £12m. Contract £12m secured, 3 years. **confident in outlook**.",
-        signal_balance:{positive:2, negative:0, neutral:0},
-        signals:[
-          {level:"positive", label:"Contract £12m secured, 3 years", value:"12", category:"contract"},
-          {level:"positive", label:"Counterparty named; recurring profile", value:null, category:"contract"},
-        ],
-        flags:[],
-        impact:"high",
-        materiality_score:8,
-        category:"contract",
-        confidence:"high",
         id:"crdl-1",
-        published_at: minutesAgoISO(18),
-        rns_url:"#",
+        ticker:"CRDL",
+        company_name:"Cordel Group PLC",
+        sentiment:"positive",
+        sentiment_score:4,
+        headline:"USA contract upgrade",
+        headline_short:"US contract upgraded; SaaS extended",
+        management_tone:"back on track for the board's full year target",
+        key_facts:[
+          "Expected to deliver in excess of US$600k in 2026",
+          "Moves to fixed monthly SaaS fee model",
+          "Enterprise access for up to 200 users"
+        ],
+        category:"contract",
+        impact:"medium",
+        materiality_score:6,
+        published_at: minutesAgoISO(24),
+        rns_url:"#"
       },
       {
+        id:"ihc-1",
+        ticker:"IHC",
+        company_name:"Inspiration Healthcare Group plc",
+        sentiment:"positive",
+        sentiment_score:4,
+        headline:"NHS framework renewed; ranked No.1",
+        headline_short:"NHS framework renewed (4y) + ranked No.1",
+        management_tone:null,
+        key_facts:[
+          "Re-appointed under new four-year framework",
+          "Ranked No.1 neonatal ventilator supplier (2025/26)"
+        ],
+        category:"contract",
+        impact:"medium",
+        materiality_score:6,
+        published_at: minutesAgoISO(40),
+        rns_url:"#"
+      },
+      {
+        id:"rkt-1",
         ticker:"RKT",
         company_name:"Rocket Fintech plc",
-        announcement_date:"2026-03-04",
-        announcement_type:"trading_update",
-        is_amended:false,
-        currency:"GBP",
         sentiment:"negative",
         sentiment_score:2,
         headline:"Guidance cut 8–10%",
-        key_metric:"8–10%",
-        vs_guidance:"guidance cut",
+        headline_short:"Guidance cut 8–10%",
         management_tone:"cautious on outlook",
-        has_comparatives:true,
-        signal_summary:"Guidance cut 8–10%. Key metric 8–10%. FY revenue guidance cut 8–10%. **cautious on outlook**.",
-        signal_balance:{positive:0, negative:1, neutral:1},
-        signals:[
-          {level:"negative", label:"FY revenue guidance cut 8–10%", value:"8–10", category:"earnings"},
-          {level:"neutral", label:"Cost actions announced; timing unclear", value:null, category:"operations"},
+        key_facts:[
+          "FY revenue guidance reduced by 8–10%",
+          "Cost actions announced; timing unclear"
         ],
-        flags:[],
+        category:"earnings",
         impact:"high",
         materiality_score:7,
-        category:"earnings",
-        confidence:"medium",
-        id:"rkt-1",
-        published_at: minutesAgoISO(42),
-        rns_url:"#",
+        published_at: minutesAgoISO(58),
+        rns_url:"#"
       },
       {
+        id:"zed-1",
         ticker:"ZED",
         company_name:"Zed Systems plc",
-        announcement_date:"2026-03-04",
-        announcement_type:"other",
-        is_amended:false,
-        currency:"GBP",
         sentiment:"neutral",
         sentiment_score:3,
         headline:"No material investor signal",
-        key_metric:null,
-        vs_guidance:null,
+        headline_short:"No material investor signal",
         management_tone:null,
-        has_comparatives:false,
-        signal_summary:"No material investor signal identified.",
-        signal_balance:{positive:0, negative:0, neutral:1},
-        signals:[
-          {level:"neutral", label:"No material investor signal", value:null, category:"general"}
-        ],
-        flags:[],
+        key_facts:["No material investor signal"],
+        category:"general",
         impact:"low",
         materiality_score:2,
-        category:"general",
-        confidence:"low",
-        id:"zed-1",
-        published_at: minutesAgoISO(2),
-        rns_url:"#",
+        published_at: minutesAgoISO(4),
+        rns_url:"#"
       }
     ];
 
@@ -837,35 +906,25 @@
         .replaceAll("'","&#039;");
     }
 
-    // ---- Prompt-schema mappings ----
     function sentimentPillText(sentiment){
       if (sentiment === "high_positive" || sentiment === "positive") return "Positive";
       if (sentiment === "high_negative" || sentiment === "negative") return "Negative";
       return "Neutral";
     }
-
     function sentimentClass(sentiment){
       if (sentiment === "high_positive" || sentiment === "positive") return "pos";
       if (sentiment === "high_negative" || sentiment === "negative") return "neg";
       return "neu";
     }
 
-    function eventLabel(item){
-      const t = item.announcement_type;
-      if (t === "placing") return "Fundraise";
-      if (t === "results") return "Results";
-      if (t === "contract") return "Contract";
-      if (t === "director_dealing") return "Insider";
-      if (t === "acquisition") return "M&A";
-      if (t === "regulatory") return "Regulatory";
-      if (t === "trading_update") return "Trading";
-      return "Other";
-    }
-
     function dotColorFixed(sentiment){
-      if (sentiment === "positive" || sentiment === "high_positive") return "#16A34A";
-      if (sentiment === "negative" || sentiment === "high_negative") return "#DC2626";
-      return "#64748B";
+      const css = getComputedStyle(document.documentElement);
+      const pos = css.getPropertyValue("--pos").trim() || "#22C55E";
+      const neg = css.getPropertyValue("--neg").trim() || "#EF4444";
+      const neu = css.getPropertyValue("--neu").trim() || "#94A3B8";
+      if (sentiment === "positive" || sentiment === "high_positive") return pos;
+      if (sentiment === "negative" || sentiment === "high_negative") return neg;
+      return neu;
     }
 
     function accentWidth(materiality){
@@ -885,7 +944,6 @@
     function dotsHTML(materiality, sentimentScore, dotHex, tooltip){
       const n = filledDots(materiality);
       const extreme = (Number(sentimentScore) === 1 || Number(sentimentScore) === 5) ? "extreme" : "";
-
       let out = `<span class="impact-dots" title="${esc(tooltip)}" aria-label="${esc(tooltip)}">`;
       for (let i=1;i<=5;i++){
         const filled = i <= n ? "filled" : "";
@@ -895,123 +953,209 @@
       return out;
     }
 
-    function hasRisk(flags){
-      return Array.isArray(flags) && flags.length > 0;
-    }
-
-    function isNoSignal(item){
-      const s0 = item?.signals?.[0]?.label || "";
-      return String(s0) === "No material investor signal";
-    }
-
-    function confidenceLabel(conf){
-      if (conf === "low") return "low";
-      return null;
-    }
-
-    // ---- Severity helpers (recommended) ----
-    function hasAnyFlag(item, set){
-      const flags = Array.isArray(item.flags) ? item.flags : [];
-      return flags.some(f => set.has(f));
-    }
-
-    const CRITICAL_FLAGS = new Set([
-      "going_concern",
-      "nomad_resignation",
-      "suspension_risk",
-      "administration",
-      "trading_halt",
-      "covenant_breach",
-      "rto_triggered"
-    ]);
-
-    function isCriticalAlert(item){
-      const s = Number(item.sentiment_score || 3);
-      const m = Number(item.materiality_score || 1);
-      return (s === 1) || (m >= 9 && s <= 2) || hasAnyFlag(item, CRITICAL_FLAGS);
-    }
-
-    function isCautionAlert(item){
-      if (isCriticalAlert(item)) return false;
-      const s = Number(item.sentiment_score || 3);
-      const m = Number(item.materiality_score || 1);
-      const impact = String(item.impact || "");
-      return (s === 2 && m >= 7) || (impact === "high" && s === 2);
-    }
-
-    // Positive highlight: subtle (green accent + wash), no big pill by default
-    function isHighPositive(item){
-      if (isCriticalAlert(item) || isCautionAlert(item)) return false;
-      const s = Number(item.sentiment_score || 3);
-      const m = Number(item.materiality_score || 1);
-      return (s === 5 && m >= 7) || (m >= 9 && s >= 4);
-    }
-
     function accentColorFor(item){
-      if (isCriticalAlert(item)) return "#DC2626"; // red
-      if (isHighPositive(item))  return "#16A34A"; // green
-      if (isCautionAlert(item))  return "#F59E0B"; // amber
-      return "var(--primary)";
-    }
-
-    // ---- Filters ----
-    function matchFilters(item){
-      const f = state.activeFilters;
-
-      const sentiments = ["Negative","Positive","Neutral"].filter(x => f.has(x));
-      const categories = ["Results","Fundraise","Contract"].filter(x => f.has(x));
-      const mat5 = f.has("Materiality>=5");
-
-      const sText = sentimentPillText(item.sentiment);
-      const eText = eventLabel(item);
-
-      if (mat5 && Number(item.materiality_score || 0) < 5) return false;
-      if (sentiments.length && !sentiments.includes(sText)) return false;
-      if (categories.length && !categories.includes(eText)) return false;
-
-      return true;
-    }
-
-    function matchQuery(item){
-      const q = state.query.trim().toLowerCase();
-      if (!q) return true;
-      return (
-        String(item.ticker || "").toLowerCase().includes(q) ||
-        String(item.company_name || "").toLowerCase().includes(q) ||
-        String(item.headline || "").toLowerCase().includes(q)
-      );
-    }
-
-    // Impact sort: materiality desc, directionality desc, then recency
-    function directionalityWeight(sentimentScore){
-      const s = Number(sentimentScore || 3);
-      return Math.abs(s - 3);
+      const css = getComputedStyle(document.documentElement);
+      const pos = css.getPropertyValue("--pos").trim() || "#22C55E";
+      const neg = css.getPropertyValue("--neg").trim() || "#EF4444";
+      const neu = css.getPropertyValue("--neu").trim() || "#94A3B8";
+      const primary = css.getPropertyValue("--primary").trim() || "#4DCEF4";
+      if (item.sentiment === "high_positive" || item.sentiment === "positive") return pos;
+      if (item.sentiment === "high_negative" || item.sentiment === "negative") return neg;
+      if (item.sentiment === "neutral") return neu;
+      return primary;
     }
 
     function sortItems(items){
       if (state.sort === "impact"){
         return [...items].sort((a,b) =>
           (Number(b.materiality_score) - Number(a.materiality_score)) ||
-          (directionalityWeight(b.sentiment_score) - directionalityWeight(a.sentiment_score)) ||
+          (Math.abs(Number(b.sentiment_score||3)-3) - Math.abs(Number(a.sentiment_score||3)-3)) ||
           (new Date(b.published_at) - new Date(a.published_at))
         );
       }
       return [...items].sort((a,b) => new Date(b.published_at) - new Date(a.published_at));
     }
 
-    // ---- Card renderer (recommended changes: severity bar, alert/caution, key facts label, bold first fact) ----
-    function cardHTML(item){
-      const isWatch = state.watchlist.has(item.ticker);
-      const noSignal = isNoSignal(item);
+    const PULSE_PILLS = [
+      {key:"High impact", type:"impact"},
+      {key:"Negative", type:"sentiment", cls:"neg"},
+      {key:"Positive", type:"sentiment", cls:"pos"},
+      {key:"Neutral", type:"sentiment", cls:"neu"},
+    ];
 
-      const critical = !noSignal && isCriticalAlert(item);
-      const caution  = !noSignal && isCautionAlert(item);
-      const highPos  = !noSignal && isHighPositive(item);
+    const CATEGORY_FILTERS = [
+      {key:"earnings", label:"Earnings"},
+      {key:"dilution", label:"Dilution"},
+      {key:"balance_sheet", label:"Balance sheet"},
+      {key:"contract", label:"Contract"},
+      {key:"m_and_a", label:"M&A"},
+      {key:"insider_activity", label:"Insider"},
+      {key:"operations", label:"Operations"},
+      {key:"general", label:"Other"},
+    ];
+
+    function pulseCounts(items){
+      const counts = {};
+      PULSE_PILLS.forEach(p => counts[p.key] = 0);
+      CATEGORY_FILTERS.forEach(c => counts[c.key] = 0);
+
+      items.forEach(item => {
+        if (Number(item.materiality_score || 0) >= 7) counts["High impact"] += 1;
+        const s = sentimentPillText(item.sentiment);
+        if (counts[s] !== undefined) counts[s] += 1;
+        const c = item.category || "general";
+        if (counts[c] !== undefined) counts[c] += 1;
+      });
+
+      return counts;
+    }
+
+    function renderPulseBar(items){
+      const neg = items.filter(x => Number(x.sentiment_score || 3) <= 2).length;
+      const pos = items.filter(x => Number(x.sentiment_score || 3) >= 4).length;
+      const neu = Math.max(0, items.length - neg - pos);
+
+      document.getElementById("pulseNeg").style.flex = String(neg || 0.0001);
+      document.getElementById("pulseNeu").style.flex = String(neu || 0.0001);
+      document.getElementById("pulsePos").style.flex = String(pos || 0.0001);
+    }
+
+    function updatePulseTime(){
+      const now = new Date();
+      const date = now.toLocaleDateString("en-GB", { weekday:"short", day:"numeric", month:"short" });
+      const time = now.toLocaleTimeString("en-GB", { hour:"2-digit", minute:"2-digit" });
+      document.getElementById("pulseTime").textContent = `${date} · ${time} London`;
+    }
+
+    function heatClass(total){
+      if (total >= 40) return "red";
+      if (total >= 30) return "orange";
+      if (total >= 20) return "amber";
+      if (total >= 12) return "cyan";
+      return "";
+    }
+
+    function setDrawer(open){
+      state.drawerOpen = open;
+      const drawer = document.getElementById("filterDrawer");
+      const btn = document.getElementById("moreBtn");
+      drawer.classList.toggle("open", open);
+      drawer.setAttribute("aria-hidden", String(!open));
+      btn.setAttribute("aria-expanded", String(open));
+      btn.querySelector(".chev").textContent = open ? "▴" : "▾";
+    }
+
+    function renderPulse(items){
+      const counts = pulseCounts(items);
+      const total = items.length;
+
+      const hi = counts["High impact"] || 0;
+      const neg = counts["Negative"] || 0;
+      const pos = counts["Positive"] || 0;
+
+      const heat = heatClass(total);
+      const totalHTML = `<span class="count-heat ${heat}">${total}</span>`;
+      document.getElementById("pulseSummary").innerHTML =
+        `${totalHTML} announcements today · ${hi} high impact · ${neg} negative · ${pos} positive`;
+
+      renderPulseBar(items);
+      updatePulseTime();
+
+      const row = document.getElementById("pulseRow");
+      row.innerHTML = `
+        ${PULSE_PILLS.map(p => {
+          const pressed =
+            (p.type === "impact" && state.activeImpact.has(p.key)) ||
+            (p.type === "sentiment" && state.activeSentiment.has(p.key));
+          const extra = p.cls ? ` ${p.cls}` : "";
+          return `
+            <button class="pulse-pill${extra}" type="button"
+              data-pulse="${esc(p.key)}" data-type="${esc(p.type)}"
+              aria-pressed="${pressed ? "true" : "false"}">
+              <span>${esc(p.key)}</span>
+              <span class="pill-count">${counts[p.key] ?? 0}</span>
+            </button>
+          `;
+        }).join("")}
+        <button class="more-pill" id="moreBtn" type="button" aria-expanded="${state.drawerOpen ? "true" : "false"}">
+          More filters <span class="chev">${state.drawerOpen ? "▴" : "▾"}</span>
+        </button>
+      `;
+
+      row.querySelectorAll("[data-pulse]").forEach(btn => {
+        btn.onclick = () => {
+          const key = btn.getAttribute("data-pulse");
+          const type = btn.getAttribute("data-type");
+
+          if (type === "impact"){
+            if (state.activeImpact.has(key)) state.activeImpact.delete(key);
+            else state.activeImpact.add(key);
+          } else if (type === "sentiment"){
+            if (state.activeSentiment.has(key)) state.activeSentiment.delete(key);
+            else state.activeSentiment.add(key);
+          }
+          render();
+        };
+      });
+
+      document.getElementById("moreBtn").onclick = () => setDrawer(!state.drawerOpen);
+
+      const dg = document.getElementById("drawerGrid");
+      dg.innerHTML = CATEGORY_FILTERS.map(c => {
+        const pressed = state.activeCats.has(c.key);
+        return `
+          <button class="cat-pill" type="button"
+            data-cat="${esc(c.key)}"
+            aria-pressed="${pressed ? "true" : "false"}">
+            <span>${esc(c.label)}</span>
+            <span class="pill-count">${counts[c.key] ?? 0}</span>
+          </button>
+        `;
+      }).join("");
+
+      dg.querySelectorAll("[data-cat]").forEach(btn => {
+        btn.onclick = () => {
+          const key = btn.getAttribute("data-cat");
+          if (state.activeCats.has(key)) state.activeCats.delete(key);
+          else state.activeCats.add(key);
+          render();
+          setDrawer(true);
+        };
+      });
+
+      document.getElementById("clearCatsBtn").onclick = () => {
+        state.activeCats.clear();
+        render();
+        setDrawer(true);
+      };
+      document.getElementById("closeDrawerBtn").onclick = () => setDrawer(false);
+
+      setDrawer(state.drawerOpen);
+    }
+
+    function matchPulse(item){
+      if (state.activeImpact.size > 0 && Number(item.materiality_score || 0) < 7) return false;
+
+      if (state.activeSentiment.size > 0){
+        const s = sentimentPillText(item.sentiment);
+        if (!state.activeSentiment.has(s)) return false;
+      }
+
+      if (state.activeCats.size > 0){
+        const c = String(item.category || "general");
+        if (!state.activeCats.has(c)) return false;
+      }
+
+      return true;
+    }
+
+    function cardHTML(item, newestId){
+      const isWatch = state.watchlist.has(item.ticker);
+      const isNew = (newestId && item.id === newestId);
 
       const aW = accentWidth(item.materiality_score);
-      const accent = noSignal ? "var(--primary)" : accentColorFor(item);
-
-      const dotHex = dotColorFixed(noSignal ? "neutral" : item.sentiment);
+      const accent = accentColorFor(item);
+      const dotHex = dotColorFixed(item.sentiment);
 
       const m = Math.max(1, Math.min(10, Number(item.materiality_score || 1)));
       const dotsN = filledDots(m);
@@ -1021,44 +1165,22 @@
         ? `<span class="live-dot" aria-hidden="true"></span>`
         : "";
 
-      const tone = item.management_tone
-        ? `<div class="forward-tone">${esc(item.management_tone)}</div>`
-        : "";
+      const facts = Array.isArray(item.key_facts) ? item.key_facts : [];
+      const maxFacts = (Number(item.materiality_score||0) >= 6) ? 3 : 2;
+      const factsShown = facts.slice(0, maxFacts);
+      const factLines = factsShown.map((t) => `<div class="signal-line">${esc(t)}</div>`).join("");
 
-      const showThird = (Number(item.materiality_score || 0) >= 8) || hasRisk(item.flags);
-      const maxLines = showThird ? 3 : 2;
-
-      const sig = (item.signals || []).slice(0, maxLines);
-      const sigLines = sig.length
-        ? sig.map((s, idx) => (
-            `<div class="signal-line ${idx === 0 ? "signal-main" : ""}">${esc(s.label)}</div>`
-          )).join("")
-        : `<div class="signal-line signal-main">No material investor signal</div>`;
-
-      const risk = (!noSignal && hasRisk(item.flags))
-        ? `<span class="risk-pill" title="${esc(item.flags.join(", "))}">Risk</span>`
-        : "";
-
-      const conf = (!noSignal && confidenceLabel(item.confidence))
-        ? `<span class="conf-pill" title="AI extraction confidence low">Low conf</span>`
-        : "";
-
-      const alertPill = critical ? `<span class="alert-pill">ALERT</span>` : "";
-      const cautionPill = (!critical && caution) ? `<span class="caution-pill">CAUTION</span>` : "";
-
-      const headlineTitle = item.signal_summary ? esc(item.signal_summary) : "";
+      const tone = item.management_tone ? `<div class="forward-tone">${esc(item.management_tone)}</div>` : "";
 
       return `
-        <article class="card ${isWatch ? "watchlist" : ""} ${critical ? "alert" : ""} ${highPos ? "breakout" : ""}"
+        <article class="card ${isWatch ? "watchlist" : ""} ${isNew ? "new" : ""}"
           style="--accent:${accent}; --accent-w:${aW}"
-          data-id="${esc(item.id)}" data-ticker="${esc(item.ticker)}">
+          data-id="${esc(item.id)}">
 
           <span class="watch-tick" aria-hidden="true"></span>
 
-          <!-- Meaning-first: headline above classification row -->
-          <div class="headline" title="${headlineTitle}">${esc(item.headline)}</div>
-
-          <div class="topline">
+          <!-- ✅ meta header FIRST -->
+          <div class="metahead">
             <div class="ticker-left">
               <button class="ticker-btn"
                 type="button"
@@ -1072,31 +1194,23 @@
             </div>
 
             <div class="top-pills">
-              ${alertPill}
-              ${cautionPill}
-              <span class="sentiment ${sentimentClass(noSignal ? "neutral" : item.sentiment)}">
-                ${esc(sentimentPillText(noSignal ? "neutral" : item.sentiment))}
-              </span>
-              <span class="event-pill">${esc(eventLabel(item))}</span>
-              ${risk}
-              ${conf}
+              <span class="sentiment ${sentimentClass(item.sentiment)}">${esc(sentimentPillText(item.sentiment))}</span>
+              <span class="event-pill">${esc(String(item.category || "general").replaceAll("_"," "))}</span>
             </div>
           </div>
 
-          <div class="signals-label">Key facts</div>
-          <div class="signals">
-            ${sigLines}
-          </div>
+          <!-- ✅ headline SECOND -->
+          <div class="headline">${esc(item.headline_short || item.headline || "")}</div>
 
+          <div class="signals">${factLines}</div>
           ${tone}
 
           <div class="card-footer">
             <span class="company" title="${esc(item.company_name)}">${esc(item.company_name)}</span>
-
             <div class="meta">
               ${liveDot}
               <span class="timestamp" data-time="${esc(item.published_at)}">${fmtRelative(item.published_at)}</span>
-              <span style="padding:0 6px; color:transparent;">·</span>
+              <span style="padding:0 8px; color:transparent;">·</span>
               <a class="view" href="${esc(item.rns_url)}" target="_blank" rel="noopener">View RNS ↗</a>
             </div>
           </div>
@@ -1104,40 +1218,16 @@
       `;
     }
 
-    // Only updates relative time strings + live dot state without full re-render
-    function updateTimes(){
-      document.querySelectorAll("[data-time]").forEach(el => {
-        const iso = el.getAttribute("data-time");
-        el.textContent = fmtRelative(iso);
-
-        const meta = el.closest(".meta");
-        if (!meta) return;
-        const hasDot = !!meta.querySelector(".live-dot");
-        const shouldDot = isWithinMinutes(iso, 15);
-
-        if (shouldDot && !hasDot){
-          const dot = document.createElement("span");
-          dot.className = "live-dot";
-          dot.setAttribute("aria-hidden","true");
-          meta.insertBefore(dot, meta.firstChild);
-        } else if (!shouldDot && hasDot){
-          meta.querySelector(".live-dot").remove();
-        }
-      });
-    }
-
-    function bindUpgrade(){
-      const btn = document.getElementById("upgradeBtn");
-      if (!btn) return;
-      btn.onclick = () => alert("Route to /account/upgrade (no modal).");
-    }
-
-    // Watchlist toggle via ticker click (ring + corner tick; no clutter)
     function bindTickerWatch(){
       document.querySelectorAll("[data-watch-ticker]").forEach(btn => {
         const ticker = btn.getAttribute("data-watch-ticker");
         btn.onclick = (e) => {
           e.preventDefault();
+          const card = btn.closest(".card");
+          if (card){
+            card.classList.add("flash");
+            setTimeout(()=>card.classList.remove("flash"),600);
+          }
           if (state.watchlist.has(ticker)) state.watchlist.delete(ticker);
           else state.watchlist.add(ticker);
           render();
@@ -1145,107 +1235,80 @@
       });
     }
 
+    function updateTimes(){
+      document.querySelectorAll("[data-time]").forEach(el => {
+        const iso = el.getAttribute("data-time");
+        el.textContent = fmtRelative(iso);
+      });
+      updatePulseTime();
+    }
+
     function render(){
-      const itemsBase = rns
-        .filter(matchQuery)
-        .filter(matchFilters);
+      const q = (document.getElementById("search")?.value || "").trim().toLowerCase();
 
-      // High Impact section: materiality >= 7
-      const hiAll = sortItems(itemsBase).filter(x => Number(x.materiality_score || 0) >= 7);
-      const hi = hiAll.slice(0,6);
-
-      document.getElementById("highImpactGrid").innerHTML = hi.map(cardHTML).join("");
-      document.getElementById("hiCount").textContent = `· ${hi.length}`;
-
-      // Highlights
-      const highlights = sortItems(itemsBase).slice(0,9);
-      document.getElementById("highlightsGrid").innerHTML = highlights.map(cardHTML).join("");
-
-      // Full feed (gated for free users)
-      const allItems = sortItems(itemsBase);
-      const allGrid = document.getElementById("allGrid");
-
-      if (state.userPlan === "free"){
-        const first = allItems.slice(0,3);
-        const rest = allItems.slice(3);
-
-        allGrid.innerHTML =
-          first.map(cardHTML).join("") +
-          (rest.length ? `
-            <div class="gated" style="grid-column:1 / -1; border-radius:var(--r);">
-              <div class="grid">
-                ${rest.map(cardHTML).join("")}
-              </div>
-              <div class="gate-overlay">
-                <div class="gate-panel" role="region" aria-label="Upgrade gate">
-                  <div class="gate-text">
-                    <p class="title">Unlock full-day feed</p>
-                    <p class="sub">See every announcement from today, plus watchlist tools.</p>
-                  </div>
-                  <button class="btn" type="button" id="upgradeBtn">Upgrade</button>
-                </div>
-              </div>
-            </div>
-          ` : "");
-      } else {
-        allGrid.innerHTML = allItems.map(cardHTML).join("");
+      let items = [...rns];
+      if (q){
+        items = items.filter(it => {
+          const hay = [it.ticker, it.company_name, it.headline, it.headline_short, ...(it.key_facts||[])]
+            .join(" ")
+            .toLowerCase();
+          return hay.includes(q);
+        });
       }
 
-      bindUpgrade();
+      renderPulse(items);
+
+      const filtered = items.filter(matchPulse);
+      const sorted = sortItems(filtered);
+
+      const newestNow = sorted[0]?.id || null;
+      const highlightId = (newestSeen && newestNow && newestNow !== newestSeen) ? newestNow : null;
+
+      document.getElementById("mainFeedGrid").innerHTML =
+        sorted.map(it => cardHTML(it, highlightId)).join("");
+
+      newestSeen = newestNow;
+
       bindTickerWatch();
       updateTimes();
     }
 
-    // Tabs
-    const tabHighlights = document.getElementById("tabHighlights");
-    const tabFull = document.getElementById("tabFull");
-    const panelHighlights = document.getElementById("panelHighlights");
-    const panelFull = document.getElementById("panelFull");
-
-    function setTab(which){
-      const isHighlights = which === "highlights";
-      tabHighlights.setAttribute("aria-selected", String(isHighlights));
-      tabFull.setAttribute("aria-selected", String(!isHighlights));
-      panelHighlights.hidden = !isHighlights;
-      panelFull.hidden = isHighlights;
-    }
-
-    tabHighlights.addEventListener("click", () => setTab("highlights"));
-    tabFull.addEventListener("click", () => setTab("full"));
-
-    // Filters
-    document.querySelectorAll(".pill").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const f = btn.getAttribute("data-filter");
-        if (state.activeFilters.has(f)) state.activeFilters.delete(f);
-        else state.activeFilters.add(f);
-        btn.setAttribute("aria-pressed", String(state.activeFilters.has(f)));
-        render();
-      });
-    });
-
-    // Sort
     document.getElementById("sortSelect").addEventListener("change", (e) => {
       state.sort = e.target.value;
       render();
     });
 
-    // Search
     const search = document.getElementById("search");
-    let t = null;
-    search.addEventListener("input", (e) => {
-      clearTimeout(t);
-      t = setTimeout(() => {
-        state.query = e.target.value || "";
-        render();
-      }, 120);
+    let tt = null;
+    search.addEventListener("input", () => {
+      clearTimeout(tt);
+      tt = setTimeout(render, 120);
     });
 
-    // Initial render
     render();
+    setInterval(updateTimes, 30_000);
+    setInterval(updatePulseTime, 60_000);
 
-    // Lightweight time updater
-    setInterval(() => updateTimes(), 30_000);
+    // Demo live inject (remove in prod)
+    setTimeout(() => {
+      rns.unshift({
+        id:"new-1",
+        ticker:"NEW",
+        company_name:"Newco plc",
+        sentiment:"positive",
+        sentiment_score:4,
+        headline:"Contract win £2m",
+        headline_short:"Contract win £2m",
+        management_tone:"confident in outlook",
+        key_facts:["Contract value £2m","Duration 2 years","Counterparty named"],
+        category:"contract",
+        impact:"medium",
+        materiality_score:6,
+        published_at: new Date().toISOString(),
+        rns_url:"#"
+      });
+      render();
+    }, 5500);
   </script>
 </body>
 </html>
