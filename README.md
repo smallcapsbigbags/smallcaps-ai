@@ -25,7 +25,11 @@ Deterministic discovery of today's RNS rows
       ↓
 PostgreSQL source_id deduplication
       ↓
-OpenAI web search for detailed evidence on new rows only
+Routine administrative rows stored without deep AI
+      ↓
+Investment-relevant rows prioritised (MAX_AI_ITEMS, default 36)
+      ↓
+OpenAI web search for detailed evidence on selected new rows only
       ↓
 Prefer issuer IR / official LSE-RNS corroboration
       ↓
@@ -38,7 +42,7 @@ Deterministic RNS guardrails
 Versioned Railway PostgreSQL record
 ```
 
-OpenAI is therefore not responsible for inventing the day's announcement catalogue. Investegate identifies the exact RNS; OpenAI web search retrieves and corroborates the detailed factual evidence before the Analyst Engine runs.
+OpenAI is therefore not responsible for inventing the day's announcement catalogue. Investegate identifies the exact RNS; OpenAI web search retrieves and corroborates the detailed factual evidence before the Analyst Engine runs. True administrative notices do not consume a deep analysis call. Material rows deferred by the daily cap remain unpersisted so they are eligible for the next run rather than being incorrectly marked complete.
 
 Manual ingestion remains available only as a testing, QA and recovery fallback.
 
@@ -47,7 +51,7 @@ The database stores companies, announcements, immutable analyst runs, atomic fac
 ## Repository layout
 
 ```text
-analyst/              Strict schemas, context, OpenAI analysis and guardrails
+analyst/              Strict schemas, classification, context, OpenAI analysis and guardrails
 database/             SQLAlchemy persistence, Postgres DDL and dedupe queries
 ingestion/            Investegate Daily AIM source, OpenAI evidence retrieval and manual fallback
 jobs/                 Railway-ready daily ingestion entrypoint
@@ -80,7 +84,7 @@ With `OPENAI_API_KEY` configured:
 python -m jobs.ingest_daily
 ```
 
-This checks today's Investegate AIM catalogue, ignores source IDs already stored in PostgreSQL, retrieves detailed evidence for new rows with OpenAI web search, runs the Analyst Engine and persists the resulting research.
+This checks today's Investegate AIM catalogue, ignores source IDs already stored in PostgreSQL, persists true routine notices without a deep model call, retrieves detailed evidence for selected new investment-relevant rows with OpenAI web search, runs the Analyst Engine and persists the resulting research.
 
 ## Railway variables
 
@@ -93,6 +97,7 @@ PROMPT_VERSION=foundation-analyst-1.0
 DEEP_SEARCH_BATCH_SIZE=5
 MAX_DOCUMENT_CHARS=45000
 INVESTEGATE_AIM_MAX_PAGES=8
+MAX_AI_ITEMS=36
 ```
 
 No secrets should be committed.
@@ -113,7 +118,7 @@ The end-to-end acceptance test uses a real 7 August 2026 Inspiration Healthcare 
 - persist atomic facts and management claims; and
 - retrieve the current record.
 
-A separate parser test verifies the Investegate AIM RNS table format without requiring a network call in CI.
+Separate tests verify the Investegate AIM table parser, current routine/ownership/material priority rules, and that Postgres deduplication happens before repeated evidence retrieval.
 
 Live Investegate/OpenAI calls are environment-gated because API credentials are never committed.
 
