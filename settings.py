@@ -7,6 +7,24 @@ from pathlib import Path
 from analyst.version import DEFAULT_PROMPT_VERSION
 
 
+def _env_bool(name: str, default: bool) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _watchlist(value: str) -> tuple[str, ...]:
+    output: list[str] = []
+    seen: set[str] = set()
+    for item in value.split(","):
+        ticker = item.upper().strip().replace(".L", "").rstrip(".-")
+        if ticker and ticker not in seen:
+            seen.add(ticker)
+            output.append(ticker)
+    return tuple(output)
+
+
 @dataclass(frozen=True)
 class Settings:
     database_url: str
@@ -21,6 +39,9 @@ class Settings:
     investegate_aim_max_pages: int
     max_ai_items: int
     app_admin_password: str
+    market_data_enabled: bool
+    market_data_timeout_seconds: int
+    default_watchlist: tuple[str, ...]
     root_dir: Path
 
     @classmethod
@@ -36,13 +57,18 @@ class Settings:
             openai_deep_model=os.getenv("OPENAI_DEEP_MODEL", "gpt-5.4"),
             openai_max_output_tokens=max(
                 2_000,
-                int(os.getenv("OPENAI_MAX_OUTPUT_TOKENS", "12000") or "12000"),
+                int(
+                    os.getenv("OPENAI_MAX_OUTPUT_TOKENS", "12000")
+                    or "12000"
+                ),
             ),
             prompt_version=os.getenv(
-                "PROMPT_VERSION", DEFAULT_PROMPT_VERSION
+                "PROMPT_VERSION",
+                DEFAULT_PROMPT_VERSION,
             ),
             deep_search_batch_size=max(
-                1, int(os.getenv("DEEP_SEARCH_BATCH_SIZE", "5") or "5")
+                1,
+                int(os.getenv("DEEP_SEARCH_BATCH_SIZE", "5") or "5"),
             ),
             max_document_chars=max(
                 5_000,
@@ -54,11 +80,26 @@ class Settings:
             ),
             investegate_aim_max_pages=max(
                 1,
-                int(os.getenv("INVESTEGATE_AIM_MAX_PAGES", "8") or "8"),
+                int(
+                    os.getenv("INVESTEGATE_AIM_MAX_PAGES", "8")
+                    or "8"
+                ),
             ),
             max_ai_items=max(
-                3, int(os.getenv("MAX_AI_ITEMS", "36") or "36")
+                3,
+                int(os.getenv("MAX_AI_ITEMS", "36") or "36"),
             ),
             app_admin_password=os.getenv("APP_ADMIN_PASSWORD", ""),
+            market_data_enabled=_env_bool("MARKET_DATA_ENABLED", True),
+            market_data_timeout_seconds=max(
+                5,
+                int(
+                    os.getenv("MARKET_DATA_TIMEOUT_SECONDS", "25")
+                    or "25"
+                ),
+            ),
+            default_watchlist=_watchlist(
+                os.getenv("DEFAULT_WATCHLIST", "")
+            ),
             root_dir=root,
         )
