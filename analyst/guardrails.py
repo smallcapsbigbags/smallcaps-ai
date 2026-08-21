@@ -173,13 +173,7 @@ def _note_text(note: AnalystNote) -> str:
         *note.disclosure_assessment.missing_items,
     ]
     for driver in note.impact_drivers:
-        parts.extend(
-            (
-                driver.dimension,
-                driver.direction,
-                driver.rationale,
-            )
-        )
+        parts.extend((driver.dimension, driver.direction, driver.rationale))
     for fact in note.key_facts:
         parts.extend(
             (
@@ -219,36 +213,51 @@ def _has_genuine_guidance(text: str) -> bool:
 
 
 def _calculation_warnings(note: AnalystNote) -> Iterable[str]:
+    """Block only genuinely unauditable share/control calculations.
+
+    Phase 2 calculations such as revenue growth, EBITDA margin, NPV uplift and
+    book-value discounts are percentages too, but they do not need a share-count
+    denominator. Their visible numeric inputs are checked separately by the
+    publication-quality layer. The stricter denominator rule belongs only to
+    dilution, ownership and voting/share-count ratios.
+    """
+
+    share_ratio_terms = (
+        "dilution",
+        "ownership",
+        "voting",
+        "share count",
+        "shares issued",
+        "shares outstanding",
+        "concert party",
+    )
+    share_denominator_markers = (
+        "issued share capital",
+        "pre-placing",
+        "voting rights",
+        "shares outstanding",
+        "denominator",
+        "total shares",
+        "existing shares",
+        "enlarged share capital",
+        "calculated from",
+    )
+
     for fact in note.key_facts:
         if fact.basis != "calculated":
             continue
         if not fact.note.strip():
-            yield (
-                f"GUARDRAIL: Calculated fact '{fact.label}' does not show its inputs."
-            )
+            yield f"GUARDRAIL: Calculated fact '{fact.label}' does not show its inputs."
             continue
-        ratio_like = (
-            "dilution" in fact.label.lower()
-            or "ownership" in fact.label.lower()
-            or "%" in fact.value
-            or "percentage" in fact.label.lower()
-        )
-        if ratio_like and not any(
-            marker in fact.note.lower()
-            for marker in (
-                "issued share capital",
-                "pre-placing",
-                "voting rights",
-                "shares outstanding",
-                "denominator",
-                "total shares",
-                "existing shares",
-                "calculated from",
-            )
+
+        descriptor = " ".join((fact.label, fact.metric)).lower()
+        share_ratio = any(term in descriptor for term in share_ratio_terms)
+        if share_ratio and not any(
+            marker in fact.note.lower() for marker in share_denominator_markers
         ):
             yield (
-                f"GUARDRAIL: Calculated ratio '{fact.label}' does not identify "
-                "verified inputs or a denominator."
+                f"GUARDRAIL: Calculated share/control ratio '{fact.label}' does not "
+                "identify verified inputs or a share-count denominator."
             )
 
 
@@ -261,17 +270,14 @@ def guardrail_warnings(
     warnings: list[str] = []
 
     for label, source_pattern, required_terms in _ADVERSE_RULES:
-        if source_pattern.search(source) and not any(
-            term in output for term in required_terms
-        ):
+        if source_pattern.search(source) and not any(term in output for term in required_terms):
             warnings.append(
-                f"GUARDRAIL: Explicit {label} appears in the source but is "
-                "absent from the analytical record."
+                f"GUARDRAIL: Explicit {label} appears in the source but is absent "
+                "from the analytical record."
             )
 
     has_guidance_event = any(
-        event.status in _GUIDANCE_STATUSES
-        for event in note.guidance_events
+        event.status in _GUIDANCE_STATUSES for event in note.guidance_events
     )
     if (
         has_guidance_event
@@ -291,10 +297,7 @@ def apply_analysis_guardrails(
     announcement: AnnouncementInput,
     note: AnalystNote,
 ) -> AnalystNote:
-    warnings = [
-        *note.source_warnings,
-        *guardrail_warnings(announcement, note),
-    ]
+    warnings = [*note.source_warnings, *guardrail_warnings(announcement, note)]
     return note.model_copy(
         update={"source_warnings": list(dict.fromkeys(warnings))}
     )
