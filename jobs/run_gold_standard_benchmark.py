@@ -3,8 +3,9 @@ from __future__ import annotations
 import argparse
 import json
 from collections import defaultdict
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from analyst.analyzer import OpenAIAnalystEngine
 from analyst.classification import classify_metadata_type
@@ -18,6 +19,8 @@ from analyst.guardrails import apply_analysis_guardrails
 from analyst.quality import assess_analysis_quality
 from ingestion.investegate_daily import CatalogueAnnouncement, InvestegateDailyAIMSource
 from settings import Settings
+
+LONDON = ZoneInfo("Europe/London")
 
 
 def _match_case(
@@ -44,6 +47,41 @@ def _load_active_case_ids(path: Path) -> list[str]:
     return raw
 
 
+def _load_source_map(path: Path) -> dict[str, dict[str, str]]:
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(raw, dict):
+        raise ValueError("benchmark source map must be a JSON object")
+    output: dict[str, dict[str, str]] = {}
+    for case_id, metadata in raw.items():
+        if not isinstance(metadata, dict):
+            raise ValueError(f"source metadata for {case_id} must be an object")
+        company = str(metadata.get("company") or "").strip()
+        title = str(metadata.get("title") or "").strip()
+        if not company or not title:
+            raise ValueError(f"source metadata for {case_id} needs company and title")
+        output[str(case_id)] = {"company": company, "title": title}
+    return output
+
+
+def _direct_target(case, source_map: dict[str, dict[str, str]]) -> CatalogueAnnouncement:
+    metadata = source_map.get(case.id)
+    if metadata is None:
+        raise ValueError(f"no direct source metadata for benchmark case {case.id}")
+    return CatalogueAnnouncement(
+        source_id=f"benchmark-real-{case.id}",
+        ticker=case.ticker,
+        company=metadata["company"],
+        published_at=datetime.combine(
+            date.fromisoformat(case.day),
+            datetime.min.time(),
+            tzinfo=LONDON,
+        ).replace(hour=7),
+        title=metadata["title"],
+        source_url="",
+        categories=[],
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Run Analyst 2.1 against the 20-case real-RNS human-grade benchmark."
@@ -57,6 +95,11 @@ def main() -> None:
         "--case-set",
         type=Path,
         default=Path("benchmarks/real_case_set.json"),
+    )
+    parser.add_argument(
+        "--source-map",
+        type=Path,
+        default=Path("benchmarks/real_case_sources.json"),
     )
     parser.add_argument(
         "--output",
@@ -81,11 +124,18 @@ def main() -> None:
     all_cases = load_real_benchmark_cases(args.cases)
     case_map = {case.id: case for case in all_cases}
     active_ids = _load_active_case_ids(args.case_set)
+    source_map = _load_source_map(args.source_map)
     missing_definitions = [case_id for case_id in active_ids if case_id not in case_map]
+    missing_sources = [case_id for case_id in active_ids if case_id not in source_map]
     if missing_definitions:
         raise ValueError(
             "active benchmark references undefined cases: "
             + ", ".join(missing_definitions)
+        )
+    if missing_sources:
+        raise ValueError(
+            "active benchmark references cases without source metadata: "
+            + ", ".join(missing_sources)
         )
     cases = [case_map[case_id] for case_id in active_ids]
     if args.limit > 0:
@@ -114,12 +164,17 @@ def main() -> None:
 
     results: list[dict[str, object]] = []
     judgements = []
-    missing_cases: list[str] = []
     failed_cases: list[str] = []
+    direct_targets: list[str] = []
 
     for day in sorted(cases_by_day):
         print(f"[benchmark] Discovering AIM catalogue for {day.isoformat()}", flush=True)
-        catalogue, discovery_warnings = source.list_announcements(day)
+        try:
+            catalogue, discovery_warnings = source.list_announcements(day)
+        except Exception as exc:
+            catalogue, discovery_warnings = [], [
+                f"Historical catalogue discovery unavailable ({exc}); using direct benchmark targets."
+            ]
         for warning in discovery_warnings:
             print(f"[benchmark] source: {warning}", flush=True)
 
@@ -127,19 +182,23 @@ def main() -> None:
         for case in cases_by_day[day]:
             item = _match_case(case, catalogue)
             if item is None:
-                missing_cases.append(case.id)
+                item = _direct_target(case, source_map)
+                direct_targets.append(case.id)
                 print(
-                    f"[benchmark] MISSING {case.id} ticker={case.ticker} "
-                    f"headline_matchers={case.headline_contains}",
+                    f"[benchmark] direct-target {case.id}: {item.ticker} · {item.title} · {case.day}",
                     flush=True,
                 )
-                continue
+            else:
+                print(
+                    f"[benchmark] catalogue-match {case.id}: {item.ticker} · {item.title}",
+                    flush=True,
+                )
             matched.append((case, item))
-            print(
-                f"[benchmark] matched {case.id}: {item.ticker} · {item.title}",
-                flush=True,
-            )
 
+        print(
+            f"[benchmark] Retrieving evidence for {len(matched)} case(s) on {day.isoformat()}",
+            flush=True,
+        )
         source.prepare_documents([item for _case, item in matched])
 
         for case, item in matched:
@@ -147,6 +206,10 @@ def main() -> None:
                 announcement = source.fetch_document(item)
                 announcement = announcement.model_copy(
                     update={"rns_type": classify_metadata_type(item)}
+                )
+                print(
+                    f"[benchmark] Analysing {case.id} evidence_chars={len(announcement.text)}",
+                    flush=True,
                 )
                 note = analyst.analyse(announcement, case.prior_context)
                 note = apply_analysis_guardrails(announcement, note)
@@ -171,6 +234,7 @@ def main() -> None:
                         "source_id": announcement.source_id,
                         "title": announcement.title,
                         "source_urls": announcement.source_urls,
+                        "direct_target": case.id in direct_targets,
                     },
                     "quality": quality.model_dump(mode="json"),
                     "note": note.model_dump(mode="json"),
@@ -212,9 +276,9 @@ def main() -> None:
     acceptance = benchmark_acceptance(judgements)
     acceptance["expected_cases"] = len(cases)
     acceptance["scored_cases"] = len(judgements)
-    acceptance["missing_cases"] = missing_cases
+    acceptance["direct_target_cases"] = direct_targets
     acceptance["failed_cases"] = list(dict.fromkeys(failed_cases))
-    if len(judgements) != len(cases) or missing_cases:
+    if len(judgements) != len(cases):
         acceptance["passed"] = False
 
     payload = {
