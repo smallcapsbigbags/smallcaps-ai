@@ -17,6 +17,7 @@ class Settings:
     deep_search_batch_size: int
     max_document_chars: int
     investegate_aim_max_pages: int
+    max_ai_items: int
     root_dir: Path
 
     @classmethod
@@ -37,5 +38,6 @@ class Settings:
             investegate_aim_max_pages=max(
                 1, int(os.getenv("INVESTEGATE_AIM_MAX_PAGES", "8") or "8")
             ),
+            max_ai_items=max(3, int(os.getenv("MAX_AI_ITEMS", "36") or "36")),
             root_dir=root,
         )
