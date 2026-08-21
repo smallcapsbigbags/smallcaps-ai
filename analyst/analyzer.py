@@ -27,6 +27,7 @@ class OpenAIAnalystEngine:
         model: str,
         prompt_path: Path | None = None,
         style_prompt_path: Path | None = None,
+        decision_prompt_path: Path | None = None,
         timeout_seconds: int = 180,
         max_output_tokens: int = 12_000,
     ) -> None:
@@ -42,9 +43,15 @@ class OpenAIAnalystEngine:
         self.style_prompt_path = style_prompt_path or (
             prompts_dir / "PLAIN_ENGLISH_ANALYST_V1.md"
         )
+        self.decision_prompt_path = decision_prompt_path or (
+            prompts_dir / "GOLD_STANDARD_ANALYST_V1.md"
+        )
         core_prompt = self.prompt_path.read_text(encoding="utf-8")
         style_prompt = self.style_prompt_path.read_text(encoding="utf-8")
-        self.system_prompt = core_prompt + "\n\n" + style_prompt
+        decision_prompt = self.decision_prompt_path.read_text(encoding="utf-8")
+        self.system_prompt = (
+            core_prompt + "\n\n" + style_prompt + "\n\n" + decision_prompt
+        )
 
     def analyse(
         self,
@@ -61,10 +68,13 @@ class OpenAIAnalystEngine:
             input=(
                 "Analyse this point-in-time UK regulatory announcement using only the "
                 "supplied evidence and eligible prior context. Think like a sceptical, "
-                "commercially minded UK small-cap analyst, but write in plain English "
-                "for a normal investor. Return the required structured AnalystNote. "
-                "Explain any important specialist concept in the structured concept "
-                "explanations. Do not expose private reasoning.\n\n"
+                "commercially minded UK small-cap analyst, apply the gold-standard "
+                "decision pass, and write in plain English for a normal investor. "
+                "Do the obvious useful maths only when verified inputs support it, "
+                "show those inputs, and keep reported facts, calculations and "
+                "Smallcaps.ai interpretation separate. Explain any important specialist "
+                "concept in the structured concept explanations. Do not expose private "
+                "reasoning.\n\n"
                 + json.dumps(payload, ensure_ascii=False)
             ),
             text_format=AnalystNote,
