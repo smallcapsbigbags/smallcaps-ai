@@ -17,7 +17,18 @@ def _fact_markup(facts: list[dict[str, Any]]) -> str:
         return ""
     cells = []
     for fact in selected:
-        cells.append('<div class="sca-fact"><div class="sca-fact-value">' + html.escape(str(fact.get("value") or "")) + '</div><div class="sca-fact-label">' + html.escape(str(fact.get("label") or fact.get("metric") or "")) + '</div></div>')
+        basis = str(fact.get("basis") or "reported")
+        source_label = "Smallcaps.ai calc" if basis == "calculated" else "Reported"
+        cells.append(
+            '<div class="sca-fact">'
+            '<div class="sca-fact-value">'
+            + html.escape(str(fact.get("value") or ""))
+            + '</div><div class="sca-fact-label">'
+            + html.escape(str(fact.get("label") or fact.get("metric") or ""))
+            + '</div><div class="sca-fact-label">'
+            + html.escape(source_label)
+            + "</div></div>"
+        )
     return '<div class="sca-facts">' + "".join(cells) + "</div>"
 
 
@@ -26,7 +37,7 @@ def _render_actions(item: dict[str, Any], *, watchlist: set[str], low: bool) -> 
     if low:
         cols = st.columns([1.15, 1.05, 7])
         with cols[0]:
-            if st.button("Analyst Note →", key=f"note-{item['source_id']}", use_container_width=True):
+            if st.button("Read analysis →", key=f"note-{item['source_id']}", use_container_width=True):
                 navigate("note", source_id=str(item["source_id"]))
         if source_url:
             with cols[1]:
@@ -34,7 +45,7 @@ def _render_actions(item: dict[str, Any], *, watchlist: set[str], low: bool) -> 
         return
     cols = st.columns([1.2, 1.1, 1.1, 6])
     with cols[0]:
-        if st.button("Analyst Note →", key=f"note-{item['source_id']}", use_container_width=True):
+        if st.button("Read analysis →", key=f"note-{item['source_id']}", use_container_width=True):
             navigate("note", source_id=str(item["source_id"]))
     with cols[1]:
         if st.button("Company history", key=f"company-{item['source_id']}", use_container_width=True):
@@ -55,7 +66,9 @@ def _render_item(item: dict[str, Any], *, watchlist: set[str]) -> None:
         st.markdown(f'<div class="{item_class}"><div class="sca-meta"><span>{time_text}</span><span class="sca-ticker">{ticker}</span><span>{company}</span><span>·</span><span>{rns_type}</span><span class="sca-meta-spacer"></span>{impact}{price}</div><div class="sca-summary">{headline}</div></div>', unsafe_allow_html=True)
     else:
         headline_class = "sca-headline sca-headline-critical" if score == 5 else "sca-headline"
-        st.markdown(f'<div class="{item_class}"><div class="sca-meta"><span class="sca-ticker">{ticker}</span><span>{company}</span><span>·</span><span>{rns_type}</span><span>·</span><span>{time_text}</span><span class="sca-meta-spacer"></span>{impact}{price}</div><div class="{headline_class}">{headline}</div><div class="sca-takeaway">{takeaway}</div>{_fact_markup(list(item.get("key_facts") or []))}</div>', unsafe_allow_html=True)
+        analyst_view = html.escape(str(item.get("impact_rationale") or ""))
+        analyst_markup = f'<div class="sca-takeaway"><strong>Smallcaps.ai view:</strong> {analyst_view}</div>' if analyst_view else ""
+        st.markdown(f'<div class="{item_class}"><div class="sca-meta"><span class="sca-ticker">{ticker}</span><span>{company}</span><span>·</span><span>{rns_type}</span><span>·</span><span>{time_text}</span><span class="sca-meta-spacer"></span>{impact}{price}</div><div class="{headline_class}">{headline}</div><div class="sca-takeaway">{takeaway}</div>{_fact_markup(list(item.get("key_facts") or []))}{analyst_markup}</div>', unsafe_allow_html=True)
     _render_actions(item, watchlist=watchlist, low=low)
 
 
@@ -66,7 +79,7 @@ def render_feed(repository: ProductRepository, settings: Settings) -> None:
     heading_cols = st.columns([3, 1])
     with heading_cols[0]:
         st.markdown("## AIM Intelligence")
-        st.caption("What changed, why it matters, and how the market responded.")
+        st.caption("What happened. Why it matters. What to watch.")
     with heading_cols[1]:
         selected_day = st.date_input("Feed date", value=today, max_value=today, label_visibility="collapsed")
     control_cols = st.columns([2.4, 1, 1.1])

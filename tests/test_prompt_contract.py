@@ -21,5 +21,23 @@ def test_analyst_engine_v2_prompt_contains_locked_method_and_event_rules():
         assert token in prompt
 
     assert "Buy, Sell or Hold recommendations" in prompt
-    assert ANALYSIS_VERSION == "aim-intelligence-analyst-2.0"
-    assert DEFAULT_PROMPT_VERSION == "analyst-engine-2.0"
+
+
+def test_phase2_plain_english_prompt_contains_locked_character_and_transparency_rules():
+    prompt = Path("prompts/PLAIN_ENGLISH_ANALYST_V1.md").read_text(
+        encoding="utf-8"
+    )
+    for token in (
+        "Sceptical, not cynical",
+        "Commercially minded",
+        "Management says → Facts show → Smallcaps.ai explains what it means",
+        "Reported, calculated and inferred",
+        'basis="calculated"',
+        "concept_explanations",
+        "Rule 9",
+        "normal investor",
+    ):
+        assert token in prompt
+
+    assert ANALYSIS_VERSION == "aim-intelligence-analyst-2.1"
+    assert DEFAULT_PROMPT_VERSION == "analyst-engine-2.1-plain-english"

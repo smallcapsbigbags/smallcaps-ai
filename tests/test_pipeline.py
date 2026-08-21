@@ -171,7 +171,7 @@ def test_real_rns_fixture_runs_end_to_end_and_versions_analysis() -> None:
     pipeline = FoundationPipeline(
         repository=repository,
         analyst_engine=RecordedIHCAnalystEngine(),
-        prompt_version="analyst-engine-2.0",
+        prompt_version="analyst-engine-2.1-plain-english",
     )
 
     text = (
@@ -223,4 +223,4 @@ def test_real_rns_fixture_runs_end_to_end_and_versions_analysis() -> None:
     assert current["impact_colour"] == "amber"
     assert current["impact_level"] == "medium"
     assert current["quality_status"] == "publishable"
-    assert current["analysis_version"] == "aim-intelligence-analyst-2.0"
+    assert current["analysis_version"] == "aim-intelligence-analyst-2.1"

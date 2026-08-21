@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from collections.abc import Sequence
 
 from analyst.models import (
@@ -10,6 +11,26 @@ from analyst.models import (
     QualityStatus,
 )
 
+_PLAIN_ENGLISH_TERMS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    ("legalese 'pursuant to'", re.compile(r"\bpursuant to\b", re.IGNORECASE)),
+    ("legalese 'in respect of'", re.compile(r"\bin respect of\b", re.IGNORECASE)),
+    ("legalese 'therein'", re.compile(r"\btherein\b", re.IGNORECASE)),
+    ("legalese 'aforementioned'", re.compile(r"\baforementioned\b", re.IGNORECASE)),
+    ("analyst jargon 'read-through'", re.compile(r"\bread[- ]through\b", re.IGNORECASE)),
+    ("analyst jargon 'incremental'", re.compile(r"\bincremental\b", re.IGNORECASE)),
+    ("analyst jargon 'directional'", re.compile(r"\bdirectional\b", re.IGNORECASE)),
+    ("analyst jargon 'trajectory'", re.compile(r"\btrajectory\b", re.IGNORECASE)),
+    ("analyst jargon 'visibility'", re.compile(r"\bvisibility\b", re.IGNORECASE)),
+    ("analyst jargon 'accretive'", re.compile(r"\baccretive\b", re.IGNORECASE)),
+    ("PR phrase 'significant milestone'", re.compile(r"\bsignificant milestone\b", re.IGNORECASE)),
+    ("PR phrase 'well positioned'", re.compile(r"\bwell positioned\b", re.IGNORECASE)),
+    ("PR phrase 'underscores'", re.compile(r"\bunderscores\b", re.IGNORECASE)),
+    ("PR phrase 'robust'", re.compile(r"\brobust\b", re.IGNORECASE)),
+    ("PR phrase 'transformational'", re.compile(r"\btransformational\b", re.IGNORECASE)),
+)
+_RULE_9_RE = re.compile(r"\bRule\s*9\b", re.IGNORECASE)
+_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
+
 
 def _status(flags: list[QualityFlag]) -> QualityStatus:
     if any(flag.severity == "block" for flag in flags):
@@ -17,6 +38,120 @@ def _status(flags: list[QualityFlag]) -> QualityStatus:
     if any(flag.severity == "review" for flag in flags):
         return "review"
     return "publishable"
+
+
+def _public_prose(note: AnalystNote) -> list[tuple[str, str]]:
+    return [
+        ("headline", note.headline),
+        ("takeaway", note.takeaway),
+        ("impact rationale", note.impact_rationale),
+        ("what changed — before", note.what_changed.before),
+        ("what changed — today", note.what_changed.today),
+        ("what changed — why it matters", note.what_changed.read_through),
+        ("Smallcaps.ai view", note.analyst_view),
+        *[("supports case", value) for value in note.supports_case],
+        *[("challenges case", value) for value in note.challenges_case],
+        *[("what to watch", value) for value in note.watch_items],
+    ]
+
+
+def _plain_english_flags(announcement: AnnouncementInput, note: AnalystNote) -> list[QualityFlag]:
+    flags: list[QualityFlag] = []
+    prose = _public_prose(note)
+
+    for section, text in prose:
+        for label, pattern in _PLAIN_ENGLISH_TERMS:
+            if pattern.search(text):
+                flags.append(
+                    QualityFlag(
+                        code="PLAIN_ENGLISH_JARGON",
+                        severity="info",
+                        message=f"{section} contains {label}; simplify if it is not essential.",
+                    )
+                )
+
+    long_sentences: list[tuple[str, int]] = []
+    for section, text in prose:
+        for sentence in _SENTENCE_SPLIT_RE.split(text.strip()):
+            words = re.findall(r"\b[\w£$€%.-]+\b", sentence)
+            if len(words) > 38:
+                long_sentences.append((section, len(words)))
+    if len(long_sentences) >= 2:
+        flags.append(
+            QualityFlag(
+                code="PLAIN_ENGLISH_LENGTH",
+                severity="review",
+                message=(
+                    "Public analysis contains multiple sentences over 38 words; "
+                    "rewrite for a normal investor."
+                ),
+            )
+        )
+    elif long_sentences:
+        section, count = long_sentences[0]
+        flags.append(
+            QualityFlag(
+                code="PLAIN_ENGLISH_LENGTH",
+                severity="info",
+                message=f"{section} contains a {count}-word sentence; consider simplifying it.",
+            )
+        )
+
+    if len(note.headline.split()) > 20:
+        flags.append(
+            QualityFlag(
+                code="HEADLINE_TOO_LONG",
+                severity="review",
+                message="Headline is over 20 words and should state the main change more directly.",
+            )
+        )
+    if len(note.takeaway.split()) > 120:
+        flags.append(
+            QualityFlag(
+                code="TAKEAWAY_TOO_LONG",
+                severity="review",
+                message="Takeaway is over 120 words; compress it to what happened and why it matters.",
+            )
+        )
+    if len(note.analyst_view.split()) > 180:
+        flags.append(
+            QualityFlag(
+                code="ANALYST_VIEW_TOO_LONG",
+                severity="review",
+                message="Smallcaps.ai view is over 180 words and should be more decision-useful.",
+            )
+        )
+
+    if _RULE_9_RE.search(announcement.text):
+        explained = any(
+            _RULE_9_RE.search(item.term)
+            for item in note.disclosure_assessment.concept_explanations
+        )
+        if not explained:
+            flags.append(
+                QualityFlag(
+                    code="UNEXPLAINED_RULE_9",
+                    severity="review",
+                    message="Rule 9 is material to the source but is not explained in plain English.",
+                )
+            )
+
+    for fact in note.key_facts:
+        if fact.basis == "calculated":
+            numeric_tokens = re.findall(r"(?:£|\$|€)?\d+(?:\.\d+)?(?:%|m|bn)?", fact.note, re.IGNORECASE)
+            if len(numeric_tokens) < 2:
+                flags.append(
+                    QualityFlag(
+                        code="CALCULATION_INPUTS_UNCLEAR",
+                        severity="review",
+                        message=(
+                            f"Calculated fact '{fact.label}' does not make at least two "
+                            "numeric inputs visible in its calculation note."
+                        ),
+                    )
+                )
+
+    return flags
 
 
 def assess_analysis_quality(
@@ -142,6 +277,8 @@ def assess_analysis_quality(
                     message=f"Source inconsistency recorded for fact '{fact.label}'.",
                 )
             )
+
+    flags.extend(_plain_english_flags(announcement, note))
 
     deduped: list[QualityFlag] = []
     seen: set[tuple[str, str]] = set()
