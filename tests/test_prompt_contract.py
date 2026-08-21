@@ -32,7 +32,7 @@ def test_phase2_plain_english_prompt_contains_locked_character_and_transparency_
         "Commercially minded",
         "Management says → Facts show → Smallcaps.ai explains what it means",
         "Reported, calculated and inferred",
-        "Smallcaps.ai calculation",
+        'basis="calculated"',
         "concept_explanations",
         "Rule 9",
         "normal investor",
