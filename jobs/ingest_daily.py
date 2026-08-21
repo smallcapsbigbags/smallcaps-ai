@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime
+import argparse
+from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
 from analyst.analyzer import OpenAIAnalystEngine
@@ -16,7 +17,7 @@ LONDON = ZoneInfo("Europe/London")
 JOB_NAME = "daily-aim-ingestion"
 
 
-def main() -> None:
+def main(day: date | None = None) -> None:
     settings = Settings.from_env()
     errors, warnings = settings.runtime_issues("ingestion")
     if errors:
@@ -38,7 +39,7 @@ def main() -> None:
                 pipeline = FoundationPipeline(repository=repository, analyst_engine=analyst, prompt_version=settings.prompt_version, min_evidence_chars=settings.min_evidence_chars)
                 source = InvestegateDailyAIMSource(api_key=settings.openai_api_key, deep_model=settings.openai_deep_model, deep_batch_size=settings.deep_search_batch_size, max_document_chars=settings.max_document_chars, max_pages=settings.investegate_aim_max_pages)
                 service = DailyAIMIngestionService(source=source, repository=repository, pipeline=pipeline, max_ai_items=settings.max_ai_items)
-                result = service.run()
+                result = service.run(day=day)
                 summary = {"discovered": result.discovered, "known": result.already_known, "analysed": result.analysed, "review": result.review_required, "routine": result.routine_persisted, "deferred": result.deferred, "blocked": result.blocked, "failed": result.failed}
                 degraded = any((result.review_required, result.deferred, result.blocked, result.failed))
                 operations.finish_job(run_id, status="degraded" if degraded else "success", summary=summary, warnings=[*warnings, *result.warnings])
@@ -53,4 +54,14 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Run the daily AIM ingestion job.")
+    parser.add_argument(
+        "--date",
+        dest="date",
+        type=str,
+        default=None,
+        help="Date to ingest announcements for, in YYYY-MM-DD format. Defaults to today.",
+    )
+    args = parser.parse_args()
+    target_day = date.fromisoformat(args.date) if args.date else None
+    main(day=target_day)
