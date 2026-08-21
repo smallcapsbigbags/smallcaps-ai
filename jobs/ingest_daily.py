@@ -35,6 +35,7 @@ def main() -> None:
         source=source,
         repository=repository,
         pipeline=pipeline,
+        max_ai_items=settings.max_ai_items,
     )
     result = service.run()
     print(
@@ -42,6 +43,8 @@ def main() -> None:
         f"discovered={result.discovered}",
         f"known={result.already_known}",
         f"analysed={result.analysed}",
+        f"routine={result.routine_persisted}",
+        f"deferred={result.deferred}",
         f"failed={result.failed}",
     )
     for warning in result.warnings:
