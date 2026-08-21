@@ -16,6 +16,10 @@ LONDON = ZoneInfo("Europe/London")
 JOB_NAME = "daily-aim-ingestion"
 
 
+def _progress(message: str) -> None:
+    print(f"[ingestion] {message}", flush=True)
+
+
 def main() -> None:
     settings = Settings.from_env()
     errors, warnings = settings.runtime_issues("ingestion")
@@ -28,26 +32,89 @@ def main() -> None:
         repository = IntelligenceRepository(factory)
         operations = OperationsRepository(factory)
         with advisory_job_lock(engine, JOB_NAME) as acquired:
-            run_id = operations.begin_job(JOB_NAME, run_key=datetime.now(LONDON).date().isoformat())
+            run_id = operations.begin_job(
+                JOB_NAME,
+                run_key=datetime.now(LONDON).date().isoformat(),
+            )
             if not acquired:
-                operations.finish_job(run_id, status="skipped", warnings=["Another ingestion worker currently holds the advisory lock."])
-                print("Daily AIM ingestion skipped: another worker is active")
+                operations.finish_job(
+                    run_id,
+                    status="skipped",
+                    warnings=[
+                        "Another ingestion worker currently holds the advisory lock."
+                    ],
+                )
+                print(
+                    "Daily AIM ingestion skipped: another worker is active",
+                    flush=True,
+                )
                 return
             try:
-                analyst = OpenAIAnalystEngine(api_key=settings.openai_api_key, model=settings.openai_model, max_output_tokens=settings.openai_max_output_tokens)
-                pipeline = FoundationPipeline(repository=repository, analyst_engine=analyst, prompt_version=settings.prompt_version, min_evidence_chars=settings.min_evidence_chars)
-                source = InvestegateDailyAIMSource(api_key=settings.openai_api_key, deep_model=settings.openai_deep_model, deep_batch_size=settings.deep_search_batch_size, max_document_chars=settings.max_document_chars, max_pages=settings.investegate_aim_max_pages)
-                service = DailyAIMIngestionService(source=source, repository=repository, pipeline=pipeline, max_ai_items=settings.max_ai_items)
+                analyst = OpenAIAnalystEngine(
+                    api_key=settings.openai_api_key,
+                    model=settings.openai_model,
+                    max_output_tokens=settings.openai_max_output_tokens,
+                )
+                pipeline = FoundationPipeline(
+                    repository=repository,
+                    analyst_engine=analyst,
+                    prompt_version=settings.prompt_version,
+                    min_evidence_chars=settings.min_evidence_chars,
+                )
+                source = InvestegateDailyAIMSource(
+                    api_key=settings.openai_api_key,
+                    deep_model=settings.openai_deep_model,
+                    deep_batch_size=settings.deep_search_batch_size,
+                    max_document_chars=settings.max_document_chars,
+                    max_pages=settings.investegate_aim_max_pages,
+                )
+                service = DailyAIMIngestionService(
+                    source=source,
+                    repository=repository,
+                    pipeline=pipeline,
+                    max_ai_items=settings.max_ai_items,
+                    progress=_progress,
+                )
                 result = service.run()
-                summary = {"discovered": result.discovered, "known": result.already_known, "analysed": result.analysed, "review": result.review_required, "routine": result.routine_persisted, "deferred": result.deferred, "blocked": result.blocked, "failed": result.failed}
-                degraded = any((result.review_required, result.deferred, result.blocked, result.failed))
-                operations.finish_job(run_id, status="degraded" if degraded else "success", summary=summary, warnings=[*warnings, *result.warnings])
+                summary = {
+                    "discovered": result.discovered,
+                    "known": result.already_known,
+                    "analysed": result.analysed,
+                    "review": result.review_required,
+                    "routine": result.routine_persisted,
+                    "deferred": result.deferred,
+                    "blocked": result.blocked,
+                    "failed": result.failed,
+                }
+                degraded = any(
+                    (
+                        result.review_required,
+                        result.deferred,
+                        result.blocked,
+                        result.failed,
+                    )
+                )
+                operations.finish_job(
+                    run_id,
+                    status="degraded" if degraded else "success",
+                    summary=summary,
+                    warnings=[*warnings, *result.warnings],
+                )
             except Exception as exc:
-                operations.finish_job(run_id, status="failed", warnings=warnings, error_text=f"{type(exc).__name__}: {exc}")
+                operations.finish_job(
+                    run_id,
+                    status="failed",
+                    warnings=warnings,
+                    error_text=f"{type(exc).__name__}: {exc}",
+                )
                 raise
-        print("Daily AIM ingestion:", " ".join(f"{key}={value}" for key, value in summary.items()))
+        print(
+            "Daily AIM ingestion:",
+            " ".join(f"{key}={value}" for key, value in summary.items()),
+            flush=True,
+        )
         for warning in result.warnings:
-            print("WARNING:", warning)
+            print("WARNING:", warning, flush=True)
     finally:
         engine.dispose()
 
