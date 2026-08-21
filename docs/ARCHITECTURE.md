@@ -70,6 +70,7 @@ Manual ingestion is a QA/recovery fallback.
 8. Corrections are separate records.
 9. Market reactions are stored after Impact is frozen.
 10. Source evidence, provenance and quality flags are distinct fields.
+11. Only current `publishable` analyst runs are eligible for later company context.
 
 ## Quality states
 

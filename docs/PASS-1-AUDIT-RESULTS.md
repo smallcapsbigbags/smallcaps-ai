@@ -24,6 +24,7 @@ The audit found no reason to redesign the architecture. It did find several publ
 | Medium | Guidance and management claims lacked enough structure for future ledgers. | Added prior guidance source/value and claim keys/metrics/targets. |
 | Medium | The operator console had a reserved password variable but no access gate. | Added constant-time password checking when `APP_ADMIN_PASSWORD` is set. |
 | Medium | No repeatable difficult-announcement evaluation set existed. | Added 16 canonical benchmark cases, evaluator and live benchmark runner. |
+| Medium | Owner-review analyses could have entered later company context and compounded uncertain outputs. | Historical context now includes only current `publishable` analyst runs; review records remain visible to QA but do not influence later analysis. |
 | Low | Manual source URLs were not carried into a source-reference list. | Manual ingestion now preserves source URLs and retrieval metadata. |
 
 ## Quality-state behaviour
@@ -45,7 +46,6 @@ The following Pass 1 decisions remain unchanged:
 - PostgreSQL is the system of record.
 - Raw price reaction never changes the original AI Impact.
 - No historical AIM backfill or Company Intelligence UI is introduced in V1.
-
 
 ## Accepted production-hardening deferrals
 

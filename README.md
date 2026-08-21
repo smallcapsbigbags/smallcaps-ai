@@ -88,6 +88,8 @@ The public Feed will display colour and `LOW / MEDIUM / HIGH / CRITICAL`, not po
 - `review` — stored for owner review before public display;
 - `blocked` — not persisted; evidence or analysis must be retried/corrected.
 
+Only current `publishable` runs enter future Company Memory/context. Review-required records remain available to QA but cannot contaminate later analysis.
+
 Guardrail failures such as an omitted going-concern warning, covenant breach, profit warning or unsupported calculated ratio block persistence.
 
 ## Repository layout
