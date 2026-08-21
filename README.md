@@ -1,107 +1,79 @@
 # smallcaps.ai — AIM Intelligence
 
-Smallcaps.ai is an AI-powered UK small-cap equity research product. It analyses the daily AIM RNS flow, explains what changed and why it matters, and stores the structured point-in-time record required to make later company analysis better.
+Smallcaps.ai is an AI-powered UK small-cap equity research product. It analyses the daily AIM RNS flow, explains what changed and why it matters, and stores the point-in-time record required to improve later company analysis.
 
-## Product North Star
-
-Help an AIM investor answer three questions:
+## North Star
 
 1. **What changed?**
 2. **Why does it matter?**
 3. **What did the market do?**
 
-The public V1 is deliberately narrow:
-
 ```text
 Daily AIM Intelligence Feed
-        ↓
-Analyst Note
-        ↓
-Original RNS / lightweight company RNS history
+  → Analyst Note
+  → Original RNS / lightweight Company RNS History
 ```
 
-The full Company Intelligence page is deferred until enough first-party history has accumulated naturally.
+Full Company Intelligence remains deferred until first-party history accumulates naturally.
 
-## Locked daily pipeline
+## Daily pipeline
 
 ```text
 Investegate AIM catalogue
-      ↓
-PostgreSQL source-ID deduplication
-      ↓
-Routine filtering and material prioritisation
-      ↓
-OpenAI web search for evidence on selected new rows
-      ↓
-Evidence integrity gate
-      ↓
-Point-in-time company context
-      ↓
-Analyst Engine 2.0
-      ↓
-Deterministic guardrails
-      ↓
-Publication quality gate
-      ↓
-Versioned Railway PostgreSQL
-      ↓
-Public Feed / Analyst Note
-      ↓
-Separate market-reaction worker
+  → PostgreSQL source-ID deduplication
+  → routine filtering / material prioritisation
+  → OpenAI web-search evidence retrieval
+  → evidence integrity gate
+  → point-in-time company context
+  → Analyst Engine 2.0
+  → deterministic guardrails / quality gate
+  → versioned PostgreSQL
+  → Feed / Analyst Note
+  → separate LSE-calendar market-reaction worker
 ```
 
-OpenAI is not responsible for inventing the day's catalogue. Investegate identifies the exact announcement; OpenAI retrieves and corroborates evidence after discovery.
+## Product integrity
 
-## Public product
+- public pages expose current `publishable` runs only and never call OpenAI;
+- review records require audited owner approval before publication;
+- facts, guidance and claims preserve the analyst engine's ranked order;
+- source-adapter HTTP(S) URLs take precedence over model references;
+- Feed date bounds are London/DST correct;
+- market sessions use the official `XLON` exchange calendar;
+- `event_day_return` is separate from future +1/+5/+20 returns;
+- worker runs use PostgreSQL advisory locks and persist status in `job_runs`;
+- Railway cannot silently fall back to ephemeral SQLite.
 
-The Streamlit application now routes between:
-
-- **Feed** — current `publishable` records only, ranked by Impact or time;
-- **Analyst Note** — Takeaway, Key Numbers, Before → Today → Read-through, Analyst View, Supports / Challenges, Guidance, What to Watch, market reaction and source links;
-- **Company RNS history** — a lightweight accumulated timeline, not a synthetic backfilled thesis;
-- **Private Analyst QA** — available only through `?view=admin` and protected by `APP_ADMIN_PASSWORD`.
-
-Review-required analyses never enter the public product or future Company Memory.
-
-## Impact
-
-The user-facing Feed exposes one signal:
+## Private beta
 
 ```text
-● IMPACT LOW / MEDIUM / HIGH / CRITICAL
+PRIVATE_BETA_MODE=true
+APP_BETA_PASSWORD=<secret>
+APP_ADMIN_PASSWORD=<different secret>
 ```
 
-The dot colour communicates read-through:
+The public product is Feed, Analyst Note and Company RNS History. Admin QA is available at `?view=admin`.
 
-- green — favourable;
-- red — adverse;
-- amber — mixed or uncertain;
-- grey — no meaningful directional read-through.
+## Jobs
 
-No Positive/Negative, Buy/Sell, materiality score or five-circle gauge is displayed.
+```bash
+python -m jobs.ingest_daily
+python -m jobs.update_prices
+python -m jobs.run_analyst_benchmarks
+python -m jobs.validate_runtime --service web --create-schema
+```
 
-## Market reaction
+## Railway
 
-`python -m jobs.update_prices` attaches the normal daily move versus the previous trading-session close.
-
-Price reaction remains separate from the original AI Impact and never changes it. One market-data request is made per ticker, even where several RNSs share the same trading session.
-
-## Repository layout
+Use one project with PostgreSQL plus three services on `build/aim-intelligence-v1`:
 
 ```text
-analyst/              Analyst Engine 2.0, schemas, evidence and quality gates
-database/             PostgreSQL models, immutable analysis storage and product reads
-ingestion/            Investegate discovery, OpenAI evidence retrieval and manual fallback
-market/               London-session logic, Yahoo MVP client and reaction service
-product/              Pure public-product formatting helpers
-ui/                   Unified light Feed, Analyst Note, company history and Admin QA
-jobs/                 Daily ingestion, market reaction and benchmark entrypoints
-prompts/              Analyst Engine 2.0 contract
-benchmarks/           Difficult-announcement definitions
-docs/                 Architecture and pass records
-tests/                Deterministic acceptance suite
-app/, intelligence/   Preserved original visual prototypes
+railway.json          Web
+railway.ingest.json   AIM ingestion cron
+railway.prices.json   Market reaction cron
 ```
+
+Required variables are documented in `.env.example` and `docs/PASS-4-RAILWAY.md`. No secrets should be committed.
 
 ## Local setup
 
@@ -113,53 +85,7 @@ cp .env.example .env
 streamlit run streamlit_app.py
 ```
 
-The default local database is SQLite at `data/smallcaps.db`. Railway production uses `DATABASE_URL` and psycopg 3.
-
-## Jobs
-
-Daily AIM ingestion:
-
-```bash
-python -m jobs.ingest_daily
-```
-
-Intraday / closing market reaction:
-
-```bash
-python -m jobs.update_prices
-```
-
-Credentialled Analyst Engine benchmark:
-
-```bash
-python -m jobs.run_analyst_benchmarks
-```
-
-## Railway variables
-
-```text
-DATABASE_URL=<Railway PostgreSQL URL>
-
-OPENAI_API_KEY=<secret>
-OPENAI_MODEL=gpt-5.4-mini
-OPENAI_DEEP_MODEL=gpt-5.4
-OPENAI_MAX_OUTPUT_TOKENS=12000
-PROMPT_VERSION=analyst-engine-2.0
-
-DEEP_SEARCH_BATCH_SIZE=5
-MAX_DOCUMENT_CHARS=45000
-MIN_EVIDENCE_CHARS=40
-INVESTEGATE_AIM_MAX_PAGES=8
-MAX_AI_ITEMS=36
-
-APP_ADMIN_PASSWORD=<secret>
-
-MARKET_DATA_ENABLED=true
-MARKET_DATA_TIMEOUT_SECONDS=25
-DEFAULT_WATCHLIST=SPR,IHC
-```
-
-No secrets should be committed.
+Local development may use SQLite. Railway must use PostgreSQL through `DATABASE_URL`.
 
 ## Tests
 
@@ -167,25 +93,20 @@ No secrets should be committed.
 pytest -q
 ```
 
-GitHub Actions also validates Python compilation and the benchmark JSON contract.
+GitHub Actions also validates Python compilation, benchmark JSON and Railway config JSON.
 
 ## Branch strategy
 
 - `main` — protected current version;
 - `build/aim-intelligence-v1` — AIM Intelligence V1 build;
-- `rns-xray` — read-only donor/reference repository.
+- `rns-xray` — read-only donor/reference.
 
-See:
+See `docs/PASS-1-AUDIT-RESULTS.md`, `docs/PASS-2-ANALYST-ENGINE.md`, `docs/PASS-3-PRODUCT.md`, `docs/PASS-3-AUDIT-RESULTS.md` and `docs/PASS-4-RAILWAY.md`.
 
-- `docs/PASS-1-AUDIT-RESULTS.md`
-- `docs/PASS-2-ANALYST-ENGINE.md`
-- `docs/PASS-3-PRODUCT.md`
+## Private-beta limitations
 
-## Known pre-launch dependencies
-
-- credentialled live Investegate/OpenAI/PostgreSQL smoke test;
-- live 16-case Analyst Engine benchmark;
-- formal database migrations for any non-fresh Railway database;
-- scheduler concurrency protection and a persisted retry ledger;
-- confirmed RNS and market-data commercial rights;
-- Railway cron configuration for ingestion and price updates.
+- use a fresh Railway database until formal migrations are introduced;
+- missed event-session closes are surfaced as stale but not reconstructed automatically;
+- +1/+5/+20 event returns are not populated yet;
+- live Investegate/OpenAI/Yahoo/browser validation requires connected Railway credentials;
+- RNS and market-data commercial rights remain public-launch dependencies.

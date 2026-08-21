@@ -1,0 +1,14 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+  "build": {
+    "builder": "RAILPACK"
+  },
+  "deploy": {
+    "preDeployCommand": [
+      "python -m jobs.validate_runtime --service prices --create-schema"
+    ],
+    "startCommand": "python -m jobs.update_prices",
+    "cronSchedule": "*/15 7-17 * * 1-5",
+    "restartPolicyType": "NEVER"
+  }
+}

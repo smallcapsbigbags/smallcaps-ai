@@ -3,12 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-IMPACT_HEX = {
-    "green": "#2E8B57",
-    "red": "#C44D56",
-    "amber": "#B98224",
-    "grey": "#7A838B",
-}
+IMPACT_HEX = {"green": "#2E8B57", "red": "#C44D56", "amber": "#B98224", "grey": "#7A838B"}
 
 
 def impact_hex(colour: str) -> str:
@@ -16,23 +11,25 @@ def impact_hex(colour: str) -> str:
 
 
 def format_price_change(price: dict[str, Any] | None) -> str:
-    if not price:
+    if not price or price.get("daily_change_pct") is None:
         return "—"
-    value = price.get("daily_change_pct")
-    if value is None:
-        return "—"
-    number = float(value)
-    return f"{number:+.1f}%"
+    return f"{float(price['daily_change_pct']):+.1f}%"
 
 
 def format_price_context(price: dict[str, Any] | None) -> str:
     if not price:
         return "Market reaction pending"
-    phase = str(price.get("phase") or "intraday")
     move = format_price_change(price)
-    if phase == "close":
-        return f"{move} at close"
-    return f"{move} today"
+    return f"{move} at close" if str(price.get("phase") or "intraday") == "close" else f"{move} today"
+
+
+def format_market_price(value: object, *, currency: str = "GBp") -> str:
+    if value is None:
+        return "—"
+    number = float(value)
+    if currency == "GBp":
+        return f"{number:.2f}p"
+    return f"{currency} {number:,.2f}" if currency else f"{number:,.2f}"
 
 
 def format_time(value: str | datetime) -> str:
@@ -45,16 +42,10 @@ def format_day(value: str | datetime) -> str:
     return parsed.strftime("%-d %b %Y")
 
 
-def select_feed_facts(
-    facts: list[dict[str, Any]],
-    *,
-    limit: int = 3,
-) -> list[dict[str, Any]]:
+def select_feed_facts(facts: list[dict[str, Any]], *, limit: int = 3) -> list[dict[str, Any]]:
     output = []
     for fact in facts:
-        if fact.get("basis") in {"not-disclosed", "source-warning"}:
-            continue
-        if not str(fact.get("value") or "").strip():
+        if fact.get("basis") in {"not-disclosed", "source-warning"} or not str(fact.get("value") or "").strip():
             continue
         output.append(fact)
         if len(output) >= limit:
