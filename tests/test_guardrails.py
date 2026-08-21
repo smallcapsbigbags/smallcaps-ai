@@ -21,6 +21,7 @@ def test_explicit_profit_warning_cannot_disappear_from_output() -> None:
         impact_colour="red",
         impact_score=5,
         impact_level="critical",
+        impact_rationale="Earnings expectations have been reduced.",
         headline="Earnings expectations reduced",
         takeaway="Management now expects lower earnings.",
         what_changed=WhatChanged(

@@ -1,8 +1,14 @@
 # smallcaps.ai — AIM Intelligence
 
-Smallcaps.ai is an AI-powered UK small-cap equity research product. Its first public product will be a daily AIM Intelligence Feed linked to structured Analyst Notes.
+Smallcaps.ai is an AI-powered UK small-cap equity research product. Its first public product is a daily AIM Intelligence Feed linked to structured Analyst Notes.
 
-This branch contains **Pass 1: Foundation**. It deliberately does not redesign the public interface. The existing static prototypes remain in the repository while the permanent application architecture is built alongside them.
+This branch contains:
+
+- **Pass 1:** permanent ingestion, evidence, database and pricing foundations;
+- **Pass 1 audit:** publication-integrity and provenance corrections;
+- **Pass 2:** Analyst Engine 2.0, quality gate and difficult-announcement benchmark suite.
+
+The existing static prototypes remain in the repository. `main` is unchanged.
 
 ## North Star
 
@@ -12,56 +18,92 @@ Help an AIM investor understand:
 2. **Why does it matter?**
 3. **What did the market do?**
 
-Every analysed announcement must also create structured data that makes later company analysis better.
+Every analysed announcement must also create structured data that improves later company analysis.
 
 ## Locked Daily AIM ingestion path
-
-Smallcaps.ai V1 uses the same working pattern as the current RNS-Xray Daily app:
 
 ```text
 Investegate AIM catalogue
       ↓
-Deterministic discovery of today's RNS rows
+deterministic discovery of today's RNS rows
       ↓
 PostgreSQL source_id deduplication
       ↓
-Routine administrative rows stored without deep AI
+routine administrative rows stored without deep AI
       ↓
-Investment-relevant rows prioritised (MAX_AI_ITEMS, default 36)
+investment-relevant rows prioritised
       ↓
-OpenAI web search for detailed evidence on selected new rows only
+OpenAI web search for detailed evidence on selected new rows
       ↓
-Prefer issuer IR / official LSE-RNS corroboration
+issuer IR / official LSE-RNS corroboration preferred
       ↓
-Relevant prior company context
+evidence-integrity gate
       ↓
-OpenAI structured AnalystNote
+relevant prior company context
       ↓
-Deterministic RNS guardrails
+Analyst Engine 2.0
       ↓
-Versioned Railway PostgreSQL record
+deterministic RNS guardrails
+      ↓
+publication quality gate
+      ↓
+versioned Railway PostgreSQL record
 ```
 
-OpenAI is therefore not responsible for inventing the day's announcement catalogue. Investegate identifies the exact RNS; OpenAI web search retrieves and corroborates the detailed factual evidence before the Analyst Engine runs. True administrative notices do not consume a deep analysis call. Material rows deferred by the daily cap remain unpersisted so they are eligible for the next run rather than being incorrectly marked complete.
+OpenAI does not invent the daily catalogue. Investegate identifies the exact announcement; OpenAI retrieves and corroborates detailed evidence afterwards.
 
-Manual ingestion remains available only as a testing, QA and recovery fallback.
+Unavailable or blocked evidence is **not persisted as completed research**. It remains eligible for a later retry.
 
-The database stores companies, announcements, immutable analyst runs, atomic facts, guidance events, management claims, price reactions and corrections.
+Manual ingestion is retained only for QA, testing and recovery.
+
+## Analyst Engine 2.0
+
+The default analytical method is:
+
+```text
+EXTRACT → VERIFY → RANK → COMPARE → CHALLENGE
+        → INTERPRET → SCORE → WRITE
+```
+
+The strict output includes:
+
+- Impact colour, score, level, rationale and drivers;
+- headline and takeaway;
+- facts with basis, periods, comparators and provenance;
+- new versus reiterated information;
+- Before → Today → Read-through;
+- Analyst View;
+- Supports / Challenges;
+- guidance events;
+- management claims;
+- watch items;
+- disclosure assessment;
+- source references, warnings and confidence.
+
+The public Feed will display colour and `LOW / MEDIUM / HIGH / CRITICAL`, not positive/negative labels or investment recommendations.
+
+## Quality states
+
+- `publishable` — no deterministic publication issue;
+- `review` — stored for owner review before public display;
+- `blocked` — not persisted; evidence or analysis must be retried/corrected.
+
+Guardrail failures such as an omitted going-concern warning, covenant breach, profit warning or unsupported calculated ratio block persistence.
 
 ## Repository layout
 
 ```text
-analyst/              Strict schemas, classification, context, OpenAI analysis and guardrails
-database/             SQLAlchemy persistence, Postgres DDL and dedupe queries
-ingestion/            Investegate Daily AIM source, OpenAI evidence retrieval and manual fallback
-jobs/                 Railway-ready daily ingestion entrypoint
-market/               London market-session and Yahoo reaction logic
-prompts/              Foundation Analyst Note contract
-streamlit_app.py      Private Pass 1 operator console
-pipeline.py           One-announcement analysis orchestration
-docs/                 Audit and architecture decisions
-tests/                Foundation acceptance suite with real RNS fixtures
-app/, intelligence/   Preserved visual prototypes from the original repo
+analyst/              schemas, classification, context, analysis, guardrails,
+                      evidence checks, quality gate and benchmark evaluator
+benchmarks/           canonical difficult-announcement cases
+database/             SQLAlchemy models, PostgreSQL DDL and repository
+ingestion/            Investegate/OpenAI Daily AIM source and manual fallback
+jobs/                 Railway ingestion and live benchmark entrypoints
+market/               London session and Yahoo reaction foundation
+prompts/              Analyst Engine 2.0 contract
+docs/                 architecture, audit and pass specifications
+tests/                deterministic foundation and Analyst Engine tests
+app/, intelligence/   preserved visual prototypes
 ```
 
 ## Local setup
@@ -74,9 +116,9 @@ cp .env.example .env
 streamlit run streamlit_app.py
 ```
 
-The default local database is SQLite at `data/smallcaps.db`. Production uses Railway's `DATABASE_URL` and psycopg 3.
+The default local database is SQLite at `data/smallcaps.db`. Production uses Railway PostgreSQL.
 
-## Run the Daily AIM ingestion job
+## Daily ingestion
 
 With `OPENAI_API_KEY` configured:
 
@@ -84,7 +126,13 @@ With `OPENAI_API_KEY` configured:
 python -m jobs.ingest_daily
 ```
 
-This checks today's Investegate AIM catalogue, ignores source IDs already stored in PostgreSQL, persists true routine notices without a deep model call, retrieves detailed evidence for selected new investment-relevant rows with OpenAI web search, runs the Analyst Engine and persists the resulting research.
+## Live analyst benchmark
+
+```bash
+python -m jobs.run_analyst_benchmarks
+```
+
+The benchmark uses API credits and writes `benchmark-results.json`.
 
 ## Railway variables
 
@@ -93,11 +141,14 @@ DATABASE_URL=<Railway PostgreSQL URL>
 OPENAI_API_KEY=<secret>
 OPENAI_MODEL=gpt-5.4-mini
 OPENAI_DEEP_MODEL=gpt-5.4
-PROMPT_VERSION=foundation-analyst-1.0
+OPENAI_MAX_OUTPUT_TOKENS=12000
+PROMPT_VERSION=analyst-engine-2.0
 DEEP_SEARCH_BATCH_SIZE=5
 MAX_DOCUMENT_CHARS=45000
+MIN_EVIDENCE_CHARS=40
 INVESTEGATE_AIM_MAX_PAGES=8
 MAX_AI_ITEMS=36
+APP_ADMIN_PASSWORD=<private console password>
 ```
 
 No secrets should be committed.
@@ -108,24 +159,17 @@ No secrets should be committed.
 pytest -q
 ```
 
-The end-to-end acceptance test uses a real 7 August 2026 Inspiration Healthcare LTIP announcement fixture and a recorded structured analysis. It proves the same production pipeline can:
-
-- ingest the source;
-- apply context selection;
-- apply deterministic guardrails;
-- upsert the company and announcement;
-- create versioned analyst runs rather than overwrite history;
-- persist atomic facts and management claims; and
-- retrieve the current record.
-
-Separate tests verify the Investegate AIM table parser, current routine/ownership/material priority rules, and that Postgres deduplication happens before repeated evidence retrieval.
-
-Live Investegate/OpenAI calls are environment-gated because API credentials are never committed.
+CI compiles the application and runs the deterministic suite without making live OpenAI or Investegate calls.
 
 ## Branch strategy
 
-- `main`: protected current version.
-- `build/aim-intelligence-v1`: new AIM Intelligence build.
+- `main`: protected current version;
+- `build/aim-intelligence-v1`: AIM Intelligence build;
 - `rns-xray`: read-only donor/reference repository.
 
-See `docs/PASS-1-AUDIT.md` and `docs/ARCHITECTURE.md` for the exact port/refactor decisions.
+See:
+
+- `docs/ARCHITECTURE.md`
+- `docs/PASS-1-AUDIT.md`
+- `docs/PASS-1-AUDIT-RESULTS.md`
+- `docs/PASS-2-ANALYST-ENGINE.md`

@@ -1,2 +1,2 @@
-ANALYSIS_VERSION = "aim-intelligence-foundation-1.0"
-DEFAULT_PROMPT_VERSION = "foundation-analyst-1.0"
+ANALYSIS_VERSION = "aim-intelligence-analyst-2.0"
+DEFAULT_PROMPT_VERSION = "analyst-engine-2.0"

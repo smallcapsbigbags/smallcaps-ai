@@ -16,4 +16,5 @@ jobs:
           cache: pip
       - run: pip install -r requirements.txt
       - run: python -m compileall analyst database ingestion jobs market pipeline.py settings.py streamlit_app.py
+      - run: python -m json.tool benchmarks/cases.json > /dev/null
       - run: pytest -q

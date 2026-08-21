@@ -18,12 +18,7 @@ class AnalystEngine(Protocol):
 
 
 class OpenAIAnalystEngine:
-    """Structured OpenAI analyst engine adapted from the RNS-Xray analyser.
-
-    Pass 1 deliberately keeps one inference call per material announcement. The call
-    returns both atomic facts and the Analyst Note contract; Pass 2 will benchmark and
-    refine the research prompt rather than changing persistence again.
-    """
+    """One-call structured analyst engine built from the current RNS-Xray method."""
 
     def __init__(
         self,
@@ -32,6 +27,7 @@ class OpenAIAnalystEngine:
         model: str,
         prompt_path: Path | None = None,
         timeout_seconds: int = 180,
+        max_output_tokens: int = 12_000,
     ) -> None:
         if not api_key:
             raise ValueError("OPENAI_API_KEY is required for live analysis")
@@ -39,8 +35,9 @@ class OpenAIAnalystEngine:
 
         self.client = OpenAI(api_key=api_key, timeout=timeout_seconds, max_retries=1)
         self.model_name = model
+        self.max_output_tokens = max(2_000, max_output_tokens)
         self.prompt_path = prompt_path or (
-            Path(__file__).resolve().parents[1] / "prompts" / "FOUNDATION_ANALYST.md"
+            Path(__file__).resolve().parents[1] / "prompts" / "ANALYST_ENGINE_V2.md"
         )
         self.system_prompt = self.prompt_path.read_text(encoding="utf-8")
 
@@ -57,11 +54,13 @@ class OpenAIAnalystEngine:
             model=self.model_name,
             instructions=self.system_prompt,
             input=(
-                "Analyse the supplied UK regulatory announcement using only the source "
-                "and eligible prior context. Return the required structured AnalystNote.\n\n"
+                "Analyse this point-in-time UK regulatory announcement using only the "
+                "supplied evidence and eligible prior context. Return the required "
+                "structured AnalystNote. Do not expose private reasoning.\n\n"
                 + json.dumps(payload, ensure_ascii=False)
             ),
             text_format=AnalystNote,
+            max_output_tokens=self.max_output_tokens,
             store=False,
         )
         parsed = response.output_parsed
@@ -72,4 +71,14 @@ class OpenAIAnalystEngine:
                 "OpenAI did not preserve source_id: "
                 f"expected {announcement.source_id!r}, got {parsed.source_id!r}"
             )
-        return parsed
+
+        references = list(
+            dict.fromkeys(
+                [
+                    *parsed.source_references,
+                    *announcement.source_urls,
+                    *([announcement.source_url] if announcement.source_url else []),
+                ]
+            )
+        )
+        return parsed.model_copy(update={"source_references": references})

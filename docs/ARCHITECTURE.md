@@ -1,12 +1,12 @@
-# Smallcaps.ai AIM Intelligence — Foundation Architecture
+# Smallcaps.ai AIM Intelligence — Architecture
 
 ## North Star
 
 Every decision should help an AIM investor understand **what changed, why it matters and what the market did**, faster and more reliably.
 
-The foundation must also pass the compounding test: every analysed announcement should create structured data that improves later company analysis.
+Every analysed announcement must also create structured data that improves later analysis.
 
-## Runtime boundaries
+## Runtime
 
 ```text
 Hostinger
@@ -15,81 +15,87 @@ Hostinger
 Railway
   ├── Streamlit web service
   ├── PostgreSQL
-  ├── future RNS worker
+  ├── Daily AIM ingestion worker
   └── future price worker
 
 OpenAI API
   ├── web-search evidence retrieval for exact discovered RNS rows
-  └── structured AnalystNote generation
+  └── structured Analyst Engine 2.0
 ```
 
-## Daily AIM ingestion — locked V1 path
-
-Smallcaps.ai uses the same Daily AIM source pattern currently working in RNS-Xray:
+## Daily AIM ingestion
 
 ```text
-Investegate AIM catalogue
-  → deterministic discovery of ticker / company / time / headline / source URL
-  → PostgreSQL source_id deduplication
-  → OpenAI web search for dense evidence on NEW announcements only
-  → prefer issuer IR and official LSE/RNS evidence for corroboration
-  → Analyst Engine
-  → deterministic guardrails
-  → versioned PostgreSQL persistence
+Investegate catalogue
+  → exact AIM row metadata
+  → Postgres source_id dedupe
+  → deterministic routine classification / material prioritisation
+  → OpenAI web-search evidence retrieval for selected new rows
+  → evidence integrity gate
+  → company context selector
+  → Analyst Engine 2.0
+  → deterministic RNS guardrails
+  → publication quality gate
+  → versioned PostgreSQL
 ```
 
-Investegate is therefore the discovery catalogue, not the analytical source of truth. OpenAI is not asked to invent the day's catalogue from scratch; it searches only after the exact announcement has already been identified.
+Investegate is the discovery catalogue, not the analytical source of truth. OpenAI searches after an exact announcement has been identified.
 
-Manual ingestion remains available only for testing, QA and recovery.
-
-The source adapter preserves the existing owner-test warning that Investegate may itself expose a filtered catalogue and that commercial display rights must be confirmed before public production use.
+Manual ingestion is a QA/recovery fallback.
 
 ## Code boundaries
 
-- `ingestion/investegate_daily.py`: current Daily AIM catalogue discovery + OpenAI evidence retrieval.
-- `ingestion/daily_service.py`: Postgres deduplication and daily orchestration into the analysis pipeline.
-- `ingestion/manual.py`: fallback manual source for testing/QA/recovery only.
-- `analyst/`: strict schemas, context selection, OpenAI inference and deterministic guardrails.
-- `database/`: versioned Postgres persistence; no analysis logic.
-- `market/`: market-session and quote logic; price never changes the original Impact.
-- `pipeline.py`: one-announcement orchestration only.
-- `jobs/ingest_daily.py`: Railway-ready daily ingestion entrypoint (`python -m jobs.ingest_daily`).
-- `streamlit_app.py`: private Pass 1 operator console, not the final public design.
+- `ingestion/`: catalogue discovery, evidence retrieval and source normalisation.
+- `analyst/evidence.py`: prevents headline-only/fallback analysis.
+- `analyst/analyzer.py`: one structured inference call.
+- `analyst/guardrails.py`: deterministic adverse-disclosure and guidance checks.
+- `analyst/quality.py`: publishable/review/blocked gate.
+- `analyst/context_selector.py`: relevant point-in-time history without a vector DB.
+- `analyst/evaluation.py`: benchmark evaluation.
+- `database/`: versioned persistence; no research reasoning.
+- `market/`: market data only; price never changes original Impact.
+- `pipeline.py`: orchestration.
+- `jobs/`: Railway worker entrypoints.
+- `streamlit_app.py`: private QA console, not the final Feed.
 
 ## Persistence rules
 
 1. `announcements.source_id` is immutable and unique.
-2. The Daily AIM service checks source IDs before OpenAI evidence retrieval so already-persisted RNSs do not incur repeat retrieval/analysis cost.
-3. Re-analysis creates a new `analyst_runs` row.
-4. Exactly one run per announcement is current.
-5. Previous runs remain available for audit and evaluation.
-6. Facts, guidance and claims link to the exact analyst run that created them.
-7. Human corrections are separate records, not silent overwrites.
-8. Market reactions are stored after the original Impact is frozen.
+2. Deduplication happens before web-search evidence retrieval.
+3. Unavailable/blocked analysis is not persisted as completed research.
+4. Re-analysis creates a new analyst run.
+5. Exactly one run per announcement is current.
+6. Previous runs remain available.
+7. Facts, guidance and claims link to the exact run that created them.
+8. Corrections are separate records.
+9. Market reactions are stored after Impact is frozen.
+10. Source evidence, provenance and quality flags are distinct fields.
 
-## Historical context
+## Quality states
 
-Pass 1 ports the deterministic topic-based selector from RNS-Xray. It always retains the two most recent records and uses remaining slots for economically relevant prior events. This avoids an early vector database and keeps model context controlled.
+- `publishable`: eligible for the eventual public Feed.
+- `review`: stored for owner review, not public display.
+- `blocked`: not persisted; retry or correction required.
 
-## Production database
+## Company context
 
-Railway provides `DATABASE_URL`. The application normalises common Railway/Postgres URL forms and uses psycopg 3 through SQLAlchemy. SQLite is supported only for local tests and the no-cost foundation demo.
+The deterministic selector retains the two most recent records and uses remaining slots for economically relevant events. Context is strictly earlier than the current announcement.
 
-## Pass 1 acceptance gate
+No vector database is required for V1.
 
-A real announcement fixture must complete this path in an automated test:
+## Database
 
-```text
-real RNS text
-  → recorded structured analysis
-  → guardrails
-  → company upsert
-  → announcement upsert
-  → versioned analyst run
-  → atomic facts / guidance / claims
-  → retrievable current record
-```
+Railway provides `DATABASE_URL`. SQLAlchemy uses psycopg 3 for PostgreSQL and SQLite for deterministic local/CI tests.
 
-A separate source-parser test verifies the current Investegate AIM table format without making a live network call in CI.
+`schema.sql` is the canonical new-database DDL. No production database has yet been declared migrated; formal migrations are required before altering a deployed schema.
 
-Live Investegate/OpenAI calls are environment-gated because API credentials are never committed. The same pipeline and schema are used by both recorded tests and the production OpenAI engine.
+## Deferred
+
+- final Feed and Analyst Note UI;
+- Company Intelligence UI;
+- historical AIM backfill;
+- licensed feed replacement;
+- price-worker scheduling;
+- public user accounts;
+- formal database migration tooling;
+- credentialled live benchmark sign-off.

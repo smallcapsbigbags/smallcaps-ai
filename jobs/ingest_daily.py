@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 from analyst.analyzer import OpenAIAnalystEngine
-from database.db import create_database_engine, create_session_factory, init_database
+from database.db import (
+    create_database_engine,
+    create_session_factory,
+    init_database,
+)
 from database.repository import IntelligenceRepository
 from ingestion.daily_service import DailyAIMIngestionService
 from ingestion.investegate_daily import InvestegateDailyAIMSource
@@ -18,11 +22,13 @@ def main() -> None:
     analyst = OpenAIAnalystEngine(
         api_key=settings.openai_api_key,
         model=settings.openai_model,
+        max_output_tokens=settings.openai_max_output_tokens,
     )
     pipeline = FoundationPipeline(
         repository=repository,
         analyst_engine=analyst,
         prompt_version=settings.prompt_version,
+        min_evidence_chars=settings.min_evidence_chars,
     )
     source = InvestegateDailyAIMSource(
         api_key=settings.openai_api_key,
@@ -43,8 +49,10 @@ def main() -> None:
         f"discovered={result.discovered}",
         f"known={result.already_known}",
         f"analysed={result.analysed}",
+        f"review={result.review_required}",
         f"routine={result.routine_persisted}",
         f"deferred={result.deferred}",
+        f"blocked={result.blocked}",
         f"failed={result.failed}",
     )
     for warning in result.warnings:

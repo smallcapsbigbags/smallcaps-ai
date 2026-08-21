@@ -1,6 +1,5 @@
--- Smallcaps.ai AIM Intelligence — Pass 1 PostgreSQL schema
--- Railway Postgres is the production system of record. Existing static prototype
--- files remain untouched on this feature branch.
+-- Smallcaps.ai AIM Intelligence — Analyst Engine 2.0 PostgreSQL schema
+-- Railway Postgres is the production system of record.
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
@@ -23,28 +22,47 @@ CREATE TABLE IF NOT EXISTS announcements (
     headline VARCHAR(500) NOT NULL,
     announcement_type VARCHAR(100) NOT NULL DEFAULT 'Other',
     source_url TEXT NOT NULL DEFAULT '',
+    source_urls JSONB NOT NULL DEFAULT '[]'::jsonb,
+    source_note TEXT NOT NULL DEFAULT '',
+    evidence_status VARCHAR(32) NOT NULL DEFAULT 'complete'
+        CHECK (evidence_status IN ('complete','partial','unavailable','metadata-only')),
+    evidence_retrieved_at TIMESTAMPTZ,
     raw_text TEXT NOT NULL,
     categories JSONB NOT NULL DEFAULT '[]'::jsonb,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS ix_announcements_company_published
     ON announcements(company_id, published_at DESC);
+CREATE INDEX IF NOT EXISTS ix_announcements_evidence_status
+    ON announcements(evidence_status);
 
 CREATE TABLE IF NOT EXISTS analyst_runs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     announcement_id UUID NOT NULL REFERENCES announcements(id) ON DELETE CASCADE,
-    impact_colour VARCHAR(16) NOT NULL CHECK (impact_colour IN ('green','amber','red','grey')),
+    impact_colour VARCHAR(16) NOT NULL
+        CHECK (impact_colour IN ('green','amber','red','grey')),
     impact_score INTEGER NOT NULL CHECK (impact_score BETWEEN 1 AND 5),
-    impact_level VARCHAR(16) NOT NULL CHECK (impact_level IN ('low','medium','high','critical')),
+    impact_level VARCHAR(16) NOT NULL
+        CHECK (impact_level IN ('low','medium','high','critical')),
+    impact_rationale TEXT NOT NULL DEFAULT '',
+    impact_drivers JSONB NOT NULL DEFAULT '[]'::jsonb,
     headline VARCHAR(500) NOT NULL,
     takeaway TEXT NOT NULL,
+    new_information JSONB NOT NULL DEFAULT '[]'::jsonb,
+    reiterated_information JSONB NOT NULL DEFAULT '[]'::jsonb,
     what_changed JSONB NOT NULL,
     analyst_view TEXT NOT NULL,
     supports_case JSONB NOT NULL DEFAULT '[]'::jsonb,
     challenges_case JSONB NOT NULL DEFAULT '[]'::jsonb,
     watch_items JSONB NOT NULL DEFAULT '[]'::jsonb,
+    disclosure_assessment JSONB NOT NULL DEFAULT '{}'::jsonb,
+    source_references JSONB NOT NULL DEFAULT '[]'::jsonb,
     source_warnings JSONB NOT NULL DEFAULT '[]'::jsonb,
-    confidence DOUBLE PRECISION NOT NULL DEFAULT 0.8 CHECK (confidence BETWEEN 0 AND 1),
+    quality_status VARCHAR(16) NOT NULL DEFAULT 'publishable'
+        CHECK (quality_status IN ('publishable','review','blocked')),
+    quality_flags JSONB NOT NULL DEFAULT '[]'::jsonb,
+    confidence DOUBLE PRECISION NOT NULL DEFAULT 0.8
+        CHECK (confidence BETWEEN 0 AND 1),
     prompt_version VARCHAR(80) NOT NULL,
     model_version VARCHAR(120) NOT NULL,
     analysis_version VARCHAR(120) NOT NULL,
@@ -53,6 +71,8 @@ CREATE TABLE IF NOT EXISTS analyst_runs (
 );
 CREATE INDEX IF NOT EXISTS ix_analyst_runs_announcement_created
     ON analyst_runs(announcement_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS ix_analyst_runs_quality
+    ON analyst_runs(quality_status, created_at DESC);
 CREATE UNIQUE INDEX IF NOT EXISTS uq_analyst_runs_one_current
     ON analyst_runs(announcement_id) WHERE is_current;
 
@@ -66,12 +86,21 @@ CREATE TABLE IF NOT EXISTS facts (
     period VARCHAR(80) NOT NULL DEFAULT '',
     value VARCHAR(255) NOT NULL,
     unit VARCHAR(40) NOT NULL DEFAULT '',
-    basis VARCHAR(32) NOT NULL CHECK (basis IN ('reported','calculated','not-disclosed','source-warning')),
+    currency VARCHAR(16) NOT NULL DEFAULT '',
+    as_of_date VARCHAR(40) NOT NULL DEFAULT '',
+    value_numeric DOUBLE PRECISION,
+    value_low DOUBLE PRECISION,
+    value_high DOUBLE PRECISION,
+    basis VARCHAR(32) NOT NULL
+        CHECK (basis IN ('reported','calculated','not-disclosed','source-warning')),
     note TEXT NOT NULL DEFAULT '',
     comparator TEXT NOT NULL DEFAULT '',
+    comparator_type VARCHAR(40) NOT NULL DEFAULT 'none',
+    comparator_source_id VARCHAR(160) NOT NULL DEFAULT '',
     previous_value VARCHAR(255) NOT NULL DEFAULT '',
     information_status VARCHAR(32) NOT NULL DEFAULT 'new',
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CHECK (value_low IS NULL OR value_high IS NULL OR value_low <= value_high)
 );
 CREATE INDEX IF NOT EXISTS ix_facts_company_metric_period
     ON facts(company_id, metric, period, created_at DESC);
@@ -86,6 +115,9 @@ CREATE TABLE IF NOT EXISTS guidance_events (
     value VARCHAR(255) NOT NULL DEFAULT '',
     status VARCHAR(32) NOT NULL,
     comparator TEXT NOT NULL DEFAULT '',
+    previous_value VARCHAR(255) NOT NULL DEFAULT '',
+    previous_source_id VARCHAR(160) NOT NULL DEFAULT '',
+    information_status VARCHAR(32) NOT NULL DEFAULT 'new',
     note TEXT NOT NULL DEFAULT '',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -98,6 +130,9 @@ CREATE TABLE IF NOT EXISTS management_claims (
     announcement_id UUID NOT NULL REFERENCES announcements(id) ON DELETE CASCADE,
     analyst_run_id UUID NOT NULL REFERENCES analyst_runs(id) ON DELETE CASCADE,
     claim TEXT NOT NULL,
+    claim_key VARCHAR(160) NOT NULL DEFAULT '',
+    metric VARCHAR(160) NOT NULL DEFAULT '',
+    target_value VARCHAR(255) NOT NULL DEFAULT '',
     target_date VARCHAR(80) NOT NULL DEFAULT '',
     status VARCHAR(32) NOT NULL DEFAULT 'open',
     outcome TEXT NOT NULL DEFAULT '',
@@ -106,6 +141,8 @@ CREATE TABLE IF NOT EXISTS management_claims (
 );
 CREATE INDEX IF NOT EXISTS ix_claims_company_status
     ON management_claims(company_id, status, created_at DESC);
+CREATE INDEX IF NOT EXISTS ix_claims_company_key
+    ON management_claims(company_id, claim_key, created_at DESC);
 
 CREATE TABLE IF NOT EXISTS price_reactions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

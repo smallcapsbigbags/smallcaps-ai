@@ -1,0 +1,256 @@
+[
+  {
+    "id": "profit-warning-cash",
+    "ticker": "PWX",
+    "company": "Profit Warning Example plc",
+    "title": "Trading Update",
+    "rns_type": "Results & trading",
+    "text": "The Board now expects FY27 adjusted EBITDA of £6m to £7m, below the previous £10m to £12m range. Revenue is 12% lower year on year and net cash has fallen from £8m to £2m. The Company describes operational progress as encouraging.",
+    "prior_context": [
+      {
+        "source_id": "pw-prev",
+        "published_at": "2026-05-01T07:00:00+01:00",
+        "rns_type": "Results & trading",
+        "guidance": [
+          {
+            "metric": "adjusted EBITDA",
+            "period": "FY27",
+            "value": "£10m-£12m",
+            "status": "issued"
+          }
+        ]
+      }
+    ],
+    "expectation": {
+      "allowed_colours": ["red"],
+      "min_score": 4,
+      "max_score": 5,
+      "required_any": [["guidance", "ebitda"], ["cash", "net cash"], ["cut", "below", "downgraded"]]
+    }
+  },
+  {
+    "id": "upgrade-deleveraging",
+    "ticker": "UPG",
+    "company": "Upgrade Example plc",
+    "title": "Trading Update",
+    "rns_type": "Results & trading",
+    "text": "FY27 adjusted PBT is now expected to be at least £14m compared with prior guidance of £11m to £12m. Net debt at year end was £9m, below the previously indicated £15m.",
+    "prior_context": [],
+    "expectation": {
+      "allowed_colours": ["green"],
+      "min_score": 3,
+      "max_score": 5,
+      "required_any": [["pbt", "profit"], ["net debt", "debt"], ["guidance", "expected"]]
+    }
+  },
+  {
+    "id": "vague-contract",
+    "ticker": "VCT",
+    "company": "Vague Contract plc",
+    "title": "Major Contract Award",
+    "rns_type": "Contracts",
+    "text": "The Company has signed a strategically important multi-year contract with a global customer. Contract value, duration, margin and expected revenue contribution are not disclosed. Guidance is unchanged.",
+    "prior_context": [],
+    "expectation": {
+      "allowed_colours": ["amber", "grey", "green"],
+      "min_score": 1,
+      "max_score": 3,
+      "required_any": [["not disclosed", "undisclosed"], ["contract"], ["guidance"]]
+    }
+  },
+  {
+    "id": "rescue-placing",
+    "ticker": "RSC",
+    "company": "Rescue Capital plc",
+    "title": "Placing and Subscription",
+    "rns_type": "Fundraising",
+    "text": "The Company is raising £4.0m gross at 2p per share, a 42% discount to the prior close. 200m new shares will be issued against 150m existing shares. Without the proceeds the Company would have insufficient working capital beyond September. One warrant is issued for every two placing shares.",
+    "prior_context": [],
+    "expectation": {
+      "allowed_colours": ["red", "amber"],
+      "min_score": 4,
+      "max_score": 5,
+      "required_any": [["working capital"], ["discount"], ["dilution", "new shares"], ["warrant"]]
+    }
+  },
+  {
+    "id": "leveraged-acquisition",
+    "ticker": "ACQ",
+    "company": "Acquisition Example plc",
+    "title": "Acquisition",
+    "rns_type": "Corporate",
+    "text": "The Company will acquire Target Ltd for £45m. Target generated £30m revenue and £6m EBITDA. The purchase is funded with £35m new debt and £10m cash. Pro-forma net debt is expected to be 3.1x EBITDA. Management expects annual cost synergies of £2m by FY29.",
+    "prior_context": [],
+    "expectation": {
+      "allowed_colours": ["amber"],
+      "min_score": 4,
+      "max_score": 5,
+      "required_any": [["acquisition"], ["debt", "leverage"], ["synerg"]]
+    }
+  },
+  {
+    "id": "open-market-director-buy",
+    "ticker": "DIR",
+    "company": "Director Dealing plc",
+    "title": "Director/PDMR Shareholding",
+    "rns_type": "Director dealing",
+    "text": "The Chief Executive purchased 500,000 ordinary shares in the market at 20p per share for cash. Following the purchase, the CEO holds 1,200,000 shares. No trading update is provided.",
+    "prior_context": [],
+    "expectation": {
+      "allowed_colours": ["green", "amber"],
+      "min_score": 2,
+      "max_score": 3,
+      "required_any": [["500,000", "£100,000", "100,000"], ["open-market", "purchased", "purchase"], ["no change", "trading"]]
+    }
+  },
+  {
+    "id": "tax-cover-sale",
+    "ticker": "TAX",
+    "company": "Tax Cover plc",
+    "title": "PDMR Dealing",
+    "rns_type": "Director dealing",
+    "text": "Following vesting of an LTIP award, the CFO sold 80,000 of 200,000 vested shares solely to meet tax liabilities and retained the balance. The exercise price was nil.",
+    "prior_context": [],
+    "expectation": {
+      "allowed_colours": ["grey", "amber"],
+      "min_score": 1,
+      "max_score": 2,
+      "required_any": [["tax"], ["vesting", "ltip"], ["retained"]]
+    }
+  },
+  {
+    "id": "going-concern-waiver",
+    "ticker": "GCN",
+    "company": "Going Concern plc",
+    "title": "Final Results",
+    "rns_type": "Results & trading",
+    "text": "The auditor reports a material uncertainty related to going concern. The Group breached its leverage covenant after year end and obtained a waiver to 30 November. The facility is fully drawn and management states that additional funding will be required.",
+    "prior_context": [],
+    "expectation": {
+      "allowed_colours": ["red"],
+      "min_score": 5,
+      "max_score": 5,
+      "required_any": [["going concern"], ["covenant", "waiver"], ["additional funding", "funding"], ["fully drawn"]]
+    }
+  },
+  {
+    "id": "ceo-abrupt-departure",
+    "ticker": "CEO",
+    "company": "Leadership Example plc",
+    "title": "Directorate Change",
+    "rns_type": "Board & advisers",
+    "text": "The Chief Executive has left the Company with immediate effect. The CFO will act as interim CEO. No reason is provided and the Company states that current-year guidance remains unchanged.",
+    "prior_context": [],
+    "expectation": {
+      "allowed_colours": ["amber", "red"],
+      "min_score": 2,
+      "max_score": 4,
+      "required_any": [["immediate effect"], ["interim"], ["guidance"]]
+    }
+  },
+  {
+    "id": "profit-up-cash-down",
+    "ticker": "CASH",
+    "company": "Cash Conversion plc",
+    "title": "Final Results",
+    "rns_type": "Results & trading",
+    "text": "Adjusted EBITDA increased 18% to £12m and revenue rose 10% to £80m. Operating cash flow fell to £1m from £9m due to higher receivables, while net debt increased to £22m from £10m. Management calls the year a strong performance.",
+    "prior_context": [],
+    "expectation": {
+      "allowed_colours": ["amber", "red"],
+      "min_score": 3,
+      "max_score": 4,
+      "required_any": [["cash flow", "cash conversion"], ["net debt"], ["receivables", "working capital"], ["ebitda"]]
+    }
+  },
+  {
+    "id": "takeover-firm-offer",
+    "ticker": "OFF",
+    "company": "Offer Target plc",
+    "title": "Recommended Cash Offer",
+    "rns_type": "Corporate",
+    "text": "The boards have agreed a recommended firm cash offer of 125p per share, representing a 48% premium to the undisturbed closing price. Completion remains subject to shareholder and court approval.",
+    "prior_context": [],
+    "expectation": {
+      "allowed_colours": ["green"],
+      "min_score": 5,
+      "max_score": 5,
+      "required_any": [["125p"], ["48%", "premium"], ["approval", "completion risk"]]
+    }
+  },
+  {
+    "id": "scheme-effective-cancellation",
+    "ticker": "SCH",
+    "company": "Scheme Target plc",
+    "title": "Scheme Effective",
+    "rns_type": "Listing status",
+    "text": "The previously announced 90p cash acquisition has become effective. Settlement is expected within 14 days and cancellation of admission to AIM will occur tomorrow.",
+    "prior_context": [{"source_id": "scheme-offer", "published_at": "2026-07-01T07:00:00+01:00", "rns_type": "Corporate", "headline": "Recommended 90p cash offer"}],
+    "expectation": {
+      "allowed_colours": ["grey", "green"],
+      "min_score": 1,
+      "max_score": 3,
+      "required_any": [["effective", "completion"], ["settlement"], ["cancellation", "mechanical"]]
+    }
+  },
+  {
+    "id": "clinical-milestone-no-economics",
+    "ticker": "CLN",
+    "company": "Clinical Example plc",
+    "title": "Clinical Trial Update",
+    "rns_type": "Other",
+    "text": "The first patient has been dosed in the Phase II study. No efficacy data, partnership economics, regulatory timetable or funding update is disclosed.",
+    "prior_context": [],
+    "expectation": {
+      "allowed_colours": ["amber", "grey", "green"],
+      "min_score": 1,
+      "max_score": 3,
+      "required_any": [["first patient", "phase ii"], ["no efficacy", "efficacy"], ["funding", "not disclosed"]]
+    }
+  },
+  {
+    "id": "customer-loss",
+    "ticker": "CUS",
+    "company": "Customer Concentration plc",
+    "title": "Contract Update",
+    "rns_type": "Contracts",
+    "text": "The Group's largest customer, representing approximately 28% of prior-year revenue, has terminated its contract with immediate effect. The Board is reviewing full-year guidance.",
+    "prior_context": [],
+    "expectation": {
+      "allowed_colours": ["red"],
+      "min_score": 4,
+      "max_score": 5,
+      "required_any": [["largest customer"], ["28%"], ["terminated", "termination"], ["guidance"]]
+    }
+  },
+  {
+    "id": "routine-voting-rights",
+    "ticker": "TVR",
+    "company": "Routine plc",
+    "title": "Total Voting Rights",
+    "rns_type": "Share capital",
+    "text": "The total number of voting rights in the Company is 100,000,000. This figure may be used by shareholders for disclosure calculations.",
+    "prior_context": [],
+    "expectation": {
+      "allowed_colours": ["grey"],
+      "min_score": 1,
+      "max_score": 1,
+      "required_any": [["voting rights"]]
+    }
+  },
+  {
+    "id": "ltip-award",
+    "ticker": "LTI",
+    "company": "LTIP Example plc",
+    "title": "Grant of LTIP Awards",
+    "rns_type": "Remuneration",
+    "text": "The Company granted 3,000,000 nil-cost options, including 2,000,000 to the CEO and CFO. Awards vest after three years subject to adjusted EBITDA and operating cash conversion targets. Issued share capital is 60,000,000 shares.",
+    "prior_context": [],
+    "expectation": {
+      "allowed_colours": ["amber", "grey"],
+      "min_score": 2,
+      "max_score": 3,
+      "required_any": [["3,000,000"], ["dilution", "5%"], ["ebitda"], ["cash conversion"]]
+    }
+  }
+]

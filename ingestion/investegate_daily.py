@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from urllib.parse import urljoin, urlparse
 from zoneinfo import ZoneInfo
 
@@ -11,6 +11,7 @@ import requests
 from bs4 import BeautifulSoup
 from pydantic import Field
 
+from analyst.evidence import EvidenceUnavailableError
 from analyst.models import AnnouncementInput, StrictModel
 
 
@@ -71,14 +72,14 @@ class InvestegateDailyAIMSource:
         self.max_pages = max(1, max_pages)
         self.timeout_seconds = timeout_seconds
         self._evidence: dict[str, str] = {}
-        self._urls: dict[str, str] = {}
+        self._urls: dict[str, list[str]] = {}
         self._notes: dict[str, str] = {}
         self.session = requests.Session()
         self.session.headers.update(
             {
                 "Accept": "text/html,application/xhtml+xml",
                 "Accept-Language": "en-GB,en;q=0.9",
-                "User-Agent": "Mozilla/5.0 SmallcapsAI-DailyRNS/0.5",
+                "User-Agent": "Mozilla/5.0 SmallcapsAI-DailyRNS/0.6",
             }
         )
 
@@ -132,7 +133,7 @@ class InvestegateDailyAIMSource:
                     source_url=source_url,
                 )
                 output[source_id] = item
-                self._urls[source_id] = source_url
+                self._urls[source_id] = [source_url] if source_url else []
 
             if min(row_dates) < day:
                 break
@@ -165,7 +166,8 @@ class InvestegateDailyAIMSource:
                 continue
             try:
                 published = datetime.strptime(
-                    cells[0].get_text(" ", strip=True), "%d %b %Y %I:%M %p"
+                    cells[0].get_text(" ", strip=True),
+                    "%d %b %Y %I:%M %p",
                 )
             except ValueError:
                 continue
@@ -211,7 +213,10 @@ class InvestegateDailyAIMSource:
                 }
                 for item in batch
             ]
-            prompt = f"""Retrieve dense factual source evidence for each exact AIM regulatory announcement below. Start with the supplied Investegate URL where available, then prefer issuer IR and official LSE/RNS pages for corroboration. Match company, ticker, headline and date. Preserve all disclosed financial, guidance, fundraising, contract, M&A, ownership and director-dealing numbers. Never infer missing facts. Return source_id exactly plus evidence and strongest source URLs.\n\nANNOUNCEMENTS:\n{json.dumps(payload, ensure_ascii=False)}"""
+            prompt = f"""Retrieve dense factual source evidence for each exact AIM regulatory announcement below. Start with the supplied Investegate URL where available, then prefer issuer IR and official LSE/RNS pages for corroboration. Match company, ticker, headline and date. Preserve all disclosed financial, guidance, fundraising, contract, M&A, ownership and director-dealing numbers. Never infer missing facts. Return source_id exactly plus evidence and strongest source URLs.
+
+ANNOUNCEMENTS:
+{json.dumps(payload, ensure_ascii=False)}"""
 
             try:
                 response = self.client.responses.parse(
@@ -240,21 +245,35 @@ class InvestegateDailyAIMSource:
                 continue
 
             if response.output_parsed is None:
+                for item in batch:
+                    self._notes[item.source_id] = (
+                        "Targeted evidence retrieval returned no structured result."
+                    )
                 continue
 
             valid_ids = {item.source_id for item in batch}
+            returned_ids: set[str] = set()
             for result in response.output_parsed.records:
                 if result.source_id not in valid_ids:
                     continue
+                returned_ids.add(result.source_id)
                 if result.evidence.strip():
                     self._evidence[result.source_id] = result.evidence.strip()
                 if result.source_note:
                     self._notes[result.source_id] = result.source_note.strip()
-                best = next(
-                    (url for url in result.source_urls if self._valid_url(url)), ""
+                urls = [
+                    url for url in result.source_urls if self._valid_url(url)
+                ]
+                existing = self._urls.get(result.source_id, [])
+                self._urls[result.source_id] = list(
+                    dict.fromkeys([*urls, *existing])
                 )
-                if best:
-                    self._urls[result.source_id] = best
+
+            for item in batch:
+                if item.source_id not in returned_ids:
+                    self._notes[item.source_id] = (
+                        "Targeted evidence retrieval omitted this source ID."
+                    )
 
         if not announcements:
             return []
@@ -262,34 +281,41 @@ class InvestegateDailyAIMSource:
             f"Targeted OpenAI evidence retrieval ran for {len(announcements)} new AIM announcement(s)."
         ]
 
-    def fetch_document(self, announcement: CatalogueAnnouncement) -> AnnouncementInput:
+    def fetch_document(
+        self, announcement: CatalogueAnnouncement
+    ) -> AnnouncementInput:
         """Convert one discovered RNS plus its evidence dossier to Analyst input."""
 
         evidence = self._evidence.get(announcement.source_id, "").strip()
         if not evidence:
-            evidence = (
-                f"Regulatory announcement: {announcement.title}. "
-                "No usable source evidence was returned."
+            note = self._notes.get(
+                announcement.source_id,
+                "No usable evidence was returned for this announcement.",
             )
-        note = self._notes.get(announcement.source_id, "")
-        source_warning = (
-            "Investegate catalogue plus OpenAI web-search evidence dossier used for Daily AIM MVP analysis; verify material facts against the original RNS."
-            + (f" {note}" if note else "")
-        )
-        text = evidence[: self.max_document_chars]
-        if source_warning:
-            text += f"\n\nSOURCE NOTE: {source_warning[:700]}"
+            raise EvidenceUnavailableError(
+                f"{announcement.ticker} {announcement.source_id}: {note}"
+            )
 
+        urls = list(
+            dict.fromkeys(
+                [
+                    *self._urls.get(announcement.source_id, []),
+                    *([announcement.source_url] if announcement.source_url else []),
+                ]
+            )
+        )
         return AnnouncementInput(
             source_id=announcement.source_id,
             ticker=announcement.ticker,
             company=announcement.company,
             published_at=announcement.published_at,
             title=announcement.title,
-            text=text,
-            source_url=self._urls.get(
-                announcement.source_id, announcement.source_url
-            ),
+            text=evidence[: self.max_document_chars],
+            source_url=urls[0] if urls else announcement.source_url,
+            source_urls=urls,
+            source_note=self._notes.get(announcement.source_id, ""),
+            evidence_status="complete",
+            evidence_retrieved_at=datetime.now(timezone.utc),
             categories=announcement.categories,
         )
 

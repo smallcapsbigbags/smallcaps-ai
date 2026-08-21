@@ -5,12 +5,16 @@ from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
 from analyst.classification import is_administrative_routine, material_priority
+from analyst.evidence import EvidenceUnavailableError
 from analyst.models import AnnouncementInput
 from analyst.routine import routine_note
 from database.queries import known_source_ids
 from database.repository import IntelligenceRepository
-from ingestion.investegate_daily import CatalogueAnnouncement, InvestegateDailyAIMSource
-from pipeline import FoundationPipeline
+from ingestion.investegate_daily import (
+    CatalogueAnnouncement,
+    InvestegateDailyAIMSource,
+)
+from pipeline import AnalysisBlockedError, FoundationPipeline
 
 LONDON = ZoneInfo("Europe/London")
 
@@ -21,8 +25,10 @@ class DailyIngestionResult:
     discovered: int = 0
     already_known: int = 0
     analysed: int = 0
+    review_required: int = 0
     routine_persisted: int = 0
     deferred: int = 0
+    blocked: int = 0
     failed: int = 0
     warnings: list[str] = field(default_factory=list)
     processed_source_ids: list[str] = field(default_factory=list)
@@ -30,15 +36,7 @@ class DailyIngestionResult:
 
 
 class DailyAIMIngestionService:
-    """Current Daily AIM flow: Investegate discovery → OpenAI evidence → analysis.
-
-    This mirrors the working RNS-Xray behaviour:
-    - discover all AIM catalogue rows;
-    - persist true administrative routine records without deep AI calls;
-    - prioritise investment-relevant rows for evidence retrieval/analysis;
-    - leave deferred/failed material rows eligible for a later retry;
-    - use PostgreSQL instead of daily JSON files for dedupe and persistence.
-    """
+    """Investegate discovery → evidence → context → analyst → quality → Postgres."""
 
     def __init__(
         self,
@@ -62,15 +60,19 @@ class DailyAIMIngestionService:
             company=item.company,
             published_at=item.published_at,
             title=item.title,
-            text=f"Regulatory announcement catalogue record: {item.title}.\n\nSOURCE NOTE: {reason}",
+            text=f"Regulatory announcement catalogue record: {item.title}.",
             source_url=item.source_url,
+            source_urls=[item.source_url] if item.source_url else [],
+            source_note=reason,
+            evidence_status="metadata-only",
+            rns_type="Other",
             categories=item.categories,
         )
 
     def _persist_routine(self, item: CatalogueAnnouncement) -> None:
         reason = (
             "Routine administrative disclosure classified deterministically; "
-            "current RNS-Xray behaviour does not spend a deep AI call on this item."
+            "the current RNS-Xray flow does not spend a deep AI call on this item."
         )
         announcement = self._metadata_input(item, reason=reason)
         note = routine_note(announcement, reason=reason)
@@ -99,8 +101,12 @@ class DailyAIMIngestionService:
         if not pending:
             return result
 
-        routine = [item for item in pending if is_administrative_routine(item)]
-        relevant = [item for item in pending if not is_administrative_routine(item)]
+        routine = [
+            item for item in pending if is_administrative_routine(item)
+        ]
+        relevant = [
+            item for item in pending if not is_administrative_routine(item)
+        ]
         selected = sorted(
             relevant,
             key=lambda item: (material_priority(item), item.published_at),
@@ -109,7 +115,9 @@ class DailyAIMIngestionService:
         result.deferred = max(0, len(relevant) - len(selected))
         if result.deferred:
             result.warnings.append(
-                f"{result.deferred} investment-relevant announcement(s) deferred by MAX_AI_ITEMS={self.max_ai_items}; they remain unpersisted and eligible for the next run."
+                f"{result.deferred} investment-relevant announcement(s) deferred "
+                f"by MAX_AI_ITEMS={self.max_ai_items}; they remain eligible for "
+                "the next run."
             )
 
         for item in routine:
@@ -121,7 +129,8 @@ class DailyAIMIngestionService:
                 result.failed += 1
                 result.failed_source_ids.append(item.source_id)
                 result.warnings.append(
-                    f"{item.ticker} {item.source_id}: routine persistence failed: {type(exc).__name__}: {exc}"[:700]
+                    f"{item.ticker} {item.source_id}: routine persistence failed: "
+                    f"{type(exc).__name__}: {exc}"[:700]
                 )
 
         if not selected:
@@ -130,18 +139,29 @@ class DailyAIMIngestionService:
         result.warnings.extend(self.source.prepare_documents(selected))
 
         for item in selected:
-            announcement = self.source.fetch_document(item)
             try:
+                announcement = self.source.fetch_document(item)
                 persisted = self.pipeline.process(announcement)
+            except (EvidenceUnavailableError, AnalysisBlockedError) as exc:
+                result.blocked += 1
+                result.failed_source_ids.append(item.source_id)
+                result.warnings.append(
+                    f"{item.ticker} {item.source_id}: blocked and left retryable: "
+                    f"{type(exc).__name__}: {exc}"[:700]
+                )
+                continue
             except Exception as exc:
                 result.failed += 1
                 result.failed_source_ids.append(item.source_id)
                 result.warnings.append(
-                    f"{item.ticker} {item.source_id}: analysis failed: {type(exc).__name__}: {exc}"[:700]
+                    f"{item.ticker} {item.source_id}: analysis failed: "
+                    f"{type(exc).__name__}: {exc}"[:700]
                 )
                 continue
 
             result.analysed += 1
+            if persisted.quality_status == "review":
+                result.review_required += 1
             result.processed_source_ids.append(persisted.source_id)
 
         return result
