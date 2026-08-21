@@ -15,5 +15,5 @@ jobs:
           python-version: "3.12"
           cache: pip
       - run: pip install -r requirements.txt
-      - run: python -m compileall analyst database ingestion market pipeline.py settings.py streamlit_app.py
+      - run: python -m compileall analyst database ingestion jobs market pipeline.py settings.py streamlit_app.py
       - run: pytest -q
