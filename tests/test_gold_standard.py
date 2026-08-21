@@ -32,12 +32,16 @@ def test_real_benchmark_catalogue_and_active_set_are_unique():
     cases = load_real_benchmark_cases(Path("benchmarks/real_cases.json"))
     case_ids = {case.id for case in cases}
     active = json.loads(Path("benchmarks/real_case_set.json").read_text(encoding="utf-8"))
+    sources = json.loads(Path("benchmarks/real_case_sources.json").read_text(encoding="utf-8"))
 
     assert len(cases) >= 20
     assert len(case_ids) == len(cases)
     assert len(active) == 20
     assert len(set(active)) == 20
     assert set(active).issubset(case_ids)
+    assert set(active).issubset(set(sources))
+    assert all(sources[case_id]["company"].strip() for case_id in active)
+    assert all(sources[case_id]["title"].strip() for case_id in active)
     assert "wnda-refinancing-2026-08-18" not in active
 
 
