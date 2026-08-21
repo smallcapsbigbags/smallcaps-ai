@@ -4,9 +4,7 @@ from analyst.version import ANALYSIS_VERSION, DEFAULT_PROMPT_VERSION
 
 
 def test_analyst_engine_v2_prompt_contains_locked_method_and_event_rules():
-    prompt = Path("prompts/ANALYST_ENGINE_V2.md").read_text(
-        encoding="utf-8"
-    )
+    prompt = Path("prompts/ANALYST_ENGINE_V2.md").read_text(encoding="utf-8")
     for token in (
         "EXTRACT → VERIFY → RANK → COMPARE → CHALLENGE → INTERPRET → SCORE → WRITE",
         "Results and trading updates",
@@ -24,9 +22,7 @@ def test_analyst_engine_v2_prompt_contains_locked_method_and_event_rules():
 
 
 def test_phase2_plain_english_prompt_contains_locked_character_and_transparency_rules():
-    prompt = Path("prompts/PLAIN_ENGLISH_ANALYST_V1.md").read_text(
-        encoding="utf-8"
-    )
+    prompt = Path("prompts/PLAIN_ENGLISH_ANALYST_V1.md").read_text(encoding="utf-8")
     for token in (
         "Sceptical, not cynical",
         "Commercially minded",
@@ -39,5 +35,21 @@ def test_phase2_plain_english_prompt_contains_locked_character_and_transparency_
     ):
         assert token in prompt
 
-    assert ANALYSIS_VERSION == "aim-intelligence-analyst-2.1"
-    assert DEFAULT_PROMPT_VERSION == "analyst-engine-2.1-plain-english"
+
+def test_gold_standard_prompt_locks_human_grade_decision_rules():
+    prompt = Path("prompts/GOLD_STANDARD_ANALYST_V1.md").read_text(encoding="utf-8")
+    for token in (
+        "Pick the economically meaningful KPI",
+        "Run the contradiction check",
+        "Do the obvious maths",
+        "Ask whether the change is repeatable",
+        "Make the investment-case change explicit",
+        "Loss-making life sciences",
+        "Small beats after fresh guidance",
+        "Buybacks, Rule 9 and control",
+        "Market reaction remains separate",
+    ):
+        assert token in prompt
+
+    assert ANALYSIS_VERSION == "aim-intelligence-analyst-2.2"
+    assert DEFAULT_PROMPT_VERSION == "analyst-engine-2.2-gold-standard"
