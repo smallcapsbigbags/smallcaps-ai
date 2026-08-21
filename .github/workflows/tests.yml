@@ -2,8 +2,9 @@ name: tests
 
 on:
   push:
-    branches: ["build/aim-intelligence-v1"]
+    branches: ["main"]
   pull_request:
+    branches: ["main"]
 
 jobs:
   test:
