@@ -14,10 +14,20 @@ Help an AIM investor understand:
 
 Every analysed announcement must also create structured data that makes later company analysis better.
 
-## Pass 1 pipeline
+## Locked Daily AIM ingestion path
+
+Smallcaps.ai V1 uses the same working pattern as the current RNS-Xray Daily app:
 
 ```text
-AnnouncementInput
+Investegate AIM catalogue
+      ↓
+Deterministic discovery of today's RNS rows
+      ↓
+PostgreSQL source_id deduplication
+      ↓
+OpenAI web search for detailed evidence on new rows only
+      ↓
+Prefer issuer IR / official LSE-RNS corroboration
       ↓
 Relevant prior company context
       ↓
@@ -28,20 +38,25 @@ Deterministic RNS guardrails
 Versioned Railway PostgreSQL record
 ```
 
+OpenAI is therefore not responsible for inventing the day's announcement catalogue. Investegate identifies the exact RNS; OpenAI web search retrieves and corroborates the detailed factual evidence before the Analyst Engine runs.
+
+Manual ingestion remains available only as a testing, QA and recovery fallback.
+
 The database stores companies, announcements, immutable analyst runs, atomic facts, guidance events, management claims, price reactions and corrections.
 
 ## Repository layout
 
 ```text
 analyst/              Strict schemas, context, OpenAI analysis and guardrails
-database/             SQLAlchemy persistence and PostgreSQL DDL
-ingestion/            Source boundary and manual foundation ingestion
+database/             SQLAlchemy persistence, Postgres DDL and dedupe queries
+ingestion/            Investegate Daily AIM source, OpenAI evidence retrieval and manual fallback
+jobs/                 Railway-ready daily ingestion entrypoint
 market/               London market-session and Yahoo reaction logic
 prompts/              Foundation Analyst Note contract
 streamlit_app.py      Private Pass 1 operator console
-pipeline.py           End-to-end orchestration
+pipeline.py           One-announcement analysis orchestration
 docs/                 Audit and architecture decisions
-tests/                Foundation acceptance suite with a real RNS fixture
+tests/                Foundation acceptance suite with real RNS fixtures
 app/, intelligence/   Preserved visual prototypes from the original repo
 ```
 
@@ -57,13 +72,27 @@ streamlit run streamlit_app.py
 
 The default local database is SQLite at `data/smallcaps.db`. Production uses Railway's `DATABASE_URL` and psycopg 3.
 
+## Run the Daily AIM ingestion job
+
+With `OPENAI_API_KEY` configured:
+
+```bash
+python -m jobs.ingest_daily
+```
+
+This checks today's Investegate AIM catalogue, ignores source IDs already stored in PostgreSQL, retrieves detailed evidence for new rows with OpenAI web search, runs the Analyst Engine and persists the resulting research.
+
 ## Railway variables
 
 ```text
 DATABASE_URL=<Railway PostgreSQL URL>
 OPENAI_API_KEY=<secret>
 OPENAI_MODEL=gpt-5.4-mini
+OPENAI_DEEP_MODEL=gpt-5.4
 PROMPT_VERSION=foundation-analyst-1.0
+DEEP_SEARCH_BATCH_SIZE=5
+MAX_DOCUMENT_CHARS=45000
+INVESTEGATE_AIM_MAX_PAGES=8
 ```
 
 No secrets should be committed.
@@ -84,7 +113,9 @@ The end-to-end acceptance test uses a real 7 August 2026 Inspiration Healthcare 
 - persist atomic facts and management claims; and
 - retrieve the current record.
 
-A live OpenAI call is environment-gated because API credentials are never committed.
+A separate parser test verifies the Investegate AIM RNS table format without requiring a network call in CI.
+
+Live Investegate/OpenAI calls are environment-gated because API credentials are never committed.
 
 ## Branch strategy
 
