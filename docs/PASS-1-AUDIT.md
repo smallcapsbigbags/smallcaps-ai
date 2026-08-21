@@ -29,17 +29,42 @@ The existing repository is a static visual prototype. Its HTML, research example
 | `rnsxray/context_selector.py` | Port | `analyst/context_selector.py`; no vector database required |
 | `rnsxray/analyzer.py` | Refactor | `analyst/analyzer.py`; preserve one structured call and source-id integrity |
 | `research_model/*` | Reference now; refine in Pass 2 | Initial consolidated prompt lives in `prompts/FOUNDATION_ANALYST.md` |
+| `rnsxray/investegate_daily_source.py` | Port + adapt | `ingestion/investegate_daily.py`; this is the locked V1 Daily AIM ingestion source |
+| `daily_aim_service_v2.py` | Refactor | `ingestion/daily_service.py`; same discovery/evidence sequence, but Postgres replaces daily JSON caching |
 | `daily_live_pricing.py` | Port | `market/pricing.py`; retain London session handling and previous-close methodology |
-| `daily_aim_service_v2.py` | Refactor concept | Its catalogue/retry workflow will later target Postgres rather than JSON files |
 | File cache / daily JSON | Retire as system of record | Railway Postgres becomes permanent memory |
 | Existing Streamlit UI | Reference only | Final feed/note UI belongs to later passes |
-| Web-search RNS discovery | Keep behind source interface only | Useful for testing; not assumed complete or suitable as final licensed feed |
+| Pure OpenAI catalogue discovery (`daily_aim_source.py`) | Do not use as primary V1 path | Deterministic Investegate discovery is more controlled; OpenAI search remains the detailed evidence layer |
+
+## Locked ingestion flow
+
+```text
+Investegate AIM catalogue
+      ↓
+Ticker / company / timestamp / headline / URL
+      ↓
+Postgres source_id deduplication
+      ↓
+OpenAI web-search evidence retrieval for new announcements
+      ↓
+Issuer IR / official LSE-RNS corroboration preferred
+      ↓
+Analyst Engine
+      ↓
+Guardrails
+      ↓
+Versioned Postgres persistence
+```
+
+Manual ingestion remains only for owner testing, QA and recovery.
 
 ## Pass 1 deliverable
 
-The feature branch now contains the minimum permanent pipeline:
+The feature branch now contains the permanent pipeline:
 
 ```text
+Daily AIM source or manual fallback
+      ↓
 AnnouncementInput
       ↓
 Relevant prior company context
@@ -65,7 +90,7 @@ Versioned Postgres records
 - Final Analyst Note visual implementation
 - Company Intelligence UI
 - Historical AIM backfill
-- Automated licensed RNS ingestion
+- Licensed deterministic RNS feed replacement for commercial production
 - Full price-worker scheduling
 - Authentication and public user accounts
 - Prompt benchmarking and difficult-announcement evaluation suite beyond the foundation fixtures
