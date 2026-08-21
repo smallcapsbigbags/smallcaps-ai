@@ -1,0 +1,10 @@
+streamlit==1.60.0
+openai==2.53.0
+pydantic==2.13.4
+SQLAlchemy>=2.0.50,<3
+psycopg[binary]>=3.2,<4
+requests>=2.32.4,<3
+beautifulsoup4>=4.13.4,<5
+exchange-calendars==4.13.2
+python-dotenv>=1.1.1,<2
+pytest>=9,<10

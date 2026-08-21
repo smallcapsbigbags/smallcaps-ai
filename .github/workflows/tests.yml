@@ -1,0 +1,23 @@
+name: tests
+
+on:
+  push:
+    branches: ["build/aim-intelligence-v1"]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: python -m compileall analyst database ingestion jobs market product ui pipeline.py settings.py streamlit_app.py
+      - run: python -m json.tool benchmarks/cases.json > /dev/null
+      - run: python -m json.tool railway.json > /dev/null
+      - run: python -m json.tool railway.ingest.json > /dev/null
+      - run: python -m json.tool railway.prices.json > /dev/null
+      - run: pytest -q
