@@ -35,6 +35,15 @@ def _match_case(
     return None
 
 
+def _load_active_case_ids(path: Path) -> list[str]:
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(raw, list) or not all(isinstance(item, str) for item in raw):
+        raise ValueError("benchmark case set must be a JSON list of case IDs")
+    if len(raw) != len(set(raw)):
+        raise ValueError("benchmark case set contains duplicate IDs")
+    return raw
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Run Analyst 2.1 against the 20-case real-RNS human-grade benchmark."
@@ -45,6 +54,11 @@ def main() -> None:
         default=Path("benchmarks/real_cases.json"),
     )
     parser.add_argument(
+        "--case-set",
+        type=Path,
+        default=Path("benchmarks/real_case_set.json"),
+    )
+    parser.add_argument(
         "--output",
         type=Path,
         default=Path("gold-standard-results.json"),
@@ -53,7 +67,7 @@ def main() -> None:
         "--limit",
         type=int,
         default=0,
-        help="Optional number of benchmark cases to run.",
+        help="Optional number of active benchmark cases to run.",
     )
     args = parser.parse_args()
 
@@ -64,7 +78,16 @@ def main() -> None:
     if errors:
         raise RuntimeError("; ".join(errors))
 
-    cases = load_real_benchmark_cases(args.cases)
+    all_cases = load_real_benchmark_cases(args.cases)
+    case_map = {case.id: case for case in all_cases}
+    active_ids = _load_active_case_ids(args.case_set)
+    missing_definitions = [case_id for case_id in active_ids if case_id not in case_map]
+    if missing_definitions:
+        raise ValueError(
+            "active benchmark references undefined cases: "
+            + ", ".join(missing_definitions)
+        )
+    cases = [case_map[case_id] for case_id in active_ids]
     if args.limit > 0:
         cases = cases[: args.limit]
 
@@ -198,6 +221,7 @@ def main() -> None:
         "analyst_model": settings.openai_model,
         "evidence_model": settings.openai_deep_model,
         "prompt_version": settings.prompt_version,
+        "active_case_ids": [case.id for case in cases],
         "acceptance": acceptance,
         "results": results,
     }
