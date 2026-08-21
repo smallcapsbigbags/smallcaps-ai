@@ -26,6 +26,7 @@ class OpenAIAnalystEngine:
         api_key: str,
         model: str,
         prompt_path: Path | None = None,
+        style_prompt_path: Path | None = None,
         timeout_seconds: int = 180,
         max_output_tokens: int = 12_000,
     ) -> None:
@@ -36,10 +37,14 @@ class OpenAIAnalystEngine:
         self.client = OpenAI(api_key=api_key, timeout=timeout_seconds, max_retries=1)
         self.model_name = model
         self.max_output_tokens = max(2_000, max_output_tokens)
-        self.prompt_path = prompt_path or (
-            Path(__file__).resolve().parents[1] / "prompts" / "ANALYST_ENGINE_V2.md"
+        prompts_dir = Path(__file__).resolve().parents[1] / "prompts"
+        self.prompt_path = prompt_path or (prompts_dir / "ANALYST_ENGINE_V2.md")
+        self.style_prompt_path = style_prompt_path or (
+            prompts_dir / "PLAIN_ENGLISH_ANALYST_V1.md"
         )
-        self.system_prompt = self.prompt_path.read_text(encoding="utf-8")
+        core_prompt = self.prompt_path.read_text(encoding="utf-8")
+        style_prompt = self.style_prompt_path.read_text(encoding="utf-8")
+        self.system_prompt = core_prompt + "\n\n" + style_prompt
 
     def analyse(
         self,
@@ -55,8 +60,11 @@ class OpenAIAnalystEngine:
             instructions=self.system_prompt,
             input=(
                 "Analyse this point-in-time UK regulatory announcement using only the "
-                "supplied evidence and eligible prior context. Return the required "
-                "structured AnalystNote. Do not expose private reasoning.\n\n"
+                "supplied evidence and eligible prior context. Think like a sceptical, "
+                "commercially minded UK small-cap analyst, but write in plain English "
+                "for a normal investor. Return the required structured AnalystNote. "
+                "Explain any important specialist concept in the structured concept "
+                "explanations. Do not expose private reasoning.\n\n"
                 + json.dumps(payload, ensure_ascii=False)
             ),
             text_format=AnalystNote,
