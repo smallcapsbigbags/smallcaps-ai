@@ -65,6 +65,42 @@ class FakeDailySource:
         )
 
 
+class BatchDailySource(FakeDailySource):
+    def __init__(self) -> None:
+        super().__init__()
+        self.deep_batch_size = 2
+        self.prepared_batches: list[list[str]] = []
+        self.items = [
+            CatalogueAnnouncement(
+                source_id=f"aim-test-batch-{index}",
+                ticker="SPR",
+                company="Springfield Properties",
+                published_at=datetime(
+                    2026,
+                    8,
+                    21,
+                    7,
+                    index,
+                    tzinfo=LONDON,
+                ),
+                title="Trading Update",
+                source_url=f"https://example.invalid/spr-rns-{index}",
+            )
+            for index in range(5)
+        ]
+
+    def list_announcements(self, day):
+        assert day == DAY
+        return self.items, []
+
+    def prepare_documents(self, announcements):
+        self.prepare_calls += 1
+        self.prepared_batches.append(
+            [item.source_id for item in announcements]
+        )
+        return []
+
+
 class UnavailableSource(FakeDailySource):
     def fetch_document(self, announcement):
         self.fetch_calls += 1
@@ -175,6 +211,20 @@ def test_daily_service_deduplicates_before_evidence_retrieval():
     assert source.prepare_calls == 1
     assert source.fetch_calls == 1
     assert analyst.calls == 1
+
+
+def test_relevant_announcements_are_retrieved_in_progressive_batches():
+    source = BatchDailySource()
+    service, analyst = make_service(source)
+
+    result = service.run(DAY)
+
+    assert result.discovered == 5
+    assert result.analysed == 5
+    assert source.prepare_calls == 3
+    assert [len(batch) for batch in source.prepared_batches] == [2, 2, 1]
+    assert source.fetch_calls == 5
+    assert analyst.calls == 5
 
 
 def test_unavailable_evidence_is_left_retryable():
