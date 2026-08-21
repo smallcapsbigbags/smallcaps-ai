@@ -7,8 +7,7 @@
     "preDeployCommand": [
       "python -m jobs.validate_runtime --service ingestion --create-schema"
     ],
-    "startCommand": "python -m jobs.ingest_daily",
-    "cronSchedule": "*/10 6-18 * * 1-5",
+    "startCommand": "sh -c 'echo INGEST_START; python -u -m jobs.ingest_daily; rc=$?; echo INGEST_EXIT:$rc; exit $rc'",
     "restartPolicyType": "NEVER"
   }
 }
