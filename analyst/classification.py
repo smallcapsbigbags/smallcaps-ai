@@ -25,7 +25,7 @@ ADMINISTRATIVE_PATTERNS = [
 
 OWNERSHIP_PATTERNS = [
     r"\btr-?1\b",
-    r"\bholding(?:s)? in company\b",
+    r"\bholding(?:\(s\)|s)? in company\b",
     r"\bmajor holding\b",
     r"\bnotification of major holdings\b",
     r"\bdirector dealing\b",
