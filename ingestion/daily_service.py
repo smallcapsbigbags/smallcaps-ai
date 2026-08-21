@@ -22,7 +22,7 @@ class DailyIngestionResult:
     already_known: int = 0
     analysed: int = 0
     routine_persisted: int = 0
-    metadata_only: int = 0
+    deferred: int = 0
     failed: int = 0
     warnings: list[str] = field(default_factory=list)
     processed_source_ids: list[str] = field(default_factory=list)
@@ -36,6 +36,7 @@ class DailyAIMIngestionService:
     - discover all AIM catalogue rows;
     - persist true administrative routine records without deep AI calls;
     - prioritise investment-relevant rows for evidence retrieval/analysis;
+    - leave deferred/failed material rows eligible for a later retry;
     - use PostgreSQL instead of daily JSON files for dedupe and persistence.
     """
 
@@ -66,9 +67,11 @@ class DailyAIMIngestionService:
             categories=item.categories,
         )
 
-    def _persist_metadata(
-        self, item: CatalogueAnnouncement, *, reason: str
-    ) -> None:
+    def _persist_routine(self, item: CatalogueAnnouncement) -> None:
+        reason = (
+            "Routine administrative disclosure classified deterministically; "
+            "current RNS-Xray behaviour does not spend a deep AI call on this item."
+        )
         announcement = self._metadata_input(item, reason=reason)
         note = routine_note(announcement, reason=reason)
         self.repository.save_analysis(
@@ -103,18 +106,15 @@ class DailyAIMIngestionService:
             key=lambda item: (material_priority(item), item.published_at),
             reverse=True,
         )[: self.max_ai_items]
-        selected_ids = {item.source_id for item in selected}
-        deferred = [item for item in relevant if item.source_id not in selected_ids]
+        result.deferred = max(0, len(relevant) - len(selected))
+        if result.deferred:
+            result.warnings.append(
+                f"{result.deferred} investment-relevant announcement(s) deferred by MAX_AI_ITEMS={self.max_ai_items}; they remain unpersisted and eligible for the next run."
+            )
 
         for item in routine:
             try:
-                self._persist_metadata(
-                    item,
-                    reason=(
-                        "Routine administrative disclosure classified deterministically; "
-                        "current RNS-Xray behaviour does not spend a deep AI call on this item."
-                    ),
-                )
+                self._persist_routine(item)
                 result.routine_persisted += 1
                 result.processed_source_ids.append(item.source_id)
             except Exception as exc:
@@ -122,24 +122,6 @@ class DailyAIMIngestionService:
                 result.failed_source_ids.append(item.source_id)
                 result.warnings.append(
                     f"{item.ticker} {item.source_id}: routine persistence failed: {type(exc).__name__}: {exc}"[:700]
-                )
-
-        for item in deferred:
-            try:
-                self._persist_metadata(
-                    item,
-                    reason=(
-                        f"Investment-relevant announcement deferred because MAX_AI_ITEMS={self.max_ai_items}; "
-                        "retained as metadata so a later retry can be scheduled explicitly."
-                    ),
-                )
-                result.metadata_only += 1
-                result.processed_source_ids.append(item.source_id)
-            except Exception as exc:
-                result.failed += 1
-                result.failed_source_ids.append(item.source_id)
-                result.warnings.append(
-                    f"{item.ticker} {item.source_id}: deferred metadata persistence failed: {type(exc).__name__}: {exc}"[:700]
                 )
 
         if not selected:
