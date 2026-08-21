@@ -30,8 +30,205 @@ class IntelligenceRepository:
     def __init__(self, session_factory: sessionmaker[Session]) -> None:
         self.session_factory = session_factory
 
-    def _company_by_ticker(self, ticker: str) -> Select[tuple[CompanyRow]]:
+    @staticmethod
+    def _company_by_ticker(ticker: str) -> Select[tuple[CompanyRow]]:
         return select(CompanyRow).where(CompanyRow.ticker == ticker.upper())
+
+    def _upsert_company(
+        self,
+        session: Session,
+        announcement: AnnouncementInput,
+    ) -> CompanyRow:
+        company = session.scalar(self._company_by_ticker(announcement.ticker))
+        if company is None:
+            company = CompanyRow(
+                ticker=announcement.ticker.upper(),
+                company_name=announcement.company,
+                isin=announcement.isin,
+                market="AIM",
+            )
+            session.add(company)
+            session.flush()
+            return company
+
+        company.company_name = announcement.company
+        if announcement.isin:
+            company.isin = announcement.isin
+        return company
+
+    @staticmethod
+    def _apply_announcement_fields(
+        row: AnnouncementRow,
+        company: CompanyRow,
+        announcement: AnnouncementInput,
+        note: AnalystNote,
+    ) -> None:
+        row.company_id = company.id
+        row.published_at = announcement.published_at
+        row.headline = announcement.title
+        row.announcement_type = note.rns_type or announcement.rns_type
+        row.source_url = announcement.source_url
+        row.source_urls = announcement.source_urls
+        row.source_note = announcement.source_note
+        row.evidence_status = announcement.evidence_status
+        row.evidence_retrieved_at = announcement.evidence_retrieved_at
+        row.raw_text = announcement.text
+        row.categories = announcement.categories
+
+    def _upsert_announcement(
+        self,
+        session: Session,
+        company: CompanyRow,
+        announcement: AnnouncementInput,
+        note: AnalystNote,
+    ) -> AnnouncementRow:
+        row = session.scalar(
+            select(AnnouncementRow).where(
+                AnnouncementRow.source_id == announcement.source_id
+            )
+        )
+        if row is None:
+            row = AnnouncementRow(
+                company_id=company.id,
+                source_id=announcement.source_id,
+                published_at=announcement.published_at,
+                headline=announcement.title,
+                announcement_type=note.rns_type or announcement.rns_type,
+                source_url=announcement.source_url,
+                source_urls=announcement.source_urls,
+                source_note=announcement.source_note,
+                evidence_status=announcement.evidence_status,
+                evidence_retrieved_at=announcement.evidence_retrieved_at,
+                raw_text=announcement.text,
+                categories=announcement.categories,
+            )
+            session.add(row)
+            session.flush()
+            return row
+
+        self._apply_announcement_fields(row, company, announcement, note)
+        return row
+
+    @staticmethod
+    def _build_run(
+        announcement_row: AnnouncementRow,
+        note: AnalystNote,
+        quality: QualityReport,
+        *,
+        prompt_version: str,
+        model_version: str,
+    ) -> AnalystRunRow:
+        return AnalystRunRow(
+            announcement_id=announcement_row.id,
+            impact_colour=note.impact_colour,
+            impact_score=note.impact_score,
+            impact_level=note.impact_level,
+            impact_rationale=note.impact_rationale,
+            impact_drivers=[
+                driver.model_dump(mode="json") for driver in note.impact_drivers
+            ],
+            headline=note.headline,
+            takeaway=note.takeaway,
+            new_information=note.new_information,
+            reiterated_information=note.reiterated_information,
+            what_changed=note.what_changed.model_dump(mode="json"),
+            analyst_view=note.analyst_view,
+            supports_case=note.supports_case,
+            challenges_case=note.challenges_case,
+            watch_items=note.watch_items,
+            disclosure_assessment=note.disclosure_assessment.model_dump(mode="json"),
+            source_references=note.source_references,
+            source_warnings=note.source_warnings,
+            quality_status=quality.status,
+            quality_flags=[flag.model_dump(mode="json") for flag in quality.flags],
+            confidence=note.confidence,
+            prompt_version=prompt_version,
+            model_version=model_version,
+            analysis_version=ANALYSIS_VERSION,
+            is_current=True,
+        )
+
+    @staticmethod
+    def _fact_rows(
+        company: CompanyRow,
+        announcement_row: AnnouncementRow,
+        run: AnalystRunRow,
+        note: AnalystNote,
+    ) -> list[FactRow]:
+        return [
+            FactRow(
+                company_id=company.id,
+                announcement_id=announcement_row.id,
+                analyst_run_id=run.id,
+                label=fact.label,
+                metric=fact.metric,
+                period=fact.period,
+                value=fact.value,
+                unit=fact.unit,
+                currency=fact.currency,
+                as_of_date=fact.as_of_date,
+                value_numeric=fact.value_numeric,
+                value_low=fact.value_low,
+                value_high=fact.value_high,
+                basis=fact.basis,
+                note=fact.note,
+                comparator=fact.comparator,
+                comparator_type=fact.comparator_type,
+                comparator_source_id=fact.comparator_source_id,
+                previous_value=fact.previous_value,
+                information_status=fact.information_status,
+            )
+            for fact in note.key_facts
+        ]
+
+    @staticmethod
+    def _guidance_rows(
+        company: CompanyRow,
+        announcement_row: AnnouncementRow,
+        run: AnalystRunRow,
+        note: AnalystNote,
+    ) -> list[GuidanceEventRow]:
+        return [
+            GuidanceEventRow(
+                company_id=company.id,
+                announcement_id=announcement_row.id,
+                analyst_run_id=run.id,
+                metric=event.metric,
+                period=event.period,
+                value=event.value,
+                status=event.status,
+                comparator=event.comparator,
+                previous_value=event.previous_value,
+                previous_source_id=event.previous_source_id,
+                information_status=event.information_status,
+                note=event.note,
+            )
+            for event in note.guidance_events
+        ]
+
+    @staticmethod
+    def _claim_rows(
+        company: CompanyRow,
+        announcement_row: AnnouncementRow,
+        run: AnalystRunRow,
+        note: AnalystNote,
+    ) -> list[ManagementClaimRow]:
+        return [
+            ManagementClaimRow(
+                company_id=company.id,
+                announcement_id=announcement_row.id,
+                analyst_run_id=run.id,
+                claim=claim.claim,
+                claim_key=claim.claim_key,
+                metric=claim.metric,
+                target_value=claim.target_value,
+                target_date=claim.target_date,
+                status=claim.status,
+                outcome=claim.outcome,
+                evidence=claim.evidence,
+            )
+            for claim in note.management_claims
+        ]
 
     def save_analysis(
         self,
@@ -43,64 +240,20 @@ class IntelligenceRepository:
         quality_report: QualityReport | None = None,
     ) -> PersistedAnalysis:
         if note.source_id != announcement.source_id:
-            raise ValueError("AnalystNote source_id must match the announcement source_id")
+            raise ValueError(
+                "AnalystNote source_id must match the announcement source_id"
+            )
 
         quality = quality_report or QualityReport(status="publishable")
 
         with session_scope(self.session_factory) as session:
-            company = session.scalar(self._company_by_ticker(announcement.ticker))
-            if company is None:
-                company = CompanyRow(
-                    ticker=announcement.ticker.upper(),
-                    company_name=announcement.company,
-                    isin=annnouncement.isin,
-                    market="AIM",
-                )
-                session.add(company)
-                session.flush()
-            else:
-                company.company_name = announcement.company
-                if announcement.isin:
-                    company.isin = announcement.isin
-
-            announcement_row = session.scalar(
-                select(AnnouncementRow).where(
-                    AnnouncementRow.source_id == announcement.source_id
-                )
+            company = self._upsert_company(session, announcement)
+            announcement_row = self._upsert_announcement(
+                session,
+                company,
+                announcement,
+                note,
             )
-            if announcement_row is None:
-                announcement_row = AnnouncementRow(
-                    company_id=company.id,
-                    source_id=announcement.source_id,
-                    published_at=announcement.published_at,
-                    headline=announcement.title,
-                    announcement_type=note.rns_type or announcement.rns_type,
-                    source_url=announcement.source_url,
-                    source_urls=announcement.source_urls,
-                    source_note=announcement.source_note,
-                    evidence_status=announcement.evidence_status,
-                    evidence_retrieved_at=announcement.evidence_retrieved_at,
-                    raw_text=announcement.text,
-                    categories=announcement.categories,
-                )
-                session.add(announcement_row)
-                session.flush()
-            else:
-                announcement_row.company_id = company.id
-                announcement_row.published_at = announcement.published_at
-                announcement_row.headline = announcement.title
-                announcement_row.announcement_type = (
-                    note.rns_type or announcement.rns_type
-                )
-                announcement_row.source_url = announcement.source_url
-                announcement_row.source_urls = announcement.source_urls
-                announcement_row.source_note = announcement.source_note
-                announcement_row.evidence_status = announcement.evidence_status
-                announcement_row.evidence_retrieved_at = (
-                    announcement.evidence_retrieved_at
-                )
-                announcement_row.raw_text = announcement.text
-                announcement_row.categories = announcement.categories
 
             session.execute(
                 update(AnalystRunRow)
@@ -108,105 +261,24 @@ class IntelligenceRepository:
                 .values(is_current=False)
             )
 
-            run = AnalystRunRow(
-                announcement_id=announcement_row.id,
-                impact_colour=note.impact_colour,
-                impact_score=note.impact_score,
-                impact_level=note.impact_level,
-                impact_rationale=note.impact_rationale,
-                impact_drivers=[
-                    driver.model_dump(mode="json") for driver in note.impact_drivers
-                ],
-                headline=note.headline,
-                takeaway=note.takeaway,
-                new_information=note.new_information,
-                reiterated_information=note.reiterated_information,
-                what_changed=note.what_changed.model_dump(mode="json"),
-                analyst_view=note.analyst_view,
-                supports_case=note.supports_case,
-                challenges_case=note.challenges_case,
-                watch_items=note.watch_items,
-                disclosure_assessment=note.disclosure_assessment.model_dump(
-                    mode="json"
-                ),
-                source_references=note.source_references,
-                source_warnings=note.source_warnings,
-                quality_status=quality.status,
-                quality_flags=[
-                    flag.model_dump(mode="json") for flag in quality.flags
-                ],
-                confidence=note.confidence,
+            run = self._build_run(
+                announcement_row,
+                note,
+                quality,
                 prompt_version=prompt_version,
                 model_version=model_version,
-                analysis_version=ANALYSIS_VERSION,
-                is_current=True,
             )
             session.add(run)
             session.flush()
 
             session.add_all(
-                [
-                    FactRow(
-                        company_id=company.id,
-                        announcement_id=announcement_row.id,
-                        analyst_run_id=run.id,
-                        label=fact.label,
-                        metric=fact.metric,
-                        period=fact.period,
-                        value=fact.value,
-                        unit=fact.unit,
-                        currency=fact.currency,
-                        as_of_date=fact.as_of_date,
-                        value_numeric=fact.value_numeric,
-                        value_low=fact.value_low,
-                        value_high=fact.value_high,
-                        basis=fact.basis,
-                        note=fact.note,
-                        comparator=fact.comparator,
-                        comparator_type=fact.comparator_type,
-                        comparator_source_id=fact.comparator_source_id,
-                        previous_value=fact.previous_value,
-                        information_status=fact.information_status,
-                    )
-                    for fact in note.key_facts
-                ]
+                self._fact_rows(company, announcement_row, run, note)
             )
             session.add_all(
-                [
-                    GuidanceEventRow(
-                        company_id=company.id,
-                        announcement_id=announcement_row.id,
-                        analyst_run_id=run.id,
-                        metric=event.metric,
-                        period=event.period,
-                        value=event.value,
-                        status=event.status,
-                        comparator=event.comparator,
-                        previous_value=event.previous_value,
-                        previous_source_id=event.previous_source_id,
-                        information_status=event.information_status,
-                        note=event.note,
-                    )
-                    for event in note.guidance_events
-                ]
+                self._guidance_rows(company, announcement_row, run, note)
             )
             session.add_all(
-                [
-                    ManagementClaimRow(
-                        company_id=company.id,
-                        announcement_id=announcement_row.id,
-                        analyst_run_id=run.id,
-                        claim=claim.claim,
-                        claim_key=claim.claim_key,
-                        metric=claim.metric,
-                        target_value=claim.target_value,
-                        target_date=claim.target_date,
-                        status=claim.status,
-                        outcome=claim.outcome,
-                        evidence=claim.evidence,
-                    )
-                    for claim in note.management_claims
-                ]
+                self._claim_rows(company, announcement_row, run, note)
             )
             session.flush()
 
@@ -229,6 +301,8 @@ class IntelligenceRepository:
         before: datetime,
         limit: int = 40,
     ) -> list[dict[str, object]]:
+        """Return only current, publishable, point-in-time company context."""
+
         with session_scope(self.session_factory) as session:
             rows = session.execute(
                 select(AnnouncementRow, AnalystRunRow)
@@ -326,6 +400,7 @@ class IntelligenceRepository:
             ).first()
             if row is None:
                 return None
+
             announcement, company, run = row
             return {
                 "source_id": announcement.source_id,
