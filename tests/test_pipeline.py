@@ -171,7 +171,7 @@ def test_real_rns_fixture_runs_end_to_end_and_versions_analysis() -> None:
     pipeline = FoundationPipeline(
         repository=repository,
         analyst_engine=RecordedIHCAnalystEngine(),
-        prompt_version="analyst-engine-2.1-plain-english",
+        prompt_version="analyst-engine-2.2-gold-standard",
     )
 
     text = (
@@ -196,26 +196,16 @@ def test_real_rns_fixture_runs_end_to_end_and_versions_analysis() -> None:
     assert second.analyst_run_id != first.analyst_run_id
 
     with factory() as session:
-        assert session.scalar(
-            select(func.count()).select_from(CompanyRow)
-        ) == 1
-        assert session.scalar(
-            select(func.count()).select_from(AnnouncementRow)
-        ) == 1
-        assert session.scalar(
-            select(func.count()).select_from(AnalystRunRow)
-        ) == 2
+        assert session.scalar(select(func.count()).select_from(CompanyRow)) == 1
+        assert session.scalar(select(func.count()).select_from(AnnouncementRow)) == 1
+        assert session.scalar(select(func.count()).select_from(AnalystRunRow)) == 2
         assert session.scalar(
             select(func.count())
             .select_from(AnalystRunRow)
             .where(AnalystRunRow.is_current.is_(True))
         ) == 1
-        assert session.scalar(
-            select(func.count()).select_from(FactRow)
-        ) == 6
-        assert session.scalar(
-            select(func.count()).select_from(ManagementClaimRow)
-        ) == 2
+        assert session.scalar(select(func.count()).select_from(FactRow)) == 6
+        assert session.scalar(select(func.count()).select_from(ManagementClaimRow)) == 2
 
     current = repository.get_current_analysis("ihc-ltip-2026-08-07")
     assert current is not None
@@ -223,4 +213,4 @@ def test_real_rns_fixture_runs_end_to_end_and_versions_analysis() -> None:
     assert current["impact_colour"] == "amber"
     assert current["impact_level"] == "medium"
     assert current["quality_status"] == "publishable"
-    assert current["analysis_version"] == "aim-intelligence-analyst-2.1"
+    assert current["analysis_version"] == "aim-intelligence-analyst-2.2"
