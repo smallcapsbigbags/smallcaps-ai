@@ -65,7 +65,7 @@ python -m jobs.validate_runtime --service web --create-schema
 
 ## Railway
 
-Use one project with PostgreSQL plus three services on `build/aim-intelligence-v1`:
+Use one project with PostgreSQL plus three services deployed from `main`:
 
 ```text
 railway.json          Web
@@ -93,13 +93,13 @@ Local development may use SQLite. Railway must use PostgreSQL through `DATABASE_
 pytest -q
 ```
 
-GitHub Actions also validates Python compilation, benchmark JSON and Railway config JSON.
+GitHub Actions validates pushes and pull requests targeting `main`, including Python compilation, benchmark JSON and Railway config JSON.
 
 ## Branch strategy
 
-- `main` — protected current version;
-- `build/aim-intelligence-v1` — AIM Intelligence V1 build;
-- `rns-xray` — read-only donor/reference.
+- `main` — live AIM Intelligence V1 source of truth;
+- `build/aim-intelligence-v1` — retained only as historical build branch;
+- `rns-xray` — read-only donor/reference repository.
 
 See `docs/PASS-1-AUDIT-RESULTS.md`, `docs/PASS-2-ANALYST-ENGINE.md`, `docs/PASS-3-PRODUCT.md`, `docs/PASS-3-AUDIT-RESULTS.md` and `docs/PASS-4-RAILWAY.md`.
 
