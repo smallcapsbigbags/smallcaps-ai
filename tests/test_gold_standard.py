@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 from analyst.gold_standard import (
@@ -27,11 +28,17 @@ def _judgement(score_delta: int = 0) -> GoldStandardJudgement:
     )
 
 
-def test_real_benchmark_suite_has_20_unique_cases():
+def test_real_benchmark_catalogue_and_active_set_are_unique():
     cases = load_real_benchmark_cases(Path("benchmarks/real_cases.json"))
-    assert len(cases) == 20
-    assert len({case.id for case in cases}) == 20
-    assert len({(case.day, case.ticker, case.id) for case in cases}) == 20
+    case_ids = {case.id for case in cases}
+    active = json.loads(Path("benchmarks/real_case_set.json").read_text(encoding="utf-8"))
+
+    assert len(cases) >= 20
+    assert len(case_ids) == len(cases)
+    assert len(active) == 20
+    assert len(set(active)) == 20
+    assert set(active).issubset(case_ids)
+    assert "wnda-refinancing-2026-08-18" not in active
 
 
 def test_gold_standard_rubric_weights_sum_to_100():
@@ -51,8 +58,6 @@ def test_benchmark_acceptance_requires_human_grade_floor():
     report = benchmark_acceptance(strong)
     assert report["passed"]
     weak = strong.copy()
-    weak[0] = _judgement(score_delta=5)
-    # 95/100 still clears the floor; create a critical failure to force rejection.
     weak[0] = weak[0].model_copy(update={"critical_failures": ["invented number"]})
     report = benchmark_acceptance(weak)
     assert not report["passed"]
