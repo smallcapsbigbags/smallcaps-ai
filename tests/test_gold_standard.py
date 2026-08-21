@@ -69,7 +69,7 @@ def test_rubric_document_contains_locked_human_behaviours():
         "versus what?",
         "Sector- and event-specific KPI selection",
         "Useful calculations and auditability",
-        "Is it repeatable?",
+        "Repeatability and what comes next",
         "Impact and market reaction remain analytically separate",
         "reported facts, Smallcaps.ai calculations and Smallcaps.ai interpretation",
     ):
