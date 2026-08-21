@@ -10,15 +10,20 @@ Each material RNS is scored out of 100. A case passes only when:
 - factual grounding is at least 16/20;
 - there is no critical factual error, invented number, invented comparator or invented legal conclusion;
 - explicit adverse disclosures are not buried;
-- reported facts, Smallcaps.ai calculations and Smallcaps.ai interpretation remain visibly separate.
+- reported facts, Smallcaps.ai calculations and Smallcaps.ai interpretation remain visibly separate;
+- the deterministic publication-quality gate does not block or hold the note for review.
 
-Phase 2 is ready to close when the 20-case real-RNS benchmark achieves:
+Phase 2 is ready to close when the locked 20-case real-RNS benchmark achieves:
 
 - average score at least 85/100;
 - no scored case below 75/100;
 - average factual-grounding score at least 18/20;
 - no critical provenance or hallucination failures;
-- at least 18/20 cases correctly identify the main investment-relevant change.
+- at least 18/20 cases correctly identify the main investment-relevant change;
+- all 20 outputs are `publishable` under the production quality gate;
+- no case has the wrong Impact direction, and at least 18/20 are judged fully aligned on Impact direction/significance.
+
+The same 20 cases remain locked during improvement work. We do not replace hard cases to raise the score.
 
 ## 100-point scoring rubric
 
