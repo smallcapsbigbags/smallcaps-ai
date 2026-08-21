@@ -53,7 +53,7 @@ class IntelligenceRepository:
                 company = CompanyRow(
                     ticker=announcement.ticker.upper(),
                     company_name=announcement.company,
-                    isin=announcement.isin,
+                    isin=annnouncement.isin,
                     market="AIM",
                 )
                 session.add(company)
@@ -241,6 +241,7 @@ class IntelligenceRepository:
                     CompanyRow.ticker == ticker.upper(),
                     AnnouncementRow.published_at < before,
                     AnalystRunRow.is_current.is_(True),
+                    AnalystRunRow.quality_status == "publishable",
                 )
                 .order_by(desc(AnnouncementRow.published_at))
                 .limit(limit)
