@@ -11,6 +11,7 @@ from analyst.analyzer import OpenAIAnalystEngine
 from analyst.classification import classify_metadata_type
 from analyst.gold_standard import (
     GoldStandardEvaluator,
+    GoldStandardJudgement,
     benchmark_acceptance,
     headline_matches,
     load_real_benchmark_cases,
@@ -21,6 +22,19 @@ from ingestion.investegate_daily import CatalogueAnnouncement, InvestegateDailyA
 from settings import Settings
 
 LONDON = ZoneInfo("Europe/London")
+_SCORE_FIELDS = (
+    "factual_grounding",
+    "investor_relevance",
+    "comparator_discipline",
+    "useful_calculations",
+    "commercial_interpretation",
+    "sector_event_kpi",
+    "balance_sheet_capital_control",
+    "uncertainty_and_explanation",
+    "investment_case_change",
+    "repeatability_and_next_steps",
+    "plain_english",
+)
 
 
 def _match_case(
@@ -30,7 +44,9 @@ def _match_case(
     ticker_matches = [item for item in catalogue if item.ticker.upper() == case.ticker.upper()]
     if not ticker_matches:
         return None
-    headline_matches_list = [item for item in ticker_matches if headline_matches(case, item.title)]
+    headline_matches_list = [
+        item for item in ticker_matches if headline_matches(case, item.title)
+    ]
     if headline_matches_list:
         return headline_matches_list[0]
     if len(ticker_matches) == 1:
@@ -82,19 +98,29 @@ def _direct_target(case, source_map: dict[str, dict[str, str]]) -> CatalogueAnno
     )
 
 
+def _dimension_averages(
+    judgements: list[GoldStandardJudgement],
+) -> dict[str, float]:
+    if not judgements:
+        return {field: 0.0 for field in _SCORE_FIELDS}
+    return {
+        field: round(
+            sum(float(getattr(item, field)) for item in judgements) / len(judgements),
+            2,
+        )
+        for field in _SCORE_FIELDS
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Run Analyst 2.1 against the 20-case real-RNS human-grade benchmark."
+        description="Run Analyst 2.2 against the locked 20-case real-RNS human-grade benchmark."
     )
     parser.add_argument(
-        "--cases",
-        type=Path,
-        default=Path("benchmarks/real_cases.json"),
+        "--cases", type=Path, default=Path("benchmarks/real_cases.json")
     )
     parser.add_argument(
-        "--case-set",
-        type=Path,
-        default=Path("benchmarks/real_case_set.json"),
+        "--case-set", type=Path, default=Path("benchmarks/real_case_set.json")
     )
     parser.add_argument(
         "--source-map",
@@ -102,9 +128,7 @@ def main() -> None:
         default=Path("benchmarks/real_case_sources.json"),
     )
     parser.add_argument(
-        "--output",
-        type=Path,
-        default=Path("gold-standard-results.json"),
+        "--output", type=Path, default=Path("gold-standard-results.json")
     )
     parser.add_argument(
         "--limit",
@@ -163,9 +187,12 @@ def main() -> None:
         cases_by_day[date.fromisoformat(case.day)].append(case)
 
     results: list[dict[str, object]] = []
-    judgements = []
+    judgements: list[GoldStandardJudgement] = []
     failed_cases: list[str] = []
     direct_targets: list[str] = []
+    non_publishable_cases: list[str] = []
+    wrong_direction_cases: list[str] = []
+    impact_aligned_cases: list[str] = []
 
     for day in sorted(cases_by_day):
         print(f"[benchmark] Discovering AIM catalogue for {day.isoformat()}", flush=True)
@@ -225,9 +252,18 @@ def main() -> None:
                     prior_context=case.prior_context,
                 )
                 judgements.append(judgement)
-                passed = judgement.passed and quality.status != "blocked"
+
+                if quality.status != "publishable":
+                    non_publishable_cases.append(case.id)
+                if judgement.impact_alignment == "wrong-direction":
+                    wrong_direction_cases.append(case.id)
+                if judgement.impact_alignment == "aligned":
+                    impact_aligned_cases.append(case.id)
+
+                passed = judgement.passed and quality.status == "publishable"
                 if not passed:
                     failed_cases.append(case.id)
+
                 result = {
                     "case": case.model_dump(mode="json"),
                     "source": {
@@ -245,19 +281,25 @@ def main() -> None:
                     },
                 }
                 results.append(result)
+
                 gaps = "; ".join(judgement.top_gaps[:2]) or "none"
                 print(
                     f"[benchmark] {case.id}: score={judgement.total_score}/100 "
                     f"pass={passed} impact={note.impact_colour}/{note.impact_score} "
+                    f"impact_alignment={judgement.impact_alignment} "
+                    f"case_change={judgement.assessed_case_change} "
                     f"quality={quality.status} main_change={judgement.main_change_identified} "
                     f"gaps={gaps}",
                     flush=True,
                 )
+                if quality.status != "publishable":
+                    for flag in quality.flags:
+                        print(
+                            f"[benchmark]   quality-{flag.severity}: {flag.code} — {flag.message}",
+                            flush=True,
+                        )
                 for recommendation in judgement.upgrade_recommendations[:3]:
-                    print(
-                        f"[benchmark]   upgrade: {recommendation}",
-                        flush=True,
-                    )
+                    print(f"[benchmark]   upgrade: {recommendation}", flush=True)
                 if judgement.critical_failures:
                     print(
                         f"[benchmark]   CRITICAL: {'; '.join(judgement.critical_failures)}",
@@ -265,20 +307,28 @@ def main() -> None:
                     )
             except Exception as exc:
                 failed_cases.append(case.id)
+                non_publishable_cases.append(case.id)
                 print(f"[benchmark] ERROR {case.id}: {exc}", flush=True)
-                results.append(
-                    {
-                        "case": case.model_dump(mode="json"),
-                        "error": str(exc),
-                    }
-                )
+                results.append({"case": case.model_dump(mode="json"), "error": str(exc)})
 
     acceptance = benchmark_acceptance(judgements)
     acceptance["expected_cases"] = len(cases)
     acceptance["scored_cases"] = len(judgements)
     acceptance["direct_target_cases"] = direct_targets
     acceptance["failed_cases"] = list(dict.fromkeys(failed_cases))
-    if len(judgements) != len(cases):
+    acceptance["non_publishable_cases"] = list(dict.fromkeys(non_publishable_cases))
+    acceptance["wrong_direction_cases"] = list(dict.fromkeys(wrong_direction_cases))
+    acceptance["impact_aligned_count"] = len(impact_aligned_cases)
+    acceptance["dimension_averages"] = _dimension_averages(judgements)
+
+    # A human-grade public analyst must pass both analytical scoring and the
+    # deterministic publication gate. Impact direction must also be reliable.
+    if (
+        len(judgements) != len(cases)
+        or non_publishable_cases
+        or wrong_direction_cases
+        or len(impact_aligned_cases) < max(0, len(cases) - 2)
+    ):
         acceptance["passed"] = False
 
     payload = {
@@ -294,6 +344,11 @@ def main() -> None:
         encoding="utf-8",
     )
 
+    print(
+        "[benchmark] DIMENSIONS "
+        + json.dumps(acceptance["dimension_averages"], ensure_ascii=False),
+        flush=True,
+    )
     print("[benchmark] SUMMARY " + json.dumps(acceptance, ensure_ascii=False), flush=True)
     if not acceptance["passed"]:
         raise SystemExit(1)
