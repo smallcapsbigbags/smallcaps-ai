@@ -184,11 +184,28 @@ class ImpactDriver(StrictModel):
     rationale: str
 
 
+class ConceptExplanation(StrictModel):
+    """Plain-English explanation of a specialist concept that matters to this RNS."""
+
+    term: str
+    plain_english: str
+    why_it_matters: str
+
+    @field_validator("term", "plain_english", "why_it_matters")
+    @classmethod
+    def concept_must_not_be_blank(cls, value: str) -> str:
+        cleaned = value.strip()
+        if not cleaned:
+            raise ValueError("concept explanation values must not be blank")
+        return cleaned
+
+
 class DisclosureAssessment(StrictModel):
     status: DisclosureStatus = "partial"
     missing_items: list[str] = Field(default_factory=list)
     management_language_mismatch: str = ""
     note: str = ""
+    concept_explanations: list[ConceptExplanation] = Field(default_factory=list)
 
 
 class QualityFlag(StrictModel):
