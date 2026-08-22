@@ -6,7 +6,7 @@ from typing import Any
 
 from pydantic import Field
 
-from analyst.intelligence import detect_analytical_tensions
+from analyst.intelligence_policy import detect_analytical_tensions
 from analyst.kpi_profiles import infer_kpi_profile
 from analyst.models import (
     AnalystNote,
