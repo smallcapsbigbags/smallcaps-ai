@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from typing import Protocol, Sequence
 
-from analyst.intelligence import (
+from analyst.intelligence_policy import (
     AnalystIntelligenceBundle,
     detect_analytical_tensions,
 )
