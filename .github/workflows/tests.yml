@@ -34,7 +34,9 @@ jobs:
       - run: pip install -r requirements.txt
       - run: python -m compileall analyst database ingestion jobs market product ui pipeline.py settings.py streamlit_app.py
       - run: python -m json.tool benchmarks/cases.json > /dev/null
+      - run: python -m json.tool benchmarks/company_memory_cases.json > /dev/null
       - run: python -m json.tool railway.json > /dev/null
       - run: python -m json.tool railway.ingest.json > /dev/null
       - run: python -m json.tool railway.prices.json > /dev/null
+      - run: python -m json.tool railway.company-memory-benchmark.json > /dev/null
       - run: pytest -q
