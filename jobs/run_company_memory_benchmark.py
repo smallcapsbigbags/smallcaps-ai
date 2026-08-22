@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 
 from analyst.analyzer import OpenAIAnalystEngine
+from analyst.company_context import build_prior_context_record
 from analyst.company_memory import build_company_memory
 from analyst.company_memory_evaluation import (
     CompanyMemoryEvaluator,
@@ -71,7 +72,11 @@ def main() -> None:
             company=case.company,
             before=announcement.published_at,
         )
-        context = [snapshot.to_context_record(), *case.history[-7:]]
+        prior_records = [
+            build_prior_context_record(record)
+            for record in case.history[-7:]
+        ]
+        context = [snapshot.to_context_record(), *prior_records]
         try:
             print(
                 f"[company-memory] Analysing {case.id} with "
@@ -103,6 +108,7 @@ def main() -> None:
                 {
                     "case": case.model_dump(mode="json"),
                     "memory_snapshot": snapshot.model_dump(mode="json"),
+                    "prior_context_records": prior_records,
                     "note": note.model_dump(mode="json"),
                     "quality": quality.model_dump(mode="json"),
                     "judgement": {
@@ -137,6 +143,7 @@ def main() -> None:
                 {
                     "case": case.model_dump(mode="json"),
                     "memory_snapshot": snapshot.model_dump(mode="json"),
+                    "prior_context_records": prior_records,
                     "error": str(exc),
                 }
             )
