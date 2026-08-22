@@ -10,7 +10,7 @@ from analyst.company_memory_evaluation import (
     deterministic_case_checks,
     load_company_memory_cases,
 )
-from analyst.models import AnalystNote, KeyFact, WhatChanged
+from analyst.models import AnalystNote, KeyFact, WhatChanged, impact_level_from_score
 
 
 def _judgement(*, score_delta: int = 0) -> CompanyMemoryJudgement:
@@ -42,7 +42,7 @@ def _benchmark_note(
         rns_type="Results & trading",
         impact_colour=colour,
         impact_score=score,
-        impact_level="medium" if score <= 3 else "high",
+        impact_level=impact_level_from_score(score),
         impact_rationale="Today's change is material in the disclosed context.",
         headline="Main change identified",
         takeaway="The note leads with today's main event and uses earlier evidence.",
