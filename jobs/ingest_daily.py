@@ -9,6 +9,7 @@ from database.operations import OperationsRepository, advisory_job_lock
 from database.repository import IntelligenceRepository
 from ingestion.daily_service import DailyAIMIngestionService
 from ingestion.investegate_daily import InvestegateDailyAIMSource
+from jobs.update_prices import PriceJobOutcome, run_price_job
 from pipeline import FoundationPipeline
 from settings import Settings
 
@@ -18,6 +19,40 @@ JOB_NAME = "daily-aim-ingestion"
 
 def _progress(message: str) -> None:
     print(f"[ingestion] {message}", flush=True)
+
+
+def _price_warnings(outcome: PriceJobOutcome | None) -> list[str]:
+    if outcome is None:
+        return []
+    output = [f"Market reactions: {warning}" for warning in outcome.warnings]
+    if outcome.error_text:
+        output.append(f"Market reactions failed: {outcome.error_text}")
+    return output
+
+
+def _price_summary(outcome: PriceJobOutcome | None) -> dict[str, object]:
+    if outcome is None:
+        return {}
+    return {
+        "price_status": outcome.status,
+        **{f"price_{key}": value for key, value in outcome.summary.items()},
+    }
+
+
+def _empty_ingestion_summary(
+    price_outcome: PriceJobOutcome | None,
+) -> dict[str, object]:
+    return {
+        "discovered": 0,
+        "known": 0,
+        "analysed": 0,
+        "review": 0,
+        "routine": 0,
+        "deferred": 0,
+        "blocked": 0,
+        "failed": 0,
+        **_price_summary(price_outcome),
+    }
 
 
 def main() -> None:
@@ -31,24 +66,54 @@ def main() -> None:
         factory = create_session_factory(engine)
         repository = IntelligenceRepository(factory)
         operations = OperationsRepository(factory)
-        with advisory_job_lock(engine, JOB_NAME) as acquired:
-            run_id = operations.begin_job(
-                JOB_NAME,
-                run_key=datetime.now(LONDON).date().isoformat(),
+        combined_warnings: list[str] = list(warnings)
+        price_outcome: PriceJobOutcome | None = None
+
+        # Market reactions use a separate advisory lock. Run them before the
+        # potentially longer OpenAI ingestion cycle so existing event-day prices
+        # continue to refresh even when a large RNS batch takes time to analyse.
+        # A newly stored RNS is picked up by the next ten-minute cron cycle.
+        if settings.market_data_enabled:
+            _progress("Updating event-day market reactions")
+            price_outcome = run_price_job(
+                settings,
+                engine=engine,
+                raise_on_failure=False,
             )
+            combined_warnings.extend(_price_warnings(price_outcome))
+
+        with advisory_job_lock(engine, JOB_NAME) as acquired:
             if not acquired:
+                run_id = operations.begin_job(
+                    JOB_NAME,
+                    run_key=datetime.now(LONDON).date().isoformat(),
+                    summary=_price_summary(price_outcome),
+                )
+                lock_warning = (
+                    "Another ingestion worker currently holds the advisory lock."
+                )
+                combined_warnings.append(lock_warning)
                 operations.finish_job(
                     run_id,
                     status="skipped",
-                    warnings=[
-                        "Another ingestion worker currently holds the advisory lock."
-                    ],
+                    summary=_empty_ingestion_summary(price_outcome),
+                    warnings=combined_warnings,
                 )
                 print(
                     "Daily AIM ingestion skipped: another worker is active",
                     flush=True,
                 )
                 return
+
+            # Acquiring the advisory lock proves there is no active ingestion
+            # process. Durable rows left running by an older crashed worker can now
+            # be closed without mislabelling a slow but still-live process.
+            operations.reconcile_stale_running(job_name=JOB_NAME)
+            run_id = operations.begin_job(
+                JOB_NAME,
+                run_key=datetime.now(LONDON).date().isoformat(),
+                summary=_price_summary(price_outcome),
+            )
             try:
                 analyst = OpenAIAnalystEngine(
                     api_key=settings.openai_api_key,
@@ -76,7 +141,7 @@ def main() -> None:
                     progress=_progress,
                 )
                 result = service.run()
-                summary = {
+                summary: dict[str, object] = {
                     "discovered": result.discovered,
                     "known": result.already_known,
                     "analysed": result.analysed,
@@ -85,35 +150,41 @@ def main() -> None:
                     "deferred": result.deferred,
                     "blocked": result.blocked,
                     "failed": result.failed,
+                    **_price_summary(price_outcome),
                 }
+                combined_warnings.extend(result.warnings)
                 degraded = any(
                     (
                         result.review_required,
                         result.deferred,
                         result.blocked,
                         result.failed,
+                        price_outcome is not None
+                        and price_outcome.status in {"degraded", "failed"},
                     )
                 )
                 operations.finish_job(
                     run_id,
                     status="degraded" if degraded else "success",
                     summary=summary,
-                    warnings=[*warnings, *result.warnings],
+                    warnings=combined_warnings,
                 )
             except Exception as exc:
                 operations.finish_job(
                     run_id,
                     status="failed",
-                    warnings=warnings,
+                    summary=_price_summary(price_outcome),
+                    warnings=combined_warnings,
                     error_text=f"{type(exc).__name__}: {exc}",
                 )
                 raise
+
         print(
             "Daily AIM ingestion:",
             " ".join(f"{key}={value}" for key, value in summary.items()),
             flush=True,
         )
-        for warning in result.warnings:
+        for warning in combined_warnings:
             print("WARNING:", warning, flush=True)
     finally:
         engine.dispose()
