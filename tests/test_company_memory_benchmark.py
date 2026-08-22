@@ -7,8 +7,10 @@ from analyst.company_memory import build_company_memory
 from analyst.company_memory_evaluation import (
     CompanyMemoryJudgement,
     company_memory_acceptance,
+    deterministic_case_checks,
     load_company_memory_cases,
 )
+from analyst.models import AnalystNote, KeyFact, WhatChanged
 
 
 def _judgement(*, score_delta: int = 0) -> CompanyMemoryJudgement:
@@ -28,6 +30,45 @@ def _judgement(*, score_delta: int = 0) -> CompanyMemoryJudgement:
     )
 
 
+def _benchmark_note(
+    source_id: str,
+    *,
+    colour: str,
+    score: int,
+    comparator_source_id: str,
+) -> AnalystNote:
+    return AnalystNote(
+        source_id=source_id,
+        rns_type="Results & trading",
+        impact_colour=colour,
+        impact_score=score,
+        impact_level="medium" if score <= 3 else "high",
+        impact_rationale="Today's change is material in the disclosed context.",
+        headline="Main change identified",
+        takeaway="The note leads with today's main event and uses earlier evidence.",
+        key_facts=[
+            KeyFact(
+                label="Historic comparator",
+                metric="historic comparator",
+                value="Current value",
+                basis="reported",
+                comparator="Previous value",
+                comparator_type="prior-disclosure",
+                comparator_source_id=comparator_source_id,
+                previous_value="Previous value",
+            )
+        ],
+        what_changed=WhatChanged(
+            before="The previous position was disclosed earlier.",
+            today="The current position has changed.",
+            read_through="The difference changes the investment evidence.",
+            coverage_status="building",
+        ),
+        analyst_view="Today's evidence strengthens the investment case.",
+        confidence=0.9,
+    )
+
+
 def test_company_memory_benchmark_cases_are_locked_and_point_in_time() -> None:
     cases = load_company_memory_cases(
         Path("benchmarks/company_memory_cases.json")
@@ -38,6 +79,10 @@ def test_company_memory_benchmark_cases_are_locked_and_point_in_time() -> None:
     assert {case.ticker for case in cases} == {"SPR", "AMCO", "GATC", "XYZ"}
     for case in cases:
         assert case.history
+        history_ids = {
+            str(record.get("source_id") or "") for record in case.history
+        }
+        assert set(case.required_prior_source_ids).issubset(history_ids)
         current_at = case.current_announcement.published_at
         history_dates = [
             datetime.fromisoformat(
@@ -86,3 +131,38 @@ def test_company_memory_acceptance_requires_safe_prior_context() -> None:
     report = company_memory_acceptance(results)
 
     assert not report["passed"]
+
+
+def test_deterministic_case_checks_require_allowed_impact_and_prior_source() -> None:
+    case = load_company_memory_cases(
+        Path("benchmarks/company_memory_cases.json")
+    )[0]
+    note = _benchmark_note(
+        case.current_announcement.source_id,
+        colour="amber",
+        score=3,
+        comparator_source_id=case.required_prior_source_ids[0],
+    )
+
+    report = deterministic_case_checks(case, note)
+
+    assert report["passed"]
+    assert report["errors"] == []
+
+
+def test_deterministic_case_checks_reject_wrong_colour_and_missing_source() -> None:
+    case = load_company_memory_cases(
+        Path("benchmarks/company_memory_cases.json")
+    )[0]
+    note = _benchmark_note(
+        case.current_announcement.source_id,
+        colour="red",
+        score=5,
+        comparator_source_id="unrelated-source",
+    )
+
+    report = deterministic_case_checks(case, note)
+
+    assert not report["passed"]
+    assert any("impact colour" in error for error in report["errors"])
+    assert any("required prior source IDs" in error for error in report["errors"])
