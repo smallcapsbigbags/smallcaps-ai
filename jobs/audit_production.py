@@ -2,16 +2,18 @@ from __future__ import annotations
 
 import argparse
 import json
+from dataclasses import replace
 
 from sqlalchemy import Engine
 
 from database.db import create_database_engine, create_session_factory, init_database
 from database.operations import OperationsRepository, advisory_job_lock
-from database.production_audit import run_production_audit
+from database.production_audit import ProductionAuditReport, run_production_audit
 from settings import Settings
 
 JOB_NAME = "launch-production-audit"
 WORKER_JOB_NAMES = ("daily-aim-ingestion", "daily-price-reactions")
+HISTORICAL_WORKER_CHECKS = {"LATEST_INGESTION_JOB", "MARKET_DATA_OPERATION"}
 
 
 def _reconcile_idle_workers(
@@ -29,6 +31,34 @@ def _reconcile_idle_workers(
                 continue
             reconciled += operations.reconcile_stale_running(job_name=job_name)
     return reconciled, active_workers
+
+
+def _historical_worker_failures_as_warnings(
+    report: ProductionAuditReport,
+) -> ProductionAuditReport:
+    """Keep an old worker failure visible without blocking deployment of its fix.
+
+    Database corruption, unsafe public evidence, broken source links and stuck jobs
+    remain hard failures. This exception applies only to the latest completed worker
+    status; the newly deployed worker still has to prove itself in the next live run.
+    """
+
+    checks = []
+    for check in report.checks:
+        if check.code in HISTORICAL_WORKER_CHECKS and check.status == "fail":
+            checks.append(
+                replace(
+                    check,
+                    status="warning",
+                    message=(
+                        "Historical worker failure requires a fresh post-deploy run. "
+                        + check.message
+                    ),
+                )
+            )
+        else:
+            checks.append(check)
+    return replace(report, checks=tuple(checks))
 
 
 def main() -> None:
@@ -51,6 +81,14 @@ def main() -> None:
         help=(
             "Close worker rows left running for more than three hours, but only "
             "after proving the corresponding advisory lock is idle."
+        ),
+    )
+    parser.add_argument(
+        "--historical-worker-failures-warn",
+        action="store_true",
+        help=(
+            "Keep the latest completed worker failure visible as a warning rather "
+            "than preventing deployment of the worker fix."
         ),
     )
     parser.add_argument(
@@ -92,6 +130,9 @@ def main() -> None:
             market_data_enabled=settings.market_data_enabled,
             strict_production=not args.allow_sqlite,
         )
+        if args.historical_worker_failures_warn:
+            report = _historical_worker_failures_as_warnings(report)
+
         payload = report.as_dict()
         payload["runtime_warnings"] = runtime_warnings
         payload["reconciled_stale_jobs"] = reconciled_stale_jobs
