@@ -1,15 +1,17 @@
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping, Sequence
 
 from analyst.intelligence import (
     AnalystIntelligenceBundle,
     IntelligenceFinding,
     detect_analytical_tensions as _base_detect_analytical_tensions,
-    finding_is_resolved,
 )
 from analyst.kpi_profiles import KPIProfileSnapshot, infer_kpi_profile
 from analyst.models import AnalystNote, AnnouncementInput
+
+_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?;])\s+|\n+")
 
 
 def _normalise(value: object) -> str:
@@ -158,6 +160,64 @@ def detect_analytical_tensions(
         reverse=True,
     )
     return deduped[:8]
+
+
+def _interpretive_sentences(note: AnalystNote) -> list[str]:
+    """Use investor-facing interpretation, not raw KeyFact labels, as resolution proof."""
+
+    sections = [
+        note.headline,
+        note.takeaway,
+        note.impact_rationale,
+        note.what_changed.before,
+        note.what_changed.today,
+        note.what_changed.read_through,
+        note.analyst_view,
+        *note.new_information,
+        *note.reiterated_information,
+        *note.supports_case,
+        *note.challenges_case,
+        *note.watch_items,
+        *note.disclosure_assessment.missing_items,
+        note.disclosure_assessment.management_language_mismatch,
+        note.disclosure_assessment.note,
+    ]
+    output: list[str] = []
+    for section in sections:
+        output.extend(
+            sentence.strip()
+            for sentence in _SENTENCE_SPLIT_RE.split(str(section or "").strip())
+            if sentence.strip()
+        )
+    return output
+
+
+def finding_is_resolved(
+    finding: IntelligenceFinding,
+    note: AnalystNote,
+) -> bool:
+    """A finding is resolved only when the analytical relationship is explained.
+
+    KeyFact labels alone are not enough. At least one investor-facing sentence must
+    contain one term from each required group, which prevents an unrelated positive
+    verb elsewhere in the note from making a debt or margin warning look resolved.
+    """
+
+    if not finding.surface_term_groups:
+        return True
+    normalised_groups = [
+        [_normalise(term) for term in group if _normalise(term)]
+        for group in finding.surface_term_groups
+    ]
+    normalised_groups = [group for group in normalised_groups if group]
+    if not normalised_groups:
+        return True
+
+    for sentence in _interpretive_sentences(note):
+        text = _normalise(sentence)
+        if all(any(term in text for term in group) for group in normalised_groups):
+            return True
+    return False
 
 
 def unresolved_intelligence_findings(
