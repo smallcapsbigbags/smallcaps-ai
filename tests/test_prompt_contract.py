@@ -78,6 +78,8 @@ def test_company_memory_prompt_locks_point_in_time_continuity_rules():
         "Test management promises",
         "Use KPI history to detect divergence",
         "Preserve provenance",
+        "Do not turn old analysis into a reported fact",
+        "prior `headline`, `takeaway`, `impact_colour`",
         "coverage_status",
         "point-in-time",
     ):
