@@ -71,7 +71,7 @@ def test_benchmark_override_prompt_locks_repeated_failure_fixes():
 def test_final_consistency_review_locks_evidence_and_impact_checks():
     prompt = Path("prompts/ANALYST_CONSISTENCY_REVIEW_V1.md").read_text(encoding="utf-8")
     for token in (
-        "same supplied announcement evidence",
+        "SAME supplied announcement evidence",
         "coverage_status` MUST be `building",
         "Main economic change",
         "Impact direction and significance",
