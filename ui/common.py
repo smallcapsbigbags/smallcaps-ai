@@ -162,6 +162,7 @@ div[data-baseweb="select"]>div,div[data-testid="stTextInput"] input,div[data-tes
 
 def inject_styles() -> None:
     st.markdown(APP_CSS, unsafe_allow_html=True)
+    consume_scroll_to_top()
 
 
 def render_brand() -> None:
