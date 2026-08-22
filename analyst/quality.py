@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from collections.abc import Sequence
 
+from analyst.intelligence_policy import unresolved_intelligence_findings
 from analyst.models import (
     AnalystNote,
     AnnouncementInput,
@@ -55,7 +56,10 @@ def _public_prose(note: AnalystNote) -> list[tuple[str, str]]:
     ]
 
 
-def _plain_english_flags(announcement: AnnouncementInput, note: AnalystNote) -> list[QualityFlag]:
+def _plain_english_flags(
+    announcement: AnnouncementInput,
+    note: AnalystNote,
+) -> list[QualityFlag]:
     flags: list[QualityFlag] = []
     prose = _public_prose(note)
 
@@ -138,7 +142,11 @@ def _plain_english_flags(announcement: AnnouncementInput, note: AnalystNote) -> 
 
     for fact in note.key_facts:
         if fact.basis == "calculated":
-            numeric_tokens = re.findall(r"(?:£|\$|€)?\d+(?:\.\d+)?(?:%|m|bn)?", fact.note, re.IGNORECASE)
+            numeric_tokens = re.findall(
+                r"(?:£|\$|€)?\d+(?:\.\d+)?(?:%|m|bn)?",
+                fact.note,
+                re.IGNORECASE,
+            )
             if len(numeric_tokens) < 2:
                 flags.append(
                     QualityFlag(
@@ -151,6 +159,39 @@ def _plain_english_flags(announcement: AnnouncementInput, note: AnalystNote) -> 
                     )
                 )
 
+    return flags
+
+
+def _intelligence_flags(
+    announcement: AnnouncementInput,
+    note: AnalystNote,
+    prior_context: Sequence[dict[str, object]],
+) -> list[QualityFlag]:
+    profile, unresolved = unresolved_intelligence_findings(
+        announcement,
+        note,
+        prior_context,
+    )
+    flags: list[QualityFlag] = []
+    for finding in unresolved:
+        severity = "review" if finding.severity == "review" else "info"
+        evidence = " ".join(finding.evidence[:2]).strip()
+        profile_copy = (
+            f" Inferred profile: {profile.label} ({profile.confidence:.0%} confidence)."
+            if profile.profile_id != "generic"
+            else ""
+        )
+        flags.append(
+            QualityFlag(
+                code=f"INTELLIGENCE_{finding.code}",
+                severity=severity,
+                message=(
+                    f"{finding.title}. {finding.explanation}"
+                    + (f" Evidence: {evidence}" if evidence else "")
+                    + profile_copy
+                ),
+            )
+        )
     return flags
 
 
@@ -235,10 +276,7 @@ def assess_analysis_quality(
             )
         )
 
-    if (
-        note.what_changed.coverage_status == "established"
-        and not prior_context
-    ):
+    if note.what_changed.coverage_status == "established" and not prior_context:
         flags.append(
             QualityFlag(
                 code="UNSUPPORTED_ESTABLISHED_COVERAGE",
@@ -247,10 +285,7 @@ def assess_analysis_quality(
             )
         )
 
-    if (
-        announcement.evidence_status != "metadata-only"
-        and not note.source_references
-    ):
+    if announcement.evidence_status != "metadata-only" and not note.source_references:
         flags.append(
             QualityFlag(
                 code="MISSING_SOURCE_REFERENCE",
@@ -278,6 +313,7 @@ def assess_analysis_quality(
                 )
             )
 
+    flags.extend(_intelligence_flags(announcement, note, prior_context))
     flags.extend(_plain_english_flags(announcement, note))
 
     deduped: list[QualityFlag] = []
