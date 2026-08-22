@@ -12,12 +12,23 @@ That snapshot is built deterministically from Smallcaps.ai's earlier **publishab
 - repeated KPI and balance-sheet series;
 - open and resolved management promises;
 - recent Impact history;
-- recurring disclosure gaps;
+- recent disclosure gaps;
 - the source ID and date behind each item.
 
-Exact earlier RNS records follow the snapshot. Use those source-level records to verify the comparison that matters most.
+Selected earlier point-in-time records follow the snapshot. They are structured records from prior Smallcaps.ai analysis, not the full raw text of those RNSs. Use their reported facts, guidance and management claims to verify the comparison that matters most, and retain the relevant source ID/date.
 
 Company Memory is not an outside research source, a broker forecast or a backfilled investment thesis. It contains only information that existed before today's announcement.
+
+### Do not turn old analysis into a reported fact
+
+Prior context deliberately contains both earlier company disclosures and earlier Smallcaps.ai interpretation. Keep them separate:
+
+- `facts` with `basis="reported"`, guidance events and management claims represent structured company disclosure;
+- `facts` with `basis="calculated"` are earlier Smallcaps.ai arithmetic and must remain labelled calculated;
+- prior `headline`, `takeaway`, `impact_colour`, `impact_rationale`, `analyst_view`, `supports_case` and `challenges_case` are earlier Smallcaps.ai interpretation, not company-reported evidence;
+- earlier interpretation may help identify what to re-test, but it cannot substitute for the underlying reported fact or justify a new comparator by itself.
+
+Do not compound an old inference into a new reported statement. If the current evidence and structured reported history do not support the claim, say that the comparison cannot be made safely.
 
 ## The central Phase 3 question
 
@@ -106,6 +117,8 @@ Every historical comparison must be traceable to a prior `source_id`, published 
 
 For a calculated KeyFact that uses a prior value, show both current and prior inputs in the calculation note and populate the comparator fields correctly.
 
+The current RNS may itself restate a previous value or guidance range. In that case the current RNS `source_id` can be the comparator evidence source, but do not pretend it came from independent prior Smallcaps.ai coverage.
+
 The compact snapshot is selective. Absence from it does not prove that the company never disclosed something. Say `not available in eligible Smallcaps.ai history` rather than making a universal claim.
 
 ## Coverage status
@@ -148,6 +161,7 @@ Before returning the note, privately ask:
 5. Does today's RNS test an open management promise?
 6. If so, did I preserve its `claim_key` and update status only when justified?
 7. Did I avoid double-counting an earlier guidance change?
-8. Did I distinguish a repeated statement from new evidence?
-9. Is every historical comparison traceable to eligible prior coverage?
-10. Does the final note explain what management said before, what changed today and what still needs proving?
+8. Did I distinguish company-reported history from earlier Smallcaps.ai interpretation?
+9. Did I distinguish a repeated statement from new evidence?
+10. Is every historical comparison traceable to current evidence or eligible prior coverage?
+11. Does the final note explain what management said before, what changed today and what still needs proving?
