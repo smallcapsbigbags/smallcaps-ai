@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Literal
 from zoneinfo import ZoneInfo
 
@@ -77,7 +77,15 @@ def run_price_job(
         factory = create_session_factory(active_engine)
         repository = ProductRepository(factory)
         operations = OperationsRepository(factory)
-        run_day = (now_london or datetime.now(LONDON)).astimezone(LONDON).date()
+        current_london = now_london or datetime.now(LONDON)
+        if current_london.tzinfo is None:
+            current_london = current_london.replace(tzinfo=LONDON)
+        current_london = current_london.astimezone(LONDON)
+        operations.reconcile_stale_running(
+            job_name=JOB_NAME,
+            now=current_london.astimezone(timezone.utc),
+        )
+        run_day = current_london.date()
 
         with advisory_job_lock(active_engine, JOB_NAME) as acquired:
             run_id = operations.begin_job(JOB_NAME, run_key=run_day.isoformat())
@@ -103,7 +111,7 @@ def run_price_job(
                         timeout_seconds=settings.market_data_timeout_seconds
                     ),
                 )
-                result = service.run(now_london=now_london)
+                result = service.run(now_london=current_london)
                 summary = {
                     "targets": result.target_count,
                     "tickers": result.ticker_count,
