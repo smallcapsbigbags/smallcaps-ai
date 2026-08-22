@@ -107,7 +107,23 @@ def test_nested_memory_source_ids_are_valid_comparator_provenance() -> None:
     )
 
     assert not any(
-        "not present in eligible prior context" in warning
+        "not present in current evidence or eligible prior context" in warning
+        for warning in guarded.source_warnings
+    )
+
+
+def test_current_rns_can_support_a_repeated_historical_comparator() -> None:
+    guarded = apply_analysis_guardrails(
+        _announcement(),
+        _note(
+            comparator_source_id="current-1",
+            previous_source_id="current-1",
+        ),
+        prior_context=_memory_context(),
+    )
+
+    assert not any(
+        "not present in current evidence or eligible prior context" in warning
         for warning in guarded.source_warnings
     )
 
@@ -121,7 +137,7 @@ def test_unknown_fact_comparator_source_id_is_blocked() -> None:
 
     assert any(
         "future-or-invented" in warning
-        and "not present in eligible prior context" in warning
+        and "not present in current evidence or eligible prior context" in warning
         for warning in guarded.source_warnings
     )
 
@@ -135,6 +151,6 @@ def test_unknown_guidance_source_id_is_blocked() -> None:
 
     assert any(
         "unknown-guidance" in warning
-        and "not present in eligible prior context" in warning
+        and "not present in current evidence or eligible prior context" in warning
         for warning in guarded.source_warnings
     )
