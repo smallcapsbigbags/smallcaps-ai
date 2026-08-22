@@ -1,0 +1,152 @@
+name: production-operation-audit
+
+on:
+  push:
+    branches: ["launch/pro-pass-2"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-operation-audit
+  cancel-in-progress: true
+
+env:
+  RAILWAY_PROJECT_ID: bc2ce6cc-8a0e-44be-9925-c50f08fe9a71
+  RAILWAY_ENVIRONMENT_ID: 73219235-25bd-4bc8-8bc9-6d078897ab92
+  RAILWAY_WEB_SERVICE_ID: a5606056-368d-4499-95fb-f3b21e5e892b
+  RAILWAY_INGESTION_SERVICE_ID: 4f0cfeba-eea2-426c-9e3b-007874cd1067
+  PROJECT_TOKEN_SECRET: ${{ secrets.RAILWAY_TOKEN }}
+  API_TOKEN_SECRET: ${{ secrets.RAILWAY_API_TOKEN }}
+
+jobs:
+  production-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install application dependencies
+        run: pip install -r requirements.txt
+
+      - name: Select available Railway credential
+        id: credential
+        shell: bash
+        run: |
+          if [ -n "$PROJECT_TOKEN_SECRET" ]; then
+            echo "RAILWAY_TOKEN=$PROJECT_TOKEN_SECRET" >> "$GITHUB_ENV"
+            echo "available=true" >> "$GITHUB_OUTPUT"
+            echo "kind=project" >> "$GITHUB_OUTPUT"
+          elif [ -n "$API_TOKEN_SECRET" ]; then
+            echo "RAILWAY_API_TOKEN=$API_TOKEN_SECRET" >> "$GITHUB_ENV"
+            echo "available=true" >> "$GITHUB_OUTPUT"
+            echo "kind=api" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "kind=none" >> "$GITHUB_OUTPUT"
+            echo "RAILWAY_AUDIT_SKIPPED: neither RAILWAY_TOKEN nor RAILWAY_API_TOKEN is configured in GitHub Actions."
+          fi
+
+      - name: Install Railway CLI
+        if: steps.credential.outputs.available == 'true'
+        run: npm install --global @railway/cli
+
+      - name: Link Railway production project
+        if: steps.credential.outputs.available == 'true'
+        run: >-
+          railway link
+          --project "$RAILWAY_PROJECT_ID"
+          --environment "$RAILWAY_ENVIRONMENT_ID"
+          --json
+
+      - name: Capture Railway project status
+        if: steps.credential.outputs.available == 'true'
+        run: railway status --json > /tmp/railway-status.json
+
+      - name: Summarise production resources
+        if: steps.credential.outputs.available == 'true'
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import re
+          from pathlib import Path
+
+          payload = json.loads(Path('/tmp/railway-status.json').read_text())
+          names = []
+          urls = []
+          statuses = []
+
+          def walk(value, path='root'):
+              if isinstance(value, dict):
+                  name = value.get('name')
+                  if isinstance(name, str) and name.strip():
+                      names.append((path, name.strip()))
+                  status = value.get('status') or value.get('deploymentStatus')
+                  if isinstance(status, str) and status.strip():
+                      statuses.append((path, status.strip()))
+                  for key, item in value.items():
+                      walk(item, f'{path}.{key}')
+              elif isinstance(value, list):
+                  for index, item in enumerate(value):
+                      walk(item, f'{path}[{index}]')
+              elif isinstance(value, str):
+                  for match in re.findall(r'https://[^\s\"<>]+', value):
+                      urls.append(match.rstrip('.,)'))
+
+          walk(payload)
+          print('RAILWAY_RESOURCE_NAMES')
+          for path, name in sorted(set(names)):
+              print(f'- {path}: {name}')
+          print('RAILWAY_DEPLOYMENT_STATUSES')
+          for path, status in sorted(set(statuses)):
+              print(f'- {path}: {status}')
+          print('RAILWAY_PUBLIC_URL_CANDIDATES')
+          for url in sorted(set(urls)):
+              if 'railway.internal' not in url:
+                  print(f'- {url}')
+
+          searchable = json.dumps(payload).lower()
+          if not any(term in searchable for term in ('price', 'market reaction', 'market-reaction')):
+              print('LAUNCH_BLOCKER: no obvious price / market-reaction service appears in Railway status.')
+          PY
+
+      - name: Run production database and workflow audit
+        if: steps.credential.outputs.available == 'true'
+        run: >-
+          railway run
+          --project "$RAILWAY_PROJECT_ID"
+          --environment "$RAILWAY_ENVIRONMENT_ID"
+          --service "$RAILWAY_WEB_SERVICE_ID"
+          python -m jobs.audit_production --service web --record
+
+      - name: Read recent web deployment logs
+        if: steps.credential.outputs.available == 'true'
+        continue-on-error: true
+        run: >-
+          railway logs
+          --project "$RAILWAY_PROJECT_ID"
+          --environment "$RAILWAY_ENVIRONMENT_ID"
+          --service "$RAILWAY_WEB_SERVICE_ID"
+          --lines 120
+
+      - name: Read recent ingestion deployment logs
+        if: steps.credential.outputs.available == 'true'
+        continue-on-error: true
+        run: >-
+          railway logs
+          --project "$RAILWAY_PROJECT_ID"
+          --environment "$RAILWAY_ENVIRONMENT_ID"
+          --service "$RAILWAY_INGESTION_SERVICE_ID"
+          --lines 180
+
+      - name: Audit outcome when Railway credential is unavailable
+        if: steps.credential.outputs.available != 'true'
+        run: |
+          echo "Repository and PostgreSQL integration tests still run in the normal CI workflow."
+          echo "The direct production database, service inventory and live logs require a connected Railway credential."
