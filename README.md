@@ -34,6 +34,27 @@ The model receives a compact memory snapshot plus a small number of exact earlie
 
 Coverage remains **building** until at least six analysed announcements span 12 months. Until then the product shows the history it genuinely has rather than pretending to offer complete long-term coverage.
 
+## Analyst 3.1 — Sector Intelligence
+
+Analyst 3.1 adds a deterministic sector-aware KPI and contradiction layer on top of Company Memory.
+
+Before the note is written, Smallcaps.ai infers a cautious company archetype from the current RNS and eligible history. It supplies a checklist of the economically meaningful KPIs for that type of business. After the first draft, deterministic checks test relationships such as:
+
+- revenue or volume growth versus profit and margin;
+- earnings versus cash conversion and net debt;
+- order book versus current delivery and cash;
+- acquisition-led growth versus disclosed organic performance;
+- recruiter net fee income versus gross contractor billings;
+- life-sciences milestones versus cash runway and funding;
+- loan-book growth versus arrears and credit risk;
+- ARR growth versus retention and cash burn;
+- production growth versus unit costs;
+- retail sales versus margin and inventory.
+
+The profile and findings are analytical checklists, not company-reported facts. They cannot introduce an undisclosed KPI, denominator, comparator, sector statistic or valuation input. Valid findings are passed into the existing final consistency review. Unresolved material findings enter the review queue instead of being published automatically.
+
+This layer adds no new model call. It uses deterministic Python plus the existing initial analysis and final consistency review.
+
 ## Daily pipeline
 
 ```text
@@ -44,7 +65,9 @@ Investegate AIM catalogue
   → evidence integrity gate
   → deterministic point-in-time Company Memory
   → relevant prior-RNS selection
-  → Analyst Engine 3.0
+  → deterministic sector KPI profile
+  → Analyst Engine 3.1 draft
+  → deterministic relationship / contradiction checks
   → final evidence-bound consistency review
   → deterministic guardrails / quality gate
   → versioned PostgreSQL
@@ -54,23 +77,26 @@ Investegate AIM catalogue
 
 ## Analyst method
 
-Analyst 3.0 preserves the Phase 2 gold-standard method:
+Analyst 3.1 preserves the Phase 2 gold-standard method:
 
 ```text
 EXTRACT → VERIFY → RANK → COMPARE → CHALLENGE
 → INTERPRET → SCORE → WRITE → CONSISTENCY REVIEW
 ```
 
-It adds the Phase 3 continuity test:
+It adds two Phase 3 disciplines:
 
 ```text
 Management said → Facts now show → Smallcaps.ai explains the change
+Meaningful KPI → Related economics → Contradiction / confirmation
 ```
 
 The analyst must:
 
 - lead with today's genuinely new economic information;
 - use the strongest valid prior comparator;
+- choose the economically meaningful KPI for the business when it is disclosed;
+- compare growth with profit, margin, cash and debt rather than stopping at the largest headline number;
 - avoid comparing different periods, units, currencies or accounting bases as though they were equivalent;
 - distinguish new guidance from repeated guidance and avoid double-counting an earlier upgrade;
 - test open management promises only where today's evidence genuinely allows it;
@@ -84,6 +110,8 @@ The analyst must:
 - Company Intelligence is derived only from publishable point-in-time records;
 - no current RNS can enter its own prior context because history is restricted to `published_at < current announcement`;
 - production analysis and live chronology validation use the same context builder;
+- sector profiles are deterministic checklists, not reported facts;
+- unresolved review-level intelligence findings stop automatic publication;
 - unsupported comparator source IDs block publication;
 - reported and calculated figures remain separate memory series;
 - review records require audited owner approval before publication;
@@ -113,12 +141,15 @@ python -m jobs.update_prices
 python -m jobs.run_analyst_benchmarks
 python -m jobs.run_gold_standard_benchmark
 python -m jobs.run_company_memory_benchmark
+python -m jobs.run_intelligence_benchmark
 python -m jobs.validate_company_memory --ticker SPR
 python -m jobs.validate_company_memory_live --tickers SPR --auto 3
 python -m jobs.validate_runtime --service web --create-schema
 ```
 
 The Company Memory benchmark uses four locked point-in-time cases and no web-search retrieval, so it tests memory behaviour without paying to rediscover the source RNSs.
+
+The Analyst Intelligence benchmark is also zero-token. It checks profile selection, required contradiction findings and false-positive controls across multiple company types.
 
 The live Company Memory validator reconstructs every covered RNS date directly from PostgreSQL and makes no OpenAI call. It is designed to validate Springfield first, then add companies with deeper and more varied histories.
 
@@ -156,24 +187,27 @@ Local development may use SQLite. Railway must use PostgreSQL through `DATABASE_
 ## Tests
 
 ```bash
+python -m jobs.run_intelligence_benchmark
 pytest -q
 ```
 
-GitHub Actions validates pushes and pull requests targeting `main`, including Python compilation, Company Memory continuity, PostgreSQL round trips, benchmark JSON, Company Intelligence rendering and Railway config JSON.
+GitHub Actions validates pushes and pull requests targeting `main`, including Python compilation, Company Memory continuity, PostgreSQL round trips, the zero-token Analyst Intelligence benchmark, benchmark JSON, Company Intelligence rendering and Railway config JSON.
 
 ## Branch strategy
 
 - `main` — live AIM Intelligence source of truth;
 - `phase3/company-memory` — Phase 3 Company Memory foundation history;
-- `phase3/live-company-validation` — Phase 3 chronological live-validation work;
+- `phase3/live-company-validation` — Phase 3 chronological live-validation history;
+- `phase3/analyst-intelligence-layer` — Analyst 3.1 sector KPI and contradiction work;
 - `build/aim-intelligence-v1` — retained only as historical build branch;
 - `rns-xray` — read-only donor/reference repository.
 
-See `docs/PHASE-3-COMPANY-MEMORY.md`, `docs/PHASE3_PASS2_LIVE_VALIDATION.md`, `docs/PASS-1-AUDIT-RESULTS.md`, `docs/PASS-2-ANALYST-ENGINE.md`, `docs/PASS-3-PRODUCT.md`, `docs/PASS-3-AUDIT-RESULTS.md` and `docs/PASS-4-RAILWAY.md`.
+See `docs/PHASE-3-COMPANY-MEMORY.md`, `docs/PHASE3_PASS2_LIVE_VALIDATION.md`, `docs/PHASE3_5_ANALYST_INTELLIGENCE.md`, `docs/PASS-1-AUDIT-RESULTS.md`, `docs/PASS-2-ANALYST-ENGINE.md`, `docs/PASS-3-PRODUCT.md`, `docs/PASS-3-AUDIT-RESULTS.md` and `docs/PASS-4-RAILWAY.md`.
 
 ## Private-beta limitations
 
 - Company Memory is only as complete as the publishable RNS history accumulated since coverage began;
+- sector profiles are heuristic and use only the supplied RNS/history, not a commercial sector reference database;
 - differently named metrics are not automatically reconciled unless their structured metric names match;
 - formal database migrations remain a production-hardening task, although Phase 3 requires no new table;
 - missed event-session closes are surfaced as stale but not reconstructed automatically;
