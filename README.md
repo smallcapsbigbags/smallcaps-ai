@@ -83,6 +83,7 @@ The analyst must:
 - public pages expose current `publishable` runs only and never call OpenAI;
 - Company Intelligence is derived only from publishable point-in-time records;
 - no current RNS can enter its own prior context because history is restricted to `published_at < current announcement`;
+- production analysis and live chronology validation use the same context builder;
 - unsupported comparator source IDs block publication;
 - reported and calculated figures remain separate memory series;
 - review records require audited owner approval before publication;
@@ -113,10 +114,13 @@ python -m jobs.run_analyst_benchmarks
 python -m jobs.run_gold_standard_benchmark
 python -m jobs.run_company_memory_benchmark
 python -m jobs.validate_company_memory --ticker SPR
+python -m jobs.validate_company_memory_live --tickers SPR --auto 3
 python -m jobs.validate_runtime --service web --create-schema
 ```
 
 The Company Memory benchmark uses four locked point-in-time cases and no web-search retrieval, so it tests memory behaviour without paying to rediscover the source RNSs.
+
+The live Company Memory validator reconstructs every covered RNS date directly from PostgreSQL and makes no OpenAI call. It is designed to validate Springfield first, then add companies with deeper and more varied histories.
 
 ## Railway
 
@@ -128,7 +132,12 @@ railway.ingest.json   AIM ingestion cron
 railway.prices.json   Market reaction cron
 ```
 
-`railway.company-memory-benchmark.json` is a one-off validation service config, not a continuously running production service.
+The following are one-off validation service configs, not continuously running production services:
+
+```text
+railway.company-memory-benchmark.json   AI Company Memory regression
+railway.company-memory-live.json        zero-token live chronology validation
+```
 
 Required variables are documented in `.env.example` and `docs/PASS-4-RAILWAY.md`. No secrets should be committed.
 
@@ -155,11 +164,12 @@ GitHub Actions validates pushes and pull requests targeting `main`, including Py
 ## Branch strategy
 
 - `main` — live AIM Intelligence source of truth;
-- `phase3/company-memory` — Phase 3 Company Memory and Company Intelligence work;
+- `phase3/company-memory` — Phase 3 Company Memory foundation history;
+- `phase3/live-company-validation` — Phase 3 chronological live-validation work;
 - `build/aim-intelligence-v1` — retained only as historical build branch;
 - `rns-xray` — read-only donor/reference repository.
 
-See `docs/PHASE-3-COMPANY-MEMORY.md`, `docs/PASS-1-AUDIT-RESULTS.md`, `docs/PASS-2-ANALYST-ENGINE.md`, `docs/PASS-3-PRODUCT.md`, `docs/PASS-3-AUDIT-RESULTS.md` and `docs/PASS-4-RAILWAY.md`.
+See `docs/PHASE-3-COMPANY-MEMORY.md`, `docs/PHASE3_PASS2_LIVE_VALIDATION.md`, `docs/PASS-1-AUDIT-RESULTS.md`, `docs/PASS-2-ANALYST-ENGINE.md`, `docs/PASS-3-PRODUCT.md`, `docs/PASS-3-AUDIT-RESULTS.md` and `docs/PASS-4-RAILWAY.md`.
 
 ## Private-beta limitations
 
