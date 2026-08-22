@@ -45,6 +45,18 @@ def test_real_benchmark_catalogue_and_active_set_are_unique():
     assert "wnda-refinancing-2026-08-18" not in active
 
 
+def test_evidence_boundary_override_removes_broker_only_profit_warning_expectation():
+    cases = {
+        case.id: case
+        for case in load_real_benchmark_cases(Path("benchmarks/real_cases.json"))
+    }
+    rbn = cases["rbn-interims-warning-2026-08-20"]
+    assert rbn.event_type == "Interim results / earnings deterioration"
+    assert rbn.allowed_colours == ["red", "amber"]
+    assert rbn.case_change == "weakens"
+    assert "inventing a prior company-guidance comparator" in rbn.main_change
+
+
 def test_gold_standard_rubric_weights_sum_to_100():
     judgement = _judgement()
     assert judgement.total_score == 100
