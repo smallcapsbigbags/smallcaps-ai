@@ -3,13 +3,15 @@ name: launch-visual-audit
 on:
   push:
     branches: ["launch/pro-pass-3"]
+  pull_request:
+    branches: ["main"]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: launch-visual-audit
+  group: launch-visual-audit-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
