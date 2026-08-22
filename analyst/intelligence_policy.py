@@ -130,6 +130,59 @@ def _add_acquisition_organic_gap(
     return findings
 
 
+def _explicit_funding_need(text: str) -> bool:
+    return _contains_any(
+        text,
+        (
+            "requires further funding",
+            "require further funding",
+            "will require further funding",
+            "will require additional funding",
+            "needs additional funding",
+            "need additional funding",
+            "funding requirement remains",
+            "funding requirement has increased",
+            "no binding financing",
+            "financing has not been agreed",
+            "funding has not been agreed",
+            "insufficient working capital",
+            "funding discussions are ongoing",
+        ),
+    )
+
+
+def _explicit_funding_sufficiency(text: str) -> bool:
+    return _contains_any(
+        text,
+        (
+            "no additional funding requirement",
+            "does not require additional funding",
+            "will not require additional funding",
+            "fully funded through",
+            "funded through the next milestone",
+            "cash is expected to fund",
+            "cash expected to fund",
+            "sufficient cash to fund",
+            "funded to the next milestone",
+        ),
+    )
+
+
+def _remove_negated_findings(
+    announcement: AnnouncementInput,
+    findings: list[IntelligenceFinding],
+) -> list[IntelligenceFinding]:
+    """Do not turn an explicit sufficiency statement into a funding warning."""
+
+    if not _explicit_funding_sufficiency(announcement.text):
+        return findings
+    if _explicit_funding_need(announcement.text):
+        return findings
+    return [
+        item for item in findings if item.code != "LIFE_SCIENCE_FUNDING_GAP"
+    ]
+
+
 def detect_analytical_tensions(
     announcement: AnnouncementInput,
     note: AnalystNote,
@@ -148,6 +201,7 @@ def detect_analytical_tensions(
         )
     )
     findings = _add_acquisition_organic_gap(announcement, note, findings)
+    findings = _remove_negated_findings(announcement, findings)
     deduped: list[IntelligenceFinding] = []
     seen: set[str] = set()
     for finding in findings:
