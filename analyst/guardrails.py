@@ -280,23 +280,30 @@ def _prior_source_ids(
 def _provenance_warnings(
     note: AnalystNote,
     prior_context: Sequence[Mapping[str, object]],
+    *,
+    current_source_id: str,
 ) -> Iterable[str]:
-    if not prior_context:
-        return
+    # A comparator can be supported either by an eligible earlier RNS or by the
+    # current RNS explicitly restating the previous figure/guidance. Any other
+    # source ID is not traceable to the evidence supplied for this analysis.
     allowed = _prior_source_ids(prior_context)
+    if current_source_id.strip():
+        allowed.add(current_source_id.strip())
     for fact in note.key_facts:
         source_id = fact.comparator_source_id.strip()
         if source_id and source_id not in allowed:
             yield (
                 f"GUARDRAIL: Fact '{fact.label}' cites comparator source_id "
-                f"'{source_id}', which is not present in eligible prior context."
+                f"'{source_id}', which is not present in current evidence or "
+                "eligible prior context."
             )
     for event in note.guidance_events:
         source_id = event.previous_source_id.strip()
         if source_id and source_id not in allowed:
             yield (
                 f"GUARDRAIL: Guidance '{event.metric}' cites previous_source_id "
-                f"'{source_id}', which is not present in eligible prior context."
+                f"'{source_id}', which is not present in current evidence or "
+                "eligible prior context."
             )
 
 
@@ -333,7 +340,13 @@ def guardrail_warnings(
         )
 
     warnings.extend(_calculation_warnings(note))
-    warnings.extend(_provenance_warnings(note, prior_context))
+    warnings.extend(
+        _provenance_warnings(
+            note,
+            prior_context,
+            current_source_id=announcement.source_id,
+        )
+    )
     return list(dict.fromkeys(warnings))
 
 
