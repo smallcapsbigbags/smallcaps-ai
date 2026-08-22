@@ -20,6 +20,7 @@ _MAX_SERIES = 10
 _MAX_POINTS_PER_SERIES = 4
 _MAX_CLAIMS = 10
 _MAX_GAPS = 8
+_MAX_GAP_RECORDS = 3
 _MAX_IMPACT_HISTORY = 8
 
 _PRIORITY_TERMS: tuple[tuple[str, int], ...] = (
@@ -100,13 +101,13 @@ def _metric_priority(metric: str) -> int:
 
 
 def _period_family(period: str, as_of_date: str) -> str:
+    """Reduce periods to a safe comparison family.
+
+    Specific sub-periods must be checked before FY because labels such as
+    ``H1 FY26`` contain both tokens. H1 and FY are not directly comparable.
+    """
+
     normalised = _normalise(period)
-    if (
-        re.search(r"\bfy\s*\d{2,4}\b", normalised)
-        or "full year" in normalised
-        or "year ended" in normalised
-    ):
-        return "FY"
     if re.search(r"\bh1\b", normalised) or "first half" in normalised:
         return "H1"
     if re.search(r"\bh2\b", normalised) or "second half" in normalised:
@@ -116,6 +117,12 @@ def _period_family(period: str, as_of_date: str) -> str:
         return f"Q{quarter.group(1)}"
     if "six months" in normalised or "half year" in normalised:
         return "Half year"
+    if (
+        re.search(r"\bfy\s*\d{2,4}\b", normalised)
+        or "full year" in normalised
+        or "year ended" in normalised
+    ):
+        return "FY"
     if as_of_date or not normalised:
         return "Point in time"
     return _clean_text(period)
@@ -127,19 +134,25 @@ def _series_key(
     as_of_date: str,
     unit: str,
     currency: str,
+    basis: str,
 ) -> str:
+    # Reported and Smallcaps.ai-calculated figures remain separate series even
+    # when their labels happen to match.
     return "|".join(
         (
             _normalise(metric),
             _normalise(_period_family(period, as_of_date)),
             _normalise(unit),
             _normalise(currency),
+            _normalise(basis),
         )
     )
 
 
 def _claim_key(claim: Mapping[str, object]) -> str:
-    explicit = _normalise(claim.get("claim_key"))
+    # An explicit claim_key is a stable database identity. Preserve it exactly
+    # rather than normalising punctuation away, so a later RNS can update it.
+    explicit = _clean_text(claim.get("claim_key"))
     if explicit:
         return explicit
     fallback = "|".join(
@@ -182,6 +195,7 @@ class MemoryMetricSeries(StrictModel):
     metric: str
     label: str
     period_family: str
+    basis: str = "reported"
     unit: str = ""
     currency: str = ""
     latest_value: str
@@ -297,7 +311,14 @@ def _metric_series(
             as_of_date = _clean_text(raw_fact.get("as_of_date"))
             unit = _clean_text(raw_fact.get("unit"))
             currency = _clean_text(raw_fact.get("currency"))
-            key = _series_key(metric, period, as_of_date, unit, currency)
+            key = _series_key(
+                metric,
+                period,
+                as_of_date,
+                unit,
+                currency,
+                basis,
+            )
             if not key.split("|", 1)[0]:
                 continue
             numeric = raw_fact.get("value_numeric")
@@ -361,6 +382,7 @@ def _metric_series(
             metric=latest.metric,
             label=latest.label,
             period_family=_period_family(latest.period, latest.as_of_date),
+            basis=latest.basis,
             unit=latest.unit,
             currency=latest.currency,
             latest_value=latest.value,
@@ -414,7 +436,12 @@ def _current_guidance(
                 previous_value=_clean_text(raw_event.get("previous_value")),
                 note=_clean_text(raw_event.get("note")),
             )
-    items = list(current.values())
+    # Delivered and missed guidance are historical outcomes, not current forward
+    # guidance. Withdrawn guidance remains visible because that is itself the
+    # current guidance position.
+    items = [
+        item for item in current.values() if item.status not in {"delivered", "missed"}
+    ]
     items.sort(
         key=lambda item: (
             _metric_priority(item.metric),
@@ -470,7 +497,9 @@ def _disclosure_gaps(
 ) -> list[MemoryDisclosureGap]:
     seen: set[str] = set()
     output: list[MemoryDisclosureGap] = []
-    for record in reversed(records):
+    # A historical gap should not live forever after its relevance has passed.
+    # Carry forward only gaps raised in the latest few RNS analyses.
+    for record in reversed(records[-_MAX_GAP_RECORDS:]):
         assessment = record.get("disclosure_assessment")
         if not isinstance(assessment, Mapping):
             continue
@@ -535,9 +564,10 @@ def build_company_memory(
         key=lambda item: _parse_datetime(item.get("published_at")),
     )
     dates = [
-        _parse_datetime(item.get("published_at"))
+        parsed
         for item in ordered
-        if _parse_datetime(item.get("published_at")).year != datetime.min.year
+        if (parsed := _parse_datetime(item.get("published_at"))).year
+        != datetime.min.year
     ]
     coverage_since = dates[0].isoformat() if dates else ""
     latest_covered_at = dates[-1].isoformat() if dates else ""
