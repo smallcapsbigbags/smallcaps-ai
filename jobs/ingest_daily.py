@@ -35,10 +35,23 @@ def _price_summary(outcome: PriceJobOutcome | None) -> dict[str, object]:
         return {}
     return {
         "price_status": outcome.status,
-        **{
-            f"price_{key}": value
-            for key, value in outcome.summary.items()
-        },
+        **{f"price_{key}": value for key, value in outcome.summary.items()},
+    }
+
+
+def _empty_ingestion_summary(
+    price_outcome: PriceJobOutcome | None,
+) -> dict[str, object]:
+    return {
+        "discovered": 0,
+        "known": 0,
+        "analysed": 0,
+        "review": 0,
+        "routine": 0,
+        "deferred": 0,
+        "blocked": 0,
+        "failed": 0,
+        **_price_summary(price_outcome),
     }
 
 
@@ -69,14 +82,13 @@ def main() -> None:
             )
             combined_warnings.extend(_price_warnings(price_outcome))
 
-        operations.reconcile_stale_running(job_name=JOB_NAME)
         with advisory_job_lock(engine, JOB_NAME) as acquired:
-            run_id = operations.begin_job(
-                JOB_NAME,
-                run_key=datetime.now(LONDON).date().isoformat(),
-                summary=_price_summary(price_outcome),
-            )
             if not acquired:
+                run_id = operations.begin_job(
+                    JOB_NAME,
+                    run_key=datetime.now(LONDON).date().isoformat(),
+                    summary=_price_summary(price_outcome),
+                )
                 lock_warning = (
                     "Another ingestion worker currently holds the advisory lock."
                 )
@@ -84,17 +96,7 @@ def main() -> None:
                 operations.finish_job(
                     run_id,
                     status="skipped",
-                    summary={
-                        "discovered": 0,
-                        "known": 0,
-                        "analysed": 0,
-                        "review": 0,
-                        "routine": 0,
-                        "deferred": 0,
-                        "blocked": 0,
-                        "failed": 0,
-                        **_price_summary(price_outcome),
-                    },
+                    summary=_empty_ingestion_summary(price_outcome),
                     warnings=combined_warnings,
                 )
                 print(
@@ -102,6 +104,16 @@ def main() -> None:
                     flush=True,
                 )
                 return
+
+            # Acquiring the advisory lock proves there is no active ingestion
+            # process. Durable rows left running by an older crashed worker can now
+            # be closed without mislabelling a slow but still-live process.
+            operations.reconcile_stale_running(job_name=JOB_NAME)
+            run_id = operations.begin_job(
+                JOB_NAME,
+                run_key=datetime.now(LONDON).date().isoformat(),
+                summary=_price_summary(price_outcome),
+            )
             try:
                 analyst = OpenAIAnalystEngine(
                     api_key=settings.openai_api_key,
