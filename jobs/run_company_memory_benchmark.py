@@ -10,6 +10,7 @@ from analyst.company_memory import build_company_memory
 from analyst.company_memory_evaluation import (
     CompanyMemoryEvaluator,
     company_memory_acceptance,
+    deterministic_case_checks,
     load_company_memory_cases,
 )
 from analyst.guardrails import apply_analysis_guardrails
@@ -94,6 +95,7 @@ def main() -> None:
                 note,
                 prior_context=context,
             )
+            deterministic = deterministic_case_checks(case, note)
             judgement = evaluator.evaluate(
                 case=case,
                 snapshot=snapshot,
@@ -101,7 +103,11 @@ def main() -> None:
                 quality_status=quality.status,
             )
             judgements.append(judgement)
-            passed = judgement.passed and quality.status == "publishable"
+            passed = (
+                judgement.passed
+                and quality.status == "publishable"
+                and bool(deterministic["passed"])
+            )
             if not passed:
                 failed_cases.append(case.id)
             results.append(
@@ -111,6 +117,7 @@ def main() -> None:
                     "prior_context_records": prior_records,
                     "note": note.model_dump(mode="json"),
                     "quality": quality.model_dump(mode="json"),
+                    "deterministic_checks": deterministic,
                     "judgement": {
                         **judgement.model_dump(mode="json"),
                         "total_score": judgement.total_score,
@@ -126,6 +133,11 @@ def main() -> None:
                 f"case_change={judgement.assessed_case_change} gaps={gaps}",
                 flush=True,
             )
+            for error in deterministic["errors"]:
+                print(
+                    f"[company-memory]   deterministic: {error}",
+                    flush=True,
+                )
             for recommendation in judgement.upgrade_recommendations[:3]:
                 print(
                     f"[company-memory]   upgrade: {recommendation}",
