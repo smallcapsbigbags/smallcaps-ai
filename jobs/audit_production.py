@@ -23,7 +23,12 @@ def main() -> None:
     parser.add_argument(
         "--record",
         action="store_true",
-        help="Store the audit outcome in job_runs after the read-only inspection.",
+        help="Store the audit outcome in job_runs after the inspection.",
+    )
+    parser.add_argument(
+        "--reconcile-stale",
+        action="store_true",
+        help="Close worker rows left running for more than three hours before auditing.",
     )
     parser.add_argument(
         "--allow-sqlite",
@@ -48,6 +53,12 @@ def main() -> None:
     try:
         init_database(engine)
         factory = create_session_factory(engine)
+        operations = OperationsRepository(factory)
+        reconciled_stale_jobs = (
+            operations.reconcile_stale_running()
+            if args.reconcile_stale
+            else 0
+        )
         report = run_production_audit(
             engine,
             factory,
@@ -57,9 +68,9 @@ def main() -> None:
         )
         payload = report.as_dict()
         payload["runtime_warnings"] = runtime_warnings
+        payload["reconciled_stale_jobs"] = reconciled_stale_jobs
 
         if args.record:
-            operations = OperationsRepository(factory)
             run_id = operations.begin_job(
                 JOB_NAME,
                 run_key=f"{args.service}:{report.generated_at.date().isoformat()}",
@@ -70,13 +81,20 @@ def main() -> None:
                 for check in report.checks
                 if check.status in {"warning", "fail"}
             ]
+            if reconciled_stale_jobs:
+                warning_messages.insert(
+                    0,
+                    f"Reconciled {reconciled_stale_jobs} stale running job record(s).",
+                )
             operations.finish_job(
                 run_id,
                 status=(
                     "failed"
                     if not report.passed
                     else "degraded"
-                    if report.warning_count or runtime_warnings
+                    if report.warning_count
+                    or runtime_warnings
+                    or reconciled_stale_jobs
                     else "success"
                 ),
                 summary={
@@ -84,6 +102,7 @@ def main() -> None:
                     "passed": report.passed,
                     "warning_count": report.warning_count,
                     "failure_count": report.failure_count,
+                    "reconciled_stale_jobs": reconciled_stale_jobs,
                     "counts": report.counts,
                     "version_counts": report.version_counts,
                     "warning_codes": [
