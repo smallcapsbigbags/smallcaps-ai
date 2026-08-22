@@ -63,23 +63,52 @@ class Settings:
     def from_env(cls) -> "Settings":
         root = Path(__file__).resolve().parent
         railway = _running_on_railway()
+        configured_prompt_version = os.getenv("PROMPT_VERSION", "").strip()
+
+        # Production deployments must record the prompt version shipped with the
+        # code. A stale Railway variable must not silently label Analyst 3.1 output
+        # as an older engine. Local/one-off benchmark runs may still override it.
+        prompt_version = (
+            DEFAULT_PROMPT_VERSION
+            if railway
+            else configured_prompt_version or DEFAULT_PROMPT_VERSION
+        )
+
         return cls(
-            database_url=os.getenv("DATABASE_URL", "sqlite+pysqlite:///data/smallcaps.db"),
+            database_url=os.getenv(
+                "DATABASE_URL", "sqlite+pysqlite:///data/smallcaps.db"
+            ),
             openai_api_key=os.getenv("OPENAI_API_KEY", ""),
             openai_model=os.getenv("OPENAI_MODEL", "gpt-5.4-mini"),
             openai_deep_model=os.getenv("OPENAI_DEEP_MODEL", "gpt-5.4"),
-            openai_max_output_tokens=max(2000, int(os.getenv("OPENAI_MAX_OUTPUT_TOKENS", "12000") or "12000")),
-            prompt_version=os.getenv("PROMPT_VERSION", DEFAULT_PROMPT_VERSION),
-            deep_search_batch_size=max(1, int(os.getenv("DEEP_SEARCH_BATCH_SIZE", "5") or "5")),
-            max_document_chars=max(5000, int(os.getenv("MAX_DOCUMENT_CHARS", "45000") or "45000")),
-            min_evidence_chars=max(1, int(os.getenv("MIN_EVIDENCE_CHARS", "40") or "40")),
-            investegate_aim_max_pages=max(1, int(os.getenv("INVESTEGATE_AIM_MAX_PAGES", "8") or "8")),
-            max_ai_items=max(3, int(os.getenv("MAX_AI_ITEMS", "36") or "36")),
+            openai_max_output_tokens=max(
+                2000,
+                int(os.getenv("OPENAI_MAX_OUTPUT_TOKENS", "12000") or "12000"),
+            ),
+            prompt_version=prompt_version,
+            deep_search_batch_size=max(
+                1, int(os.getenv("DEEP_SEARCH_BATCH_SIZE", "5") or "5")
+            ),
+            max_document_chars=max(
+                5000, int(os.getenv("MAX_DOCUMENT_CHARS", "45000") or "45000")
+            ),
+            min_evidence_chars=max(
+                1, int(os.getenv("MIN_EVIDENCE_CHARS", "40") or "40")
+            ),
+            investegate_aim_max_pages=max(
+                1, int(os.getenv("INVESTEGATE_AIM_MAX_PAGES", "8") or "8")
+            ),
+            max_ai_items=max(
+                3, int(os.getenv("MAX_AI_ITEMS", "36") or "36")
+            ),
             app_admin_password=os.getenv("APP_ADMIN_PASSWORD", ""),
             app_beta_password=os.getenv("APP_BETA_PASSWORD", ""),
             private_beta_mode=_env_bool("PRIVATE_BETA_MODE", railway),
             market_data_enabled=_env_bool("MARKET_DATA_ENABLED", True),
-            market_data_timeout_seconds=max(5, int(os.getenv("MARKET_DATA_TIMEOUT_SECONDS", "25") or "25")),
+            market_data_timeout_seconds=max(
+                5,
+                int(os.getenv("MARKET_DATA_TIMEOUT_SECONDS", "25") or "25"),
+            ),
             default_watchlist=_watchlist(os.getenv("DEFAULT_WATCHLIST", "")),
             root_dir=root,
             running_on_railway=railway,
@@ -94,7 +123,9 @@ class Settings:
         errors: list[str] = []
         warnings: list[str] = []
         if self.running_on_railway and not self.uses_postgres:
-            errors.append("Railway must use a PostgreSQL DATABASE_URL; SQLite is ephemeral.")
+            errors.append(
+                "Railway must use a PostgreSQL DATABASE_URL; SQLite is ephemeral."
+            )
         if self.private_beta_mode and not self.app_beta_password:
             errors.append("PRIVATE_BETA_MODE requires APP_BETA_PASSWORD.")
         if service in {"ingestion", "benchmark"} and not self.openai_api_key:
@@ -102,5 +133,18 @@ class Settings:
         if service == "prices" and not self.market_data_enabled:
             errors.append("Price service is disabled by MARKET_DATA_ENABLED=false.")
         if service in {"web", "ingestion"} and not self.app_admin_password:
-            warnings.append("APP_ADMIN_PASSWORD is unset; the Analyst QA route is disabled.")
+            warnings.append(
+                "APP_ADMIN_PASSWORD is unset; the Analyst QA route is disabled."
+            )
+
+        configured_prompt_version = os.getenv("PROMPT_VERSION", "").strip()
+        if (
+            self.running_on_railway
+            and configured_prompt_version
+            and configured_prompt_version != DEFAULT_PROMPT_VERSION
+        ):
+            warnings.append(
+                f"PROMPT_VERSION={configured_prompt_version!r} is ignored on Railway; "
+                f"the code-locked version {DEFAULT_PROMPT_VERSION!r} is used."
+            )
         return errors, warnings
