@@ -1,0 +1,240 @@
+[
+  {
+    "id": "professional-services-acquisition-growth-quality",
+    "expected_profile": "professional-services",
+    "announcement": {
+      "source_id": "intel-prof-1",
+      "ticker": "PRO",
+      "company": "Example Professional Services plc",
+      "published_at": "2026-08-22T07:00:00+01:00",
+      "title": "Trading Update",
+      "text": "Revenue increased to £42.4m from £31.8m and adjusted EBITDA increased to £4.7m from £4.3m. Growth included contributions from acquired businesses. Fee earners increased and lock-up remains a focus. Net debt increased to £2.5m from £2.0m. Organic growth was not quantified.",
+      "source_url": "https://example.invalid/intel-prof-1",
+      "source_urls": ["https://example.invalid/intel-prof-1"],
+      "rns_type": "Results & trading"
+    },
+    "facts": [
+      {"label": "Revenue", "metric": "revenue", "period": "FY26", "value": "£42.4m", "value_numeric": 42.4, "previous_value": "£31.8m", "unit": "million", "currency": "GBP", "basis": "reported"},
+      {"label": "Adjusted EBITDA", "metric": "adjusted EBITDA", "period": "FY26", "value": "£4.7m", "value_numeric": 4.7, "previous_value": "£4.3m", "unit": "million", "currency": "GBP", "basis": "reported"},
+      {"label": "Adjusted EBITDA margin", "metric": "adjusted EBITDA margin", "period": "FY26", "value": "11.1%", "value_numeric": 11.1, "previous_value": "13.5%", "unit": "%", "basis": "calculated", "note": "Calculated from £4.7m / £42.4m = 11.1%; prior £4.3m / £31.8m = 13.5%."},
+      {"label": "Net debt", "metric": "net debt", "period": "Point in time", "value": "£2.5m", "value_numeric": 2.5, "previous_value": "£2.0m", "unit": "million", "currency": "GBP", "basis": "reported"}
+    ],
+    "expected_finding_codes": ["GROWTH_QUALITY_DIVERGENCE", "EARNINGS_CASH_DIVERGENCE", "ACQUISITION_ORGANIC_GAP"],
+    "forbidden_finding_codes": []
+  },
+  {
+    "id": "recruiter-net-fee-income-omitted",
+    "expected_profile": "recruiter",
+    "announcement": {
+      "source_id": "intel-rec-1",
+      "ticker": "REC",
+      "company": "Example Recruitment plc",
+      "published_at": "2026-08-22T07:00:00+01:00",
+      "title": "Trading Update",
+      "text": "The recruitment group reported contractor billings of £420m, net fee income of £43m and sales headcount 4% lower.",
+      "source_url": "https://example.invalid/intel-rec-1",
+      "source_urls": ["https://example.invalid/intel-rec-1"],
+      "rns_type": "Results & trading"
+    },
+    "facts": [
+      {"label": "Contractor billings", "metric": "contractor billings", "value": "£420m", "value_numeric": 420, "unit": "million", "currency": "GBP", "basis": "reported"}
+    ],
+    "expected_finding_codes": ["SECTOR_PRIMARY_KPI_OMITTED"],
+    "forbidden_finding_codes": []
+  },
+  {
+    "id": "life-sciences-milestone-funding-gap",
+    "expected_profile": "life-sciences",
+    "announcement": {
+      "source_id": "intel-bio-1",
+      "ticker": "BIO",
+      "company": "Example Therapeutics plc",
+      "published_at": "2026-08-22T07:00:00+01:00",
+      "title": "Clinical and Funding Update",
+      "text": "The Phase II clinical trial met its endpoint. The company requires further funding before the next milestone, no binding financing has been agreed and the cash runway extends to December.",
+      "source_url": "https://example.invalid/intel-bio-1",
+      "source_urls": ["https://example.invalid/intel-bio-1"],
+      "rns_type": "Operations"
+    },
+    "facts": [
+      {"label": "Trial endpoint", "metric": "clinical endpoint", "value": "Met", "basis": "reported"},
+      {"label": "Cash", "metric": "cash", "value": "£1.2m", "value_numeric": 1.2, "unit": "million", "currency": "GBP", "basis": "reported"}
+    ],
+    "expected_finding_codes": ["LIFE_SCIENCE_FUNDING_GAP"],
+    "forbidden_finding_codes": []
+  },
+  {
+    "id": "lender-growth-credit-risk",
+    "expected_profile": "lender",
+    "announcement": {
+      "source_id": "intel-lend-1",
+      "ticker": "LND",
+      "company": "Example Finance plc",
+      "published_at": "2026-08-22T07:00:00+01:00",
+      "title": "Interim Results",
+      "text": "The specialist lender grew its loan book and originations. Net interest margin was stable, while arrears and cost of risk increased.",
+      "source_url": "https://example.invalid/intel-lend-1",
+      "source_urls": ["https://example.invalid/intel-lend-1"],
+      "rns_type": "Results & trading"
+    },
+    "facts": [
+      {"label": "Loan book", "metric": "loan book", "period": "Point in time", "value": "£120m", "value_numeric": 120, "previous_value": "£100m", "unit": "million", "currency": "GBP", "basis": "reported"},
+      {"label": "Cost of risk", "metric": "cost of risk", "period": "H1", "value": "2.1%", "value_numeric": 2.1, "previous_value": "1.4%", "unit": "%", "basis": "reported"}
+    ],
+    "expected_finding_codes": ["LENDING_GROWTH_RISK_DIVERGENCE"],
+    "forbidden_finding_codes": []
+  },
+  {
+    "id": "software-arr-cash-risk",
+    "expected_profile": "software",
+    "announcement": {
+      "source_id": "intel-saas-1",
+      "ticker": "SAA",
+      "company": "Example Software plc",
+      "published_at": "2026-08-22T07:00:00+01:00",
+      "title": "Trading Update",
+      "text": "The SaaS company increased annual recurring revenue and subscription revenue. Net revenue retention was stable, but cash burn increased and net cash reduced.",
+      "source_url": "https://example.invalid/intel-saas-1",
+      "source_urls": ["https://example.invalid/intel-saas-1"],
+      "rns_type": "Results & trading"
+    },
+    "facts": [
+      {"label": "ARR", "metric": "annual recurring revenue", "period": "Point in time", "value": "£12.0m", "value_numeric": 12.0, "previous_value": "£10.0m", "unit": "million", "currency": "GBP", "basis": "reported"},
+      {"label": "Net cash", "metric": "net cash", "period": "Point in time", "value": "£3.0m", "value_numeric": 3.0, "previous_value": "£6.0m", "unit": "million", "currency": "GBP", "basis": "reported"}
+    ],
+    "expected_finding_codes": ["RECURRING_GROWTH_CASH_RISK"],
+    "forbidden_finding_codes": []
+  },
+  {
+    "id": "miner-production-cost-pressure",
+    "expected_profile": "mining",
+    "announcement": {
+      "source_id": "intel-mine-1",
+      "ticker": "MIN",
+      "company": "Example Mining plc",
+      "published_at": "2026-08-22T07:00:00+01:00",
+      "title": "Production Update",
+      "text": "Mine production increased, with higher tonnes processed and stable recovery. All-in sustaining cost (AISC) also increased because of lower grade and cost inflation.",
+      "source_url": "https://example.invalid/intel-mine-1",
+      "source_urls": ["https://example.invalid/intel-mine-1"],
+      "rns_type": "Operations"
+    },
+    "facts": [
+      {"label": "Production", "metric": "production", "period": "Q2", "value": "100koz", "value_numeric": 100, "previous_value": "90koz", "unit": "koz", "basis": "reported"},
+      {"label": "AISC", "metric": "AISC", "period": "Q2", "value": "$1,300/oz", "value_numeric": 1300, "previous_value": "$1,100/oz", "unit": "USD/oz", "currency": "USD", "basis": "reported"}
+    ],
+    "expected_finding_codes": ["PRODUCTION_COST_DIVERGENCE"],
+    "forbidden_finding_codes": []
+  },
+  {
+    "id": "retailer-sales-margin-inventory",
+    "expected_profile": "retailer",
+    "announcement": {
+      "source_id": "intel-retail-1",
+      "ticker": "RTL",
+      "company": "Example Retail plc",
+      "published_at": "2026-08-22T07:00:00+01:00",
+      "title": "Trading Update",
+      "text": "Like-for-like sales increased 6%, but gross margin reduced because of markdown activity and inventory increased ahead of sales.",
+      "source_url": "https://example.invalid/intel-retail-1",
+      "source_urls": ["https://example.invalid/intel-retail-1"],
+      "rns_type": "Results & trading"
+    },
+    "facts": [
+      {"label": "Like-for-like sales growth", "metric": "like-for-like sales growth", "value": "6%", "value_numeric": 6, "unit": "%", "basis": "reported"},
+      {"label": "Gross margin", "metric": "gross margin", "period": "H1", "value": "42.0%", "value_numeric": 42.0, "previous_value": "44.0%", "unit": "%", "basis": "reported"},
+      {"label": "Inventory", "metric": "inventory", "period": "Point in time", "value": "£30m", "value_numeric": 30, "previous_value": "£24m", "unit": "million", "currency": "GBP", "basis": "reported"}
+    ],
+    "expected_finding_codes": ["GROWTH_QUALITY_DIVERGENCE", "SALES_MARGIN_STOCK_DIVERGENCE"],
+    "forbidden_finding_codes": []
+  },
+  {
+    "id": "contractor-backlog-current-profit",
+    "expected_profile": "industrial-contracting",
+    "announcement": {
+      "source_id": "intel-contract-1",
+      "ticker": "CTR",
+      "company": "Example Engineering plc",
+      "published_at": "2026-08-22T07:00:00+01:00",
+      "title": "Interim Results",
+      "text": "The order book and tender pipeline increased following framework awards, but operating profit and project margin reduced because of mobilisation and working-capital pressure.",
+      "source_url": "https://example.invalid/intel-contract-1",
+      "source_urls": ["https://example.invalid/intel-contract-1"],
+      "rns_type": "Results & trading"
+    },
+    "facts": [
+      {"label": "Order book", "metric": "order book", "period": "Point in time", "value": "£120m", "value_numeric": 120, "previous_value": "£90m", "unit": "million", "currency": "GBP", "basis": "reported"},
+      {"label": "Operating profit", "metric": "operating profit", "period": "H1", "value": "£8m", "value_numeric": 8, "previous_value": "£10m", "unit": "million", "currency": "GBP", "basis": "reported"}
+    ],
+    "expected_finding_codes": ["BACKLOG_QUALITY_DIVERGENCE"],
+    "forbidden_finding_codes": []
+  },
+  {
+    "id": "housebuilder-volume-margin-pressure",
+    "expected_profile": "housebuilder",
+    "announcement": {
+      "source_id": "intel-house-1",
+      "ticker": "HOM",
+      "company": "Example Homes plc",
+      "published_at": "2026-08-22T07:00:00+01:00",
+      "title": "Full Year Results",
+      "text": "The housebuilder increased private completions and reservations. Average selling price was stable, but operating margin reduced and net debt increased after land investment.",
+      "source_url": "https://example.invalid/intel-house-1",
+      "source_urls": ["https://example.invalid/intel-house-1"],
+      "rns_type": "Results & trading"
+    },
+    "facts": [
+      {"label": "Private completions", "metric": "private completions", "period": "FY26", "value": "1,000", "value_numeric": 1000, "previous_value": "900", "unit": "homes", "basis": "reported"},
+      {"label": "Operating margin", "metric": "operating margin", "period": "FY26", "value": "14.0%", "value_numeric": 14.0, "previous_value": "16.0%", "unit": "%", "basis": "reported"},
+      {"label": "Net debt", "metric": "net debt", "period": "Point in time", "value": "£50m", "value_numeric": 50, "previous_value": "£40m", "unit": "million", "currency": "GBP", "basis": "reported"}
+    ],
+    "expected_finding_codes": ["GROWTH_QUALITY_DIVERGENCE"],
+    "forbidden_finding_codes": []
+  },
+  {
+    "id": "maintained-guidance-weaker-debt",
+    "expected_profile": "generic",
+    "announcement": {
+      "source_id": "intel-guidance-1",
+      "ticker": "GEN",
+      "company": "Example Group plc",
+      "published_at": "2026-08-22T07:00:00+01:00",
+      "title": "Trading Update",
+      "text": "Full-year guidance remains unchanged. Net debt increased to £30m from £24m because of working capital.",
+      "source_url": "https://example.invalid/intel-guidance-1",
+      "source_urls": ["https://example.invalid/intel-guidance-1"],
+      "rns_type": "Results & trading"
+    },
+    "facts": [
+      {"label": "Net debt", "metric": "net debt", "period": "Point in time", "value": "£30m", "value_numeric": 30, "previous_value": "£24m", "unit": "million", "currency": "GBP", "basis": "reported"}
+    ],
+    "guidance_events": [
+      {"metric": "Adjusted PBT", "period": "FY26", "value": "In line with expectations", "status": "maintained"}
+    ],
+    "expected_finding_codes": ["GUIDANCE_BALANCE_SHEET_DIVERGENCE"],
+    "forbidden_finding_codes": []
+  },
+  {
+    "id": "balanced-growth-no-false-positive",
+    "expected_profile": "generic",
+    "announcement": {
+      "source_id": "intel-safe-1",
+      "ticker": "SAFE",
+      "company": "Example Group plc",
+      "published_at": "2026-08-22T07:00:00+01:00",
+      "title": "Results",
+      "text": "Revenue and adjusted EBITDA increased, margin improved and net debt reduced.",
+      "source_url": "https://example.invalid/intel-safe-1",
+      "source_urls": ["https://example.invalid/intel-safe-1"],
+      "rns_type": "Results & trading"
+    },
+    "facts": [
+      {"label": "Revenue", "metric": "revenue", "period": "FY26", "value": "£110m", "value_numeric": 110, "previous_value": "£100m", "unit": "million", "currency": "GBP", "basis": "reported"},
+      {"label": "Adjusted EBITDA", "metric": "adjusted EBITDA", "period": "FY26", "value": "£16.8m", "value_numeric": 16.8, "previous_value": "£15m", "unit": "million", "currency": "GBP", "basis": "reported"},
+      {"label": "Adjusted EBITDA margin", "metric": "adjusted EBITDA margin", "period": "FY26", "value": "15.3%", "value_numeric": 15.3, "previous_value": "15.0%", "unit": "%", "basis": "reported"},
+      {"label": "Net debt", "metric": "net debt", "period": "Point in time", "value": "£16m", "value_numeric": 16, "previous_value": "£20m", "unit": "million", "currency": "GBP", "basis": "reported"}
+    ],
+    "expected_finding_codes": [],
+    "forbidden_finding_codes": ["GROWTH_QUALITY_DIVERGENCE", "EARNINGS_CASH_DIVERGENCE", "GUIDANCE_BALANCE_SHEET_DIVERGENCE"]
+  }
+]
