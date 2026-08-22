@@ -1,0 +1,129 @@
+[
+  {
+    "id": "oil-gas-production-unit-cost-pressure",
+    "expected_profile": "oil-gas",
+    "announcement": {
+      "source_id": "intel-oil-1",
+      "ticker": "OIL",
+      "company": "Example Energy plc",
+      "published_at": "2026-08-22T07:00:00+01:00",
+      "title": "Production Update",
+      "text": "Average production increased to 12,000 boepd from 10,000 boepd. Realised oil prices were stable, but lifting cost increased because of maintenance and inflation. The drilling programme remains on schedule.",
+      "source_url": "https://example.invalid/intel-oil-1",
+      "source_urls": ["https://example.invalid/intel-oil-1"],
+      "rns_type": "Operations"
+    },
+    "facts": [
+      {"label": "Production", "metric": "production", "period": "H1", "value": "12,000 boepd", "value_numeric": 12000, "previous_value": "10,000 boepd", "unit": "boepd", "basis": "reported"},
+      {"label": "Lifting cost", "metric": "lifting cost", "period": "H1", "value": "$18/boe", "value_numeric": 18, "previous_value": "$15/boe", "unit": "USD/boe", "currency": "USD", "basis": "reported"}
+    ],
+    "expected_finding_codes": ["PRODUCTION_COST_DIVERGENCE"],
+    "forbidden_finding_codes": []
+  },
+  {
+    "id": "property-disposal-debt-profile-control",
+    "expected_profile": "property",
+    "announcement": {
+      "source_id": "intel-reit-1",
+      "ticker": "REI",
+      "company": "Example Property REIT plc",
+      "published_at": "2026-08-22T07:00:00+01:00",
+      "title": "Property Disposal and Debt Update",
+      "text": "The REIT sold a property for £10.7m, equal to 92% of December book value. Net debt and loan-to-value reduced, while occupancy and annualised rent were unchanged. The company expects scheduled sales to repay debt.",
+      "source_url": "https://example.invalid/intel-reit-1",
+      "source_urls": ["https://example.invalid/intel-reit-1"],
+      "rns_type": "Corporate"
+    },
+    "facts": [
+      {"label": "Sale proceeds", "metric": "sale proceeds", "period": "Transaction", "value": "£10.7m", "value_numeric": 10.7, "unit": "million", "currency": "GBP", "basis": "reported"},
+      {"label": "Sale price versus book value", "metric": "sale price versus book value", "period": "Transaction", "value": "92%", "value_numeric": 92, "unit": "%", "basis": "reported"},
+      {"label": "Loan-to-value", "metric": "loan to value", "period": "Point in time", "value": "35%", "value_numeric": 35, "previous_value": "40%", "unit": "%", "basis": "reported"}
+    ],
+    "expected_finding_codes": [],
+    "forbidden_finding_codes": ["GROWTH_QUALITY_DIVERGENCE", "EARNINGS_CASH_DIVERGENCE", "GUIDANCE_BALANCE_SHEET_DIVERGENCE"]
+  },
+  {
+    "id": "recruiter-nfi-prioritised-control",
+    "expected_profile": "recruiter",
+    "announcement": {
+      "source_id": "intel-rec-safe-1",
+      "ticker": "RCS",
+      "company": "Example Staffing plc",
+      "published_at": "2026-08-22T07:00:00+01:00",
+      "title": "Trading Update",
+      "text": "Net fee income increased to £43m from £39m. Underlying profit before tax increased to £6.1m from £5.3m, while sales headcount was broadly unchanged. Gross contractor billings are not the primary performance measure.",
+      "source_url": "https://example.invalid/intel-rec-safe-1",
+      "source_urls": ["https://example.invalid/intel-rec-safe-1"],
+      "rns_type": "Results & trading"
+    },
+    "facts": [
+      {"label": "Net fee income", "metric": "net fee income", "period": "FY26", "value": "£43m", "value_numeric": 43, "previous_value": "£39m", "unit": "million", "currency": "GBP", "basis": "reported"},
+      {"label": "Underlying PBT", "metric": "underlying profit before tax", "period": "FY26", "value": "£6.1m", "value_numeric": 6.1, "previous_value": "£5.3m", "unit": "million", "currency": "GBP", "basis": "reported"}
+    ],
+    "expected_finding_codes": [],
+    "forbidden_finding_codes": ["SECTOR_PRIMARY_KPI_OMITTED", "RECRUITER_NFI_NOT_DISCLOSED", "GROWTH_QUALITY_DIVERGENCE"]
+  },
+  {
+    "id": "life-sciences-funded-milestone-control",
+    "expected_profile": "life-sciences",
+    "announcement": {
+      "source_id": "intel-bio-safe-1",
+      "ticker": "BIS",
+      "company": "Example Medical Technology plc",
+      "published_at": "2026-08-22T07:00:00+01:00",
+      "title": "Regulatory Milestone Update",
+      "text": "The medical device received regulatory approval. Cash of £12m is expected to fund the commercial launch and operating plan through the next reimbursement milestone. No additional funding requirement is identified.",
+      "source_url": "https://example.invalid/intel-bio-safe-1",
+      "source_urls": ["https://example.invalid/intel-bio-safe-1"],
+      "rns_type": "Operations"
+    },
+    "facts": [
+      {"label": "Regulatory approval", "metric": "regulatory approval", "value": "Received", "basis": "reported"},
+      {"label": "Cash", "metric": "cash", "period": "Point in time", "value": "£12m", "value_numeric": 12, "unit": "million", "currency": "GBP", "basis": "reported"}
+    ],
+    "expected_finding_codes": [],
+    "forbidden_finding_codes": ["LIFE_SCIENCE_FUNDING_GAP"]
+  },
+  {
+    "id": "lender-growth-credit-quality-control",
+    "expected_profile": "lender",
+    "announcement": {
+      "source_id": "intel-lend-safe-1",
+      "ticker": "LDS",
+      "company": "Example Lending plc",
+      "published_at": "2026-08-22T07:00:00+01:00",
+      "title": "Interim Results",
+      "text": "The specialist lender grew its loan book to £120m from £100m. Net interest margin improved, arrears reduced and cost of risk fell to 1.2% from 1.5%. Capital and liquidity remain above internal targets.",
+      "source_url": "https://example.invalid/intel-lend-safe-1",
+      "source_urls": ["https://example.invalid/intel-lend-safe-1"],
+      "rns_type": "Results & trading"
+    },
+    "facts": [
+      {"label": "Loan book", "metric": "loan book", "period": "Point in time", "value": "£120m", "value_numeric": 120, "previous_value": "£100m", "unit": "million", "currency": "GBP", "basis": "reported"},
+      {"label": "Cost of risk", "metric": "cost of risk", "period": "H1", "value": "1.2%", "value_numeric": 1.2, "previous_value": "1.5%", "unit": "%", "basis": "reported"}
+    ],
+    "expected_finding_codes": [],
+    "forbidden_finding_codes": ["LENDING_GROWTH_RISK_DIVERGENCE"]
+  },
+  {
+    "id": "software-efficient-arr-growth-control",
+    "expected_profile": "software",
+    "announcement": {
+      "source_id": "intel-saas-safe-1",
+      "ticker": "SAS",
+      "company": "Example SaaS plc",
+      "published_at": "2026-08-22T07:00:00+01:00",
+      "title": "Trading Update",
+      "text": "Annual recurring revenue increased to £12m from £10m. Net revenue retention improved and free cash flow turned positive. Net cash increased to £7m from £5m.",
+      "source_url": "https://example.invalid/intel-saas-safe-1",
+      "source_urls": ["https://example.invalid/intel-saas-safe-1"],
+      "rns_type": "Results & trading"
+    },
+    "facts": [
+      {"label": "ARR", "metric": "annual recurring revenue", "period": "Point in time", "value": "£12m", "value_numeric": 12, "previous_value": "£10m", "unit": "million", "currency": "GBP", "basis": "reported"},
+      {"label": "Net cash", "metric": "net cash", "period": "Point in time", "value": "£7m", "value_numeric": 7, "previous_value": "£5m", "unit": "million", "currency": "GBP", "basis": "reported"}
+    ],
+    "expected_finding_codes": [],
+    "forbidden_finding_codes": ["RECURRING_GROWTH_CASH_RISK", "EARNINGS_CASH_DIVERGENCE"]
+  }
+]
