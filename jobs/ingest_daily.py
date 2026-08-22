@@ -41,6 +41,7 @@ def main() -> None:
         factory = create_session_factory(engine)
         repository = IntelligenceRepository(factory)
         operations = OperationsRepository(factory)
+        operations.reconcile_stale_running(job_name=JOB_NAME)
         price_outcome: PriceJobOutcome | None = None
         combined_warnings: list[str] = list(warnings)
 
