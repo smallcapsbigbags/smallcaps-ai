@@ -5,7 +5,8 @@
   },
   "deploy": {
     "preDeployCommand": [
-      "python -m jobs.validate_runtime --service ingestion --create-schema"
+      "python -m jobs.validate_runtime --service ingestion --create-schema",
+      "python -m jobs.audit_production --service ingestion --record"
     ],
     "startCommand": "sh -c 'echo INGEST_START; python -u -m jobs.ingest_daily; rc=$?; echo INGEST_EXIT:$rc; exit $rc'",
     "cronSchedule": "*/10 6-18 * * 1-5",
