@@ -74,7 +74,11 @@ class FoundationPipeline:
                     )
                 }
             )
-        guarded_note = apply_analysis_guardrails(announcement, note)
+        guarded_note = apply_analysis_guardrails(
+            announcement,
+            note,
+            prior_context=analysis_context,
+        )
         quality = assess_analysis_quality(
             announcement,
             guarded_note,
