@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+from collections import defaultdict
 from datetime import datetime
 from typing import Any
 
 from sqlalchemy import Select, desc, select, update
 from sqlalchemy.orm import Session, sessionmaker
 
+from analyst.evidence import dedupe_source_urls
 from analyst.models import (
     AnalystNote,
     AnnouncementInput,
@@ -267,6 +269,114 @@ class IntelligenceRepository:
                 created_at=run.created_at,
             )
 
+    @staticmethod
+    def _facts_by_run(
+        session: Session,
+        run_ids: list[object],
+    ) -> dict[object, list[FactRow]]:
+        output: dict[object, list[FactRow]] = defaultdict(list)
+        if not run_ids:
+            return output
+        rows = session.scalars(
+            select(FactRow)
+            .where(FactRow.analyst_run_id.in_(run_ids))
+            .order_by(FactRow.analyst_run_id, FactRow.ordinal, FactRow.created_at)
+        ).all()
+        for row in rows:
+            output[row.analyst_run_id].append(row)
+        return output
+
+    @staticmethod
+    def _guidance_by_run(
+        session: Session,
+        run_ids: list[object],
+    ) -> dict[object, list[GuidanceEventRow]]:
+        output: dict[object, list[GuidanceEventRow]] = defaultdict(list)
+        if not run_ids:
+            return output
+        rows = session.scalars(
+            select(GuidanceEventRow)
+            .where(GuidanceEventRow.analyst_run_id.in_(run_ids))
+            .order_by(
+                GuidanceEventRow.analyst_run_id,
+                GuidanceEventRow.ordinal,
+                GuidanceEventRow.created_at,
+            )
+        ).all()
+        for row in rows:
+            output[row.analyst_run_id].append(row)
+        return output
+
+    @staticmethod
+    def _claims_by_run(
+        session: Session,
+        run_ids: list[object],
+    ) -> dict[object, list[ManagementClaimRow]]:
+        output: dict[object, list[ManagementClaimRow]] = defaultdict(list)
+        if not run_ids:
+            return output
+        rows = session.scalars(
+            select(ManagementClaimRow)
+            .where(ManagementClaimRow.analyst_run_id.in_(run_ids))
+            .order_by(
+                ManagementClaimRow.analyst_run_id,
+                ManagementClaimRow.ordinal,
+                ManagementClaimRow.created_at,
+            )
+        ).all()
+        for row in rows:
+            output[row.analyst_run_id].append(row)
+        return output
+
+    @staticmethod
+    def _fact_context(fact: FactRow) -> dict[str, object]:
+        return {
+            "label": fact.label,
+            "metric": fact.metric,
+            "period": fact.period,
+            "value": fact.value,
+            "unit": fact.unit,
+            "currency": fact.currency,
+            "as_of_date": fact.as_of_date,
+            "value_numeric": fact.value_numeric,
+            "value_low": fact.value_low,
+            "value_high": fact.value_high,
+            "basis": fact.basis,
+            "note": fact.note,
+            "comparator": fact.comparator,
+            "comparator_type": fact.comparator_type,
+            "comparator_source_id": fact.comparator_source_id,
+            "previous_value": fact.previous_value,
+            "information_status": fact.information_status,
+        }
+
+    @staticmethod
+    def _guidance_context(event: GuidanceEventRow) -> dict[str, object]:
+        return {
+            "metric": event.metric,
+            "period": event.period,
+            "value": event.value,
+            "status": event.status,
+            "comparator": event.comparator,
+            "previous_value": event.previous_value,
+            "previous_source_id": event.previous_source_id,
+            "information_status": event.information_status,
+            "note": event.note,
+        }
+
+    @staticmethod
+    def _claim_context(claim: ManagementClaimRow) -> dict[str, object]:
+        return {
+            "claim": claim.claim,
+            "claim_key": claim.claim_key,
+            "metric": claim.metric,
+            "target_value": claim.target_value,
+            "target_date": claim.target_date,
+            "status": claim.status,
+            "outcome": claim.outcome,
+            "evidence": claim.evidence,
+        }
+
     def load_prior_context(
         self,
         ticker: str,
@@ -274,7 +384,12 @@ class IntelligenceRepository:
         before: datetime,
         limit: int = 120,
     ) -> list[dict[str, object]]:
-        """Load eligible point-in-time history for memory and delta analysis."""
+        """Load eligible point-in-time history for memory and delta analysis.
+
+        Facts, guidance and management claims are bulk-loaded in three queries so
+        a mature 12-month company history does not create hundreds of database
+        round trips for every new RNS.
+        """
 
         with session_scope(self.session_factory) as session:
             rows = session.execute(
@@ -293,33 +408,29 @@ class IntelligenceRepository:
                 .order_by(desc(AnnouncementRow.published_at))
                 .limit(limit)
             ).all()
+            if not rows:
+                return []
+
+            chronological = list(reversed(rows))
+            run_ids = [run.id for _announcement, run in chronological]
+            facts_by_run = self._facts_by_run(session, run_ids)
+            guidance_by_run = self._guidance_by_run(session, run_ids)
+            claims_by_run = self._claims_by_run(session, run_ids)
+
             output: list[dict[str, object]] = []
-            for announcement, run in reversed(rows):
-                facts = session.scalars(
-                    select(FactRow)
-                    .where(FactRow.analyst_run_id == run.id)
-                    .order_by(FactRow.ordinal, FactRow.created_at)
-                ).all()
-                guidance = session.scalars(
-                    select(GuidanceEventRow)
-                    .where(GuidanceEventRow.analyst_run_id == run.id)
-                    .order_by(GuidanceEventRow.ordinal, GuidanceEventRow.created_at)
-                ).all()
-                claims = session.scalars(
-                    select(ManagementClaimRow)
-                    .where(ManagementClaimRow.analyst_run_id == run.id)
-                    .order_by(
-                        ManagementClaimRow.ordinal,
-                        ManagementClaimRow.created_at,
-                    )
-                ).all()
+            for announcement, run in chronological:
+                source_urls = dedupe_source_urls(
+                    announcement.source_urls,
+                    announcement.source_url,
+                    run.source_references,
+                )
                 output.append(
                     {
                         "source_id": announcement.source_id,
                         "published_at": announcement.published_at.isoformat(),
                         "title": announcement.headline,
-                        "source_url": announcement.source_url,
-                        "source_urls": list(announcement.source_urls),
+                        "source_url": source_urls[0] if source_urls else "",
+                        "source_urls": source_urls,
                         "rns_type": announcement.announcement_type,
                         "impact_colour": run.impact_colour,
                         "impact_score": run.impact_score,
@@ -339,53 +450,16 @@ class IntelligenceRepository:
                             run.disclosure_assessment
                         ),
                         "facts": [
-                            {
-                                "label": fact.label,
-                                "metric": fact.metric,
-                                "period": fact.period,
-                                "value": fact.value,
-                                "unit": fact.unit,
-                                "currency": fact.currency,
-                                "as_of_date": fact.as_of_date,
-                                "value_numeric": fact.value_numeric,
-                                "value_low": fact.value_low,
-                                "value_high": fact.value_high,
-                                "basis": fact.basis,
-                                "note": fact.note,
-                                "comparator": fact.comparator,
-                                "comparator_type": fact.comparator_type,
-                                "comparator_source_id": fact.comparator_source_id,
-                                "previous_value": fact.previous_value,
-                                "information_status": fact.information_status,
-                            }
-                            for fact in facts
+                            self._fact_context(fact)
+                            for fact in facts_by_run.get(run.id, [])
                         ],
                         "guidance": [
-                            {
-                                "metric": event.metric,
-                                "period": event.period,
-                                "value": event.value,
-                                "status": event.status,
-                                "comparator": event.comparator,
-                                "previous_value": event.previous_value,
-                                "previous_source_id": event.previous_source_id,
-                                "information_status": event.information_status,
-                                "note": event.note,
-                            }
-                            for event in guidance
+                            self._guidance_context(event)
+                            for event in guidance_by_run.get(run.id, [])
                         ],
                         "management_claims": [
-                            {
-                                "claim": claim.claim,
-                                "claim_key": claim.claim_key,
-                                "metric": claim.metric,
-                                "target_value": claim.target_value,
-                                "target_date": claim.target_date,
-                                "status": claim.status,
-                                "outcome": claim.outcome,
-                                "evidence": claim.evidence,
-                            }
-                            for claim in claims
+                            self._claim_context(claim)
+                            for claim in claims_by_run.get(run.id, [])
                         ],
                     }
                 )
