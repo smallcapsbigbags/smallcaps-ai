@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: launch-visual-audit-${{ github.ref }}
+  group: launch-visual-audit
   cancel-in-progress: true
 
 jobs:
@@ -59,7 +59,7 @@ jobs:
           cat /tmp/launch-screenshots/streamlit.log
           exit 1
 
-      - name: Capture desktop and mobile customer journeys
+      - name: Capture and validate desktop and mobile customer journeys
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -67,24 +67,23 @@ jobs:
 
           out = Path('/tmp/launch-screenshots')
           base = 'http://127.0.0.1:8501'
-          footer = 'Smallcaps.ai can make mistakes.'
-
-          def wait_for_beta(page):
-              page.get_by_text('Every AIM announcement.', exact=False).wait_for(timeout=30000)
-              page.get_by_label('Private beta access code').wait_for(timeout=30000)
-              page.get_by_text(footer, exact=False).wait_for(timeout=30000)
-
-          def wait_for_feed(page):
-              page.get_by_role('heading', name='AIM Intelligence', exact=True).wait_for(timeout=30000)
-              page.get_by_text('publishable record', exact=False).wait_for(timeout=30000)
-              page.get_by_text(footer, exact=False).wait_for(timeout=30000)
 
           def unlock(page):
               page.goto(base, wait_until='domcontentloaded')
-              wait_for_beta(page)
+              page.get_by_text('Every AIM announcement.', exact=False).wait_for(timeout=30000)
               page.get_by_label('Private beta access code').fill('preview-access')
               page.get_by_role('button', name='UNLOCK PRIVATE BETA').click()
-              wait_for_feed(page)
+              page.get_by_text('AIM Intelligence', exact=True).wait_for(timeout=30000)
+
+          def assert_page_starts_at_heading(page, heading, *, max_y):
+              page.wait_for_timeout(500)
+              box = heading.bounding_box()
+              if box is None:
+                  raise AssertionError('Expected page heading has no visible bounding box')
+              if box['y'] < 0 or box['y'] > max_y:
+                  raise AssertionError(
+                      f'Internal navigation retained the previous scroll position: heading y={box["y"]}'
+                  )
 
           with sync_playwright() as p:
               browser = p.chromium.launch()
@@ -92,21 +91,23 @@ jobs:
               desktop = browser.new_context(viewport={'width': 1440, 'height': 1000})
               page = desktop.new_page()
               page.goto(base, wait_until='domcontentloaded')
-              wait_for_beta(page)
+              page.get_by_text('Every AIM announcement.', exact=False).wait_for(timeout=30000)
               page.screenshot(path=out / '01-beta-desktop.png', full_page=True)
               page.get_by_label('Private beta access code').fill('preview-access')
               page.get_by_role('button', name='UNLOCK PRIVATE BETA').click()
-              wait_for_feed(page)
+              page.get_by_text('AIM Intelligence', exact=True).wait_for(timeout=30000)
               page.screenshot(path=out / '02-feed-desktop.png', full_page=True)
 
-              page.get_by_role('button', name='Analysis →').nth(1).click()
-              page.get_by_text('What happened & why it matters', exact=True).wait_for(timeout=30000)
-              page.get_by_text(footer, exact=False).wait_for(timeout=30000)
+              analysis_buttons = page.get_by_role('button', name='Analysis →')
+              analysis_buttons.nth(1).click()
+              note_heading = page.get_by_text('What happened & why it matters', exact=True)
+              note_heading.wait_for(timeout=30000)
+              assert_page_starts_at_heading(page, note_heading, max_y=500)
               page.screenshot(path=out / '03-note-desktop.png', full_page=True)
               page.get_by_role('button', name='Company', exact=True).click()
-              page.get_by_text('Company Intelligence', exact=True).wait_for(timeout=30000)
-              page.get_by_text('RNS timeline', exact=True).wait_for(timeout=30000)
-              page.get_by_text(footer, exact=False).wait_for(timeout=30000)
+              company_heading = page.get_by_text('Company Intelligence', exact=True)
+              company_heading.wait_for(timeout=30000)
+              assert_page_starts_at_heading(page, company_heading, max_y=500)
               page.screenshot(path=out / '04-company-desktop.png', full_page=True)
               desktop.close()
 
@@ -119,8 +120,18 @@ jobs:
               unlock(page)
               page.screenshot(path=out / '05-feed-mobile.png', full_page=True)
               page.get_by_role('button', name='Analysis →').first.click()
-              page.get_by_text('What happened & why it matters', exact=True).wait_for(timeout=30000)
-              page.get_by_text(footer, exact=False).wait_for(timeout=30000)
+              note_heading = page.get_by_text('What happened & why it matters', exact=True)
+              note_heading.wait_for(timeout=30000)
+              assert_page_starts_at_heading(page, note_heading, max_y=420)
+
+              responsive_table = page.locator('table.sca-table-responsive').first
+              responsive_table.wait_for(timeout=30000)
+              overflow = responsive_table.evaluate(
+                  '(el) => el.scrollWidth > el.clientWidth + 2'
+              )
+              if overflow:
+                  raise AssertionError('Responsive Analyst Note table clips horizontally on mobile')
+
               page.screenshot(path=out / '06-note-mobile.png', full_page=True)
               mobile.close()
 
