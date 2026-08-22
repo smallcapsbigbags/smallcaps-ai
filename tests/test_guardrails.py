@@ -53,7 +53,6 @@ def test_explicit_profit_warning_cannot_disappear_from_output() -> None:
     )
 
     guarded = apply_analysis_guardrails(announcement, note)
-
     assert any("formal profit warning" in item for item in guarded.source_warnings)
 
 
@@ -74,17 +73,34 @@ def test_calculated_operating_margin_does_not_require_share_denominator() -> Non
         note="Calculated from £4.7m EBITDA / £42.4m revenue = 11.1%.",
     )
 
-    guarded = apply_analysis_guardrails(
-        announcement,
-        _base_note("margin-1", key_facts=[fact]),
-    )
-
+    guarded = apply_analysis_guardrails(announcement, _base_note("margin-1", key_facts=[fact]))
     assert not any("share/control ratio" in item for item in guarded.source_warnings)
 
 
-def test_calculated_dilution_still_requires_verified_share_denominator() -> None:
+def test_calculated_dilution_accepts_visible_numerator_and_denominator() -> None:
     announcement = AnnouncementInput(
         source_id="dilution-1",
+        ticker="ABC",
+        company="ABC plc",
+        published_at=datetime(2026, 8, 21, 6, 0, tzinfo=timezone.utc),
+        title="Placing",
+        text="The company issued 20m new shares and will have 100m enlarged shares.",
+    )
+    fact = KeyFact(
+        label="Dilution",
+        metric="share dilution",
+        value="20%",
+        basis="calculated",
+        note="Calculated from 20m new shares / 100m enlarged shares = 20%.",
+    )
+
+    guarded = apply_analysis_guardrails(announcement, _base_note("dilution-1", key_facts=[fact]))
+    assert not any("share/control ratio" in item for item in guarded.source_warnings)
+
+
+def test_calculated_dilution_blocks_when_only_one_numeric_input_is_visible() -> None:
+    announcement = AnnouncementInput(
+        source_id="dilution-2",
         ticker="ABC",
         company="ABC plc",
         published_at=datetime(2026, 8, 21, 6, 0, tzinfo=timezone.utc),
@@ -96,12 +112,8 @@ def test_calculated_dilution_still_requires_verified_share_denominator() -> None
         metric="share dilution",
         value="20%",
         basis="calculated",
-        note="20m / 100m = 20%.",
+        note="Calculated from the disclosed share issue of 20m shares.",
     )
 
-    guarded = apply_analysis_guardrails(
-        announcement,
-        _base_note("dilution-1", key_facts=[fact]),
-    )
-
+    guarded = apply_analysis_guardrails(announcement, _base_note("dilution-2", key_facts=[fact]))
     assert any("share/control ratio" in item for item in guarded.source_warnings)
