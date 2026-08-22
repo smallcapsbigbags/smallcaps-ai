@@ -26,7 +26,7 @@ The memory contains:
 - the latest captured guidance for each metric and period;
 - repeated comparable KPIs and balance-sheet figures;
 - open, delivered, missed or superseded management promises;
-- recurring disclosure gaps;
+- recent disclosure gaps;
 - recent Impact history;
 - the source ID, date and RNS behind every historical item.
 
@@ -83,10 +83,11 @@ The analyst must:
 - public pages expose current `publishable` runs only and never call OpenAI;
 - Company Intelligence is derived only from publishable point-in-time records;
 - no current RNS can enter its own prior context because history is restricted to `published_at < current announcement`;
+- unsupported comparator source IDs block publication;
+- reported and calculated figures remain separate memory series;
 - review records require audited owner approval before publication;
 - facts, guidance and claims preserve the analyst engine's ranked order;
 - source-adapter HTTP(S) URLs take precedence over model references;
-- reported and calculated figures remain separately labelled;
 - Feed date bounds are London/DST correct;
 - market sessions use the official `XLON` exchange calendar;
 - `event_day_return` is separate from future +1/+5/+20 returns;
@@ -110,8 +111,12 @@ python -m jobs.ingest_daily
 python -m jobs.update_prices
 python -m jobs.run_analyst_benchmarks
 python -m jobs.run_gold_standard_benchmark
+python -m jobs.run_company_memory_benchmark
+python -m jobs.validate_company_memory --ticker SPR
 python -m jobs.validate_runtime --service web --create-schema
 ```
+
+The Company Memory benchmark uses four locked point-in-time cases and no web-search retrieval, so it tests memory behaviour without paying to rediscover the source RNSs.
 
 ## Railway
 
@@ -122,6 +127,8 @@ railway.json          Web
 railway.ingest.json   AIM ingestion cron
 railway.prices.json   Market reaction cron
 ```
+
+`railway.company-memory-benchmark.json` is a one-off validation service config, not a continuously running production service.
 
 Required variables are documented in `.env.example` and `docs/PASS-4-RAILWAY.md`. No secrets should be committed.
 
@@ -143,7 +150,7 @@ Local development may use SQLite. Railway must use PostgreSQL through `DATABASE_
 pytest -q
 ```
 
-GitHub Actions validates pushes and pull requests targeting `main`, including Python compilation, Company Memory continuity, benchmark JSON and Railway config JSON.
+GitHub Actions validates pushes and pull requests targeting `main`, including Python compilation, Company Memory continuity, PostgreSQL round trips, benchmark JSON, Company Intelligence rendering and Railway config JSON.
 
 ## Branch strategy
 
@@ -152,11 +159,12 @@ GitHub Actions validates pushes and pull requests targeting `main`, including Py
 - `build/aim-intelligence-v1` — retained only as historical build branch;
 - `rns-xray` — read-only donor/reference repository.
 
-See `docs/PASS-1-AUDIT-RESULTS.md`, `docs/PASS-2-ANALYST-ENGINE.md`, `docs/PASS-3-PRODUCT.md`, `docs/PASS-3-AUDIT-RESULTS.md` and `docs/PASS-4-RAILWAY.md`.
+See `docs/PHASE-3-COMPANY-MEMORY.md`, `docs/PASS-1-AUDIT-RESULTS.md`, `docs/PASS-2-ANALYST-ENGINE.md`, `docs/PASS-3-PRODUCT.md`, `docs/PASS-3-AUDIT-RESULTS.md` and `docs/PASS-4-RAILWAY.md`.
 
 ## Private-beta limitations
 
 - Company Memory is only as complete as the publishable RNS history accumulated since coverage began;
+- differently named metrics are not automatically reconciled unless their structured metric names match;
 - formal database migrations remain a production-hardening task, although Phase 3 requires no new table;
 - missed event-session closes are surfaced as stale but not reconstructed automatically;
 - +1/+5/+20 event returns are not populated yet;
