@@ -7,7 +7,7 @@
     "preDeployCommand": [
       "python -m jobs.validate_runtime --service benchmark"
     ],
-    "startCommand": "python -u -m jobs.run_gold_standard_benchmark",
+    "startCommand": "python -u -m jobs.run_gold_standard_benchmark --case-set benchmarks/preflight_case_set.json --output gold-standard-preflight-results.json",
     "restartPolicyType": "NEVER"
   }
 }
