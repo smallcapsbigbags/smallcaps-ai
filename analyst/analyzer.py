@@ -18,7 +18,7 @@ class AnalystEngine(Protocol):
 
 
 class OpenAIAnalystEngine:
-    """Structured analyst engine with a final evidence-bound consistency review."""
+    """Structured analyst engine with company memory and consistency review."""
 
     def __init__(
         self,
@@ -29,6 +29,7 @@ class OpenAIAnalystEngine:
         style_prompt_path: Path | None = None,
         decision_prompt_path: Path | None = None,
         override_prompt_path: Path | None = None,
+        memory_prompt_path: Path | None = None,
         review_prompt_path: Path | None = None,
         timeout_seconds: int = 180,
         max_output_tokens: int = 12_000,
@@ -51,6 +52,9 @@ class OpenAIAnalystEngine:
         self.override_prompt_path = override_prompt_path or (
             prompts_dir / "GOLD_STANDARD_OVERRIDES_V1.md"
         )
+        self.memory_prompt_path = memory_prompt_path or (
+            prompts_dir / "COMPANY_MEMORY_ANALYST_V1.md"
+        )
         self.review_prompt_path = review_prompt_path or (
             prompts_dir / "ANALYST_CONSISTENCY_REVIEW_V1.md"
         )
@@ -58,10 +62,29 @@ class OpenAIAnalystEngine:
         style_prompt = self.style_prompt_path.read_text(encoding="utf-8")
         decision_prompt = self.decision_prompt_path.read_text(encoding="utf-8")
         override_prompt = self.override_prompt_path.read_text(encoding="utf-8")
-        self.review_prompt = self.review_prompt_path.read_text(encoding="utf-8")
+        memory_prompt = self.memory_prompt_path.read_text(encoding="utf-8")
+        consistency_prompt = self.review_prompt_path.read_text(encoding="utf-8")
         self.system_prompt = "\n\n".join(
-            (core_prompt, style_prompt, decision_prompt, override_prompt)
+            (
+                core_prompt,
+                style_prompt,
+                decision_prompt,
+                override_prompt,
+                memory_prompt,
+            )
         )
+        self.review_prompt = "\n\n".join((consistency_prompt, memory_prompt))
+
+    @staticmethod
+    def _expected_coverage_status(
+        prior_context: Sequence[dict[str, object]],
+    ) -> str:
+        for record in prior_context:
+            if record.get("context_type") != "company_memory_snapshot":
+                continue
+            status = str(record.get("coverage_status") or "building")
+            return "established" if status == "established" else "building"
+        return "building"
 
     def _require_source_id(
         self,
@@ -92,11 +115,12 @@ class OpenAIAnalystEngine:
             model=self.model_name,
             instructions=self.review_prompt,
             input=(
-                "Audit this draft against the exact same evidence. Correct only real "
-                "consistency, comparator, Impact, calculation, coverage-status or "
-                "plain-English problems. Do not add outside information and do not "
-                "change a defensible judgement just to create a different opinion. "
-                "Return the complete corrected AnalystNote.\n\n"
+                "Audit this draft against the exact same evidence and company memory. "
+                "Correct only real consistency, comparator, Impact, calculation, "
+                "management-promise, coverage-status or plain-English problems. Do not "
+                "add outside information and do not change a defensible judgement just "
+                "to create a different opinion. Return the complete corrected "
+                "AnalystNote.\n\n"
                 + json.dumps(review_payload, ensure_ascii=False)
             ),
             text_format=AnalystNote,
@@ -105,16 +129,18 @@ class OpenAIAnalystEngine:
         )
         reviewed = response.output_parsed
         if reviewed is None:
-            raise RuntimeError("OpenAI returned no structured AnalystNote from consistency review")
+            raise RuntimeError(
+                "OpenAI returned no structured AnalystNote from consistency review"
+            )
         self._require_source_id(reviewed, announcement, stage="consistency review")
 
-        # Coverage status describes Smallcaps.ai's eligible historical coverage, not
-        # whether today's RNS itself contains prior-period comparatives.
-        if not prior_context and reviewed.what_changed.coverage_status != "building":
+        # Coverage status is deterministic product metadata, not a model judgement.
+        expected_coverage = self._expected_coverage_status(prior_context)
+        if reviewed.what_changed.coverage_status != expected_coverage:
             reviewed = reviewed.model_copy(
                 update={
                     "what_changed": reviewed.what_changed.model_copy(
-                        update={"coverage_status": "building"}
+                        update={"coverage_status": expected_coverage}
                     )
                 }
             )
@@ -134,16 +160,20 @@ class OpenAIAnalystEngine:
             instructions=self.system_prompt,
             input=(
                 "Analyse this point-in-time UK regulatory announcement using only the "
-                "supplied evidence and eligible prior context. Think like a sceptical, "
-                "commercially minded UK small-cap analyst, apply the gold-standard "
-                "decision pass and benchmark-driven overrides, and write in plain English "
-                "for a normal investor. Before choosing Impact, check for contradictions "
-                "between revenue, profit, margin, cash and funding. Do the 1–3 most useful "
-                "safe calculations when verified inputs support them, show the inputs, and "
-                "keep reported facts, calculations and Smallcaps.ai interpretation separate. "
-                "Make the change to the investment case explicit in the analyst view. Explain "
-                "important specialist concepts in the structured concept explanations. Do not "
-                "expose private reasoning.\n\n"
+                "supplied evidence and eligible prior context. When a company-memory "
+                "snapshot is supplied, use it to test the strongest valid prior "
+                "comparator, guidance position and open management promises without "
+                "letting old information displace today's main change. Think like a "
+                "sceptical, commercially minded UK small-cap analyst, apply the "
+                "gold-standard decision pass and benchmark-driven overrides, and write "
+                "in plain English for a normal investor. Before choosing Impact, check "
+                "for contradictions between revenue, profit, margin, cash and funding. "
+                "Do the 1–3 most useful safe calculations when verified inputs support "
+                "them, show the inputs, and keep reported facts, calculations and "
+                "Smallcaps.ai interpretation separate. Make the change to the investment "
+                "case explicit in the analyst view. Explain important specialist concepts "
+                "in the structured concept explanations. Do not expose private "
+                "reasoning.\n\n"
                 + json.dumps(payload, ensure_ascii=False)
             ),
             text_format=AnalystNote,

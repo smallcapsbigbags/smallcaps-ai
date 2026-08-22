@@ -68,6 +68,24 @@ def test_benchmark_override_prompt_locks_repeated_failure_fixes():
         assert token in prompt
 
 
+def test_company_memory_prompt_locks_point_in_time_continuity_rules():
+    prompt = Path("prompts/COMPANY_MEMORY_ANALYST_V1.md").read_text(encoding="utf-8")
+    for token in (
+        "What did management tell investors before",
+        "Start with today's genuinely new information",
+        "Use the strongest comparable prior disclosure",
+        "Track guidance without double-counting",
+        "Test management promises",
+        "Use KPI history to detect divergence",
+        "Preserve provenance",
+        "Do not turn old analysis into a reported fact",
+        "prior `headline`, `takeaway`, `impact_colour`",
+        "coverage_status",
+        "point-in-time",
+    ):
+        assert token in prompt
+
+
 def test_final_consistency_review_locks_evidence_and_impact_checks():
     prompt = Path("prompts/ANALYST_CONSISTENCY_REVIEW_V1.md").read_text(encoding="utf-8")
     for token in (
@@ -82,5 +100,5 @@ def test_final_consistency_review_locks_evidence_and_impact_checks():
     ):
         assert token in prompt
 
-    assert ANALYSIS_VERSION == "aim-intelligence-analyst-2.2"
-    assert DEFAULT_PROMPT_VERSION == "analyst-engine-2.2-gold-standard"
+    assert ANALYSIS_VERSION == "aim-intelligence-analyst-3.0"
+    assert DEFAULT_PROMPT_VERSION == "analyst-engine-3.0-company-memory"

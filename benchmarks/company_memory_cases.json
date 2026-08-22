@@ -1,0 +1,247 @@
+[
+  {
+    "id": "springfield-buyback-with-balance-sheet-memory",
+    "ticker": "SPR",
+    "company": "Springfield Properties plc",
+    "current_announcement": {
+      "source_id": "memory-spr-2026-08-21",
+      "ticker": "SPR",
+      "company": "Springfield Properties plc",
+      "published_at": "2026-08-21T07:00:00+01:00",
+      "title": "Share Buyback, Rule 9 Waiver and Notice of GM",
+      "text": "Springfield proposes to buy back an initial 5,957,372 ordinary shares and seeks authority to repurchase up to 11,904,240 shares in total. The Company has 119,472,203 ordinary shares in issue. The Adam family and connected persons form a Concert Party. A buyback would increase the Concert Party's percentage ownership, so independent shareholders are being asked to approve a waiver of the obligation that could otherwise arise under Rule 9 of the Takeover Code. The announcement does not state the cash amount that will be spent or the average repurchase price.",
+      "source_url": "https://example.invalid/spr-buyback",
+      "source_urls": ["https://example.invalid/spr-buyback"],
+      "evidence_status": "complete",
+      "rns_type": "Share capital",
+      "categories": ["buyback", "Rule 9"]
+    },
+    "history": [
+      {
+        "source_id": "memory-spr-2026-01-15",
+        "published_at": "2026-01-15T07:00:00+00:00",
+        "title": "Trading Update",
+        "source_url": "https://example.invalid/spr-january",
+        "rns_type": "Results & trading",
+        "impact_colour": "amber",
+        "impact_score": 2,
+        "headline": "Guidance unchanged; debt reduction remains the focus",
+        "takeaway": "Springfield maintained full-year expectations and reported net debt of £24.0m.",
+        "facts": [
+          {"label": "Net debt", "metric": "net debt", "period": "Point in time", "value": "£24.0m", "value_numeric": 24.0, "unit": "million", "currency": "GBP", "as_of_date": "2025-12-31", "basis": "reported", "note": "Company reported net debt of £24.0m."}
+        ],
+        "guidance": [
+          {"metric": "FY26 adjusted PBT", "period": "FY26", "value": "In line with expectations", "status": "maintained", "note": "No numerical range was disclosed."}
+        ],
+        "management_claims": [
+          {"claim": "The Central Scotland land sale is expected to complete by June 2026.", "claim_key": "spr-central-scotland-land-sale", "metric": "land sale completion", "target_date": "June 2026", "status": "open", "evidence": "Trading Update, 15 January 2026."}
+        ],
+        "disclosure_assessment": {"status": "partial", "missing_items": ["Cash available after working-capital commitments"]}
+      },
+      {
+        "source_id": "memory-spr-2026-05-20",
+        "published_at": "2026-05-20T07:00:00+01:00",
+        "title": "Land Sale and Deferred Consideration Payment",
+        "source_url": "https://example.invalid/spr-land-sale",
+        "rns_type": "Corporate",
+        "impact_colour": "green",
+        "impact_score": 3,
+        "headline": "£12m land sale completes; balance sheet moves to net cash",
+        "takeaway": "The land sale completed for £12m cash. £6.5m was used to settle deferred consideration and the company reported £1m net cash afterwards.",
+        "facts": [
+          {"label": "Land sale proceeds", "metric": "land sale proceeds", "period": "Transaction", "value": "£12.0m", "value_numeric": 12.0, "unit": "million", "currency": "GBP", "basis": "reported", "note": "Cash proceeds on completion."},
+          {"label": "Deferred consideration settled", "metric": "deferred consideration", "period": "Transaction", "value": "£6.5m", "value_numeric": 6.5, "unit": "million", "currency": "GBP", "basis": "reported", "note": "Paid from sale proceeds."},
+          {"label": "Net cash", "metric": "net cash", "period": "Point in time", "value": "£1.0m", "value_numeric": 1.0, "unit": "million", "currency": "GBP", "as_of_date": "2026-05-20", "basis": "reported", "note": "Company reported net cash after completion."}
+        ],
+        "guidance": [
+          {"metric": "FY26 adjusted PBT", "period": "FY26", "value": "In line with expectations", "status": "reiterated", "previous_value": "In line with expectations", "previous_source_id": "memory-spr-2026-01-15", "note": "Guidance was unchanged."}
+        ],
+        "management_claims": [
+          {"claim": "The Central Scotland land sale completed in May 2026.", "claim_key": "spr-central-scotland-land-sale", "metric": "land sale completion", "target_date": "June 2026", "status": "delivered", "outcome": "Completed before the target date for £12m cash.", "evidence": "Land Sale and Deferred Consideration Payment, 20 May 2026."}
+        ],
+        "disclosure_assessment": {"status": "partial", "missing_items": ["Cash available after working-capital commitments"]}
+      }
+    ],
+    "expected_case_change": ["strengthens", "unclear"],
+    "allowed_colours": ["green", "amber"],
+    "min_impact_score": 2,
+    "max_impact_score": 4,
+    "required_points": [
+      "Lead with the proposed buyback and Rule 9 mechanics, not the older land sale.",
+      "Calculate the initial buyback at about 5% and maximum authority at about 10% of issued shares, with inputs shown.",
+      "Use the May net-cash/land-sale history only as balance-sheet context and state that the cash envelope for the buyback is not disclosed.",
+      "Explain that a Rule 9 waiver does not itself mean a takeover is happening.",
+      "Recognise the earlier land-sale promise as delivered rather than still open."
+    ],
+    "required_prior_source_ids": ["memory-spr-2026-05-20"]
+  },
+  {
+    "id": "margin-deterioration-beats-headline-growth",
+    "ticker": "AMCO",
+    "company": "Amcomri Group plc",
+    "current_announcement": {
+      "source_id": "memory-amco-2026-08-19",
+      "ticker": "AMCO",
+      "company": "Amcomri Group plc",
+      "published_at": "2026-08-19T07:00:00+01:00",
+      "title": "Trading Update",
+      "text": "For the period, revenue increased to £42.4m from £31.8m. Adjusted EBITDA increased to £4.7m from £4.3m. Net debt was £2.5m compared with £2.0m at the previous year end. Growth included contributions from acquisitions. Management said the group continues to pursue its buy-and-build strategy. No new numerical full-year profit guidance was provided.",
+      "source_url": "https://example.invalid/amco-trading",
+      "source_urls": ["https://example.invalid/amco-trading"],
+      "evidence_status": "complete",
+      "rns_type": "Results & trading",
+      "categories": ["trading update"]
+    },
+    "history": [
+      {
+        "source_id": "memory-amco-fy25",
+        "published_at": "2026-03-30T07:00:00+01:00",
+        "title": "Final Results",
+        "source_url": "https://example.invalid/amco-fy25",
+        "rns_type": "Results & trading",
+        "impact_colour": "amber",
+        "impact_score": 2,
+        "headline": "Acquisition growth lifts revenue; margin quality needs watching",
+        "takeaway": "FY25 revenue was £31.8m and adjusted EBITDA was £4.3m. Net debt was £2.0m.",
+        "facts": [
+          {"label": "Revenue", "metric": "revenue", "period": "FY25", "value": "£31.8m", "value_numeric": 31.8, "unit": "million", "currency": "GBP", "basis": "reported", "note": "FY25 revenue."},
+          {"label": "Adjusted EBITDA", "metric": "adjusted EBITDA", "period": "FY25", "value": "£4.3m", "value_numeric": 4.3, "unit": "million", "currency": "GBP", "basis": "reported", "note": "FY25 adjusted EBITDA."},
+          {"label": "Adjusted EBITDA margin", "metric": "adjusted EBITDA margin", "period": "FY25", "value": "13.5%", "value_numeric": 13.5, "unit": "%", "basis": "calculated", "note": "Calculated from £4.3m adjusted EBITDA / £31.8m revenue = 13.5%."},
+          {"label": "Net debt", "metric": "net debt", "period": "Point in time", "value": "£2.0m", "value_numeric": 2.0, "unit": "million", "currency": "GBP", "as_of_date": "2025-12-31", "basis": "reported", "note": "Year-end net debt."}
+        ],
+        "guidance": [],
+        "management_claims": [],
+        "disclosure_assessment": {"status": "partial", "missing_items": ["Organic growth excluding acquisitions"]}
+      }
+    ],
+    "expected_case_change": ["weakens"],
+    "allowed_colours": ["red", "amber"],
+    "min_impact_score": 3,
+    "max_impact_score": 4,
+    "required_points": [
+      "Do not let 33% revenue growth dominate the conclusion.",
+      "Calculate current adjusted EBITDA margin at about 11.1% and compare it with about 13.5% previously, a decline of roughly 2.4 percentage points.",
+      "State that EBITDA grew only about 9% while revenue grew about 33%.",
+      "Note that net debt increased and organic growth is not disclosed.",
+      "Conclude that today's evidence weakens the case because profit quality and margin deteriorated."
+    ],
+    "required_prior_source_ids": ["memory-amco-fy25"]
+  },
+  {
+    "id": "small-beat-after-earlier-guidance-upgrade",
+    "ticker": "GATC",
+    "company": "Gattaca plc",
+    "current_announcement": {
+      "source_id": "memory-gatc-2026-08-17",
+      "ticker": "GATC",
+      "company": "Gattaca plc",
+      "published_at": "2026-08-17T07:00:00+01:00",
+      "title": "Trading Update",
+      "text": "Gattaca expects FY26 net fee income of £43.0m, up 11% year on year, and underlying profit before tax of approximately £6.1m. The latest company guidance was approximately £6.0m. Year-end sales headcount was 4% lower, although the company has started to recruit again. Net cash is expected to be broadly unchanged. Gross contractor billings are not presented as the primary performance measure.",
+      "source_url": "https://example.invalid/gatc-trading",
+      "source_urls": ["https://example.invalid/gatc-trading"],
+      "evidence_status": "complete",
+      "rns_type": "Results & trading",
+      "categories": ["trading update"]
+    },
+    "history": [
+      {
+        "source_id": "memory-gatc-guidance-1",
+        "published_at": "2026-02-10T07:00:00+00:00",
+        "title": "Trading Update",
+        "source_url": "https://example.invalid/gatc-february",
+        "rns_type": "Results & trading",
+        "impact_colour": "amber",
+        "impact_score": 2,
+        "headline": "FY26 profit guidance set at £4.5m",
+        "takeaway": "Management guided to approximately £4.5m underlying profit before tax.",
+        "facts": [],
+        "guidance": [
+          {"metric": "underlying profit before tax", "period": "FY26", "value": "£4.5m", "status": "issued", "note": "Initial FY26 guidance."}
+        ],
+        "management_claims": [],
+        "disclosure_assessment": {"status": "complete", "missing_items": []}
+      },
+      {
+        "source_id": "memory-gatc-guidance-2",
+        "published_at": "2026-05-14T07:00:00+01:00",
+        "title": "Trading Update and Guidance Upgrade",
+        "source_url": "https://example.invalid/gatc-may",
+        "rns_type": "Results & trading",
+        "impact_colour": "green",
+        "impact_score": 4,
+        "headline": "FY26 profit guidance raised to £6.0m",
+        "takeaway": "Management raised underlying profit before tax guidance to approximately £6.0m from £4.5m.",
+        "facts": [],
+        "guidance": [
+          {"metric": "underlying profit before tax", "period": "FY26", "value": "£6.0m", "status": "upgraded", "comparator": "Previous £4.5m guidance", "previous_value": "£4.5m", "previous_source_id": "memory-gatc-guidance-1", "note": "Guidance increased by £1.5m."}
+        ],
+        "management_claims": [],
+        "disclosure_assessment": {"status": "complete", "missing_items": []}
+      }
+    ],
+    "expected_case_change": ["strengthens"],
+    "allowed_colours": ["green", "amber"],
+    "min_impact_score": 2,
+    "max_impact_score": 3,
+    "required_points": [
+      "Compare £6.1m with the latest £6.0m guidance first and treat the current beat as only about £0.1m or 1.7%.",
+      "Explain that the larger expectations change happened earlier when guidance rose from £4.5m to £6.0m.",
+      "Use net fee income rather than gross contractor billings as the meaningful recruiter KPI.",
+      "Question whether operating leverage from lower headcount is repeatable as recruitment resumes.",
+      "Keep today's Impact medium rather than double-counting the earlier upgrade."
+    ],
+    "required_prior_source_ids": ["memory-gatc-guidance-2"]
+  },
+  {
+    "id": "management-promise-missed-and-funding-needed",
+    "ticker": "XYZ",
+    "company": "Example Technology plc",
+    "current_announcement": {
+      "source_id": "memory-xyz-2026-09-15",
+      "ticker": "XYZ",
+      "company": "Example Technology plc",
+      "published_at": "2026-09-15T07:00:00+01:00",
+      "title": "Project Delay and Funding Update",
+      "text": "The company will not begin commercial production in September 2026 as previously targeted. Commissioning has been delayed to the fourth quarter of 2026 because equipment installation took longer than planned. The company now expects to require a further £3m of funding before commercial production. Cash at 31 August 2026 was £1.2m. Management is discussing additional funding with existing and new investors, but no binding financing has been agreed.",
+      "source_url": "https://example.invalid/xyz-delay",
+      "source_urls": ["https://example.invalid/xyz-delay"],
+      "evidence_status": "complete",
+      "rns_type": "Operations",
+      "categories": ["delay", "funding"]
+    },
+    "history": [
+      {
+        "source_id": "memory-xyz-2026-03-01",
+        "published_at": "2026-03-01T07:00:00+00:00",
+        "title": "Project Update",
+        "source_url": "https://example.invalid/xyz-project",
+        "rns_type": "Operations",
+        "impact_colour": "green",
+        "impact_score": 3,
+        "headline": "Commercial production targeted for September 2026",
+        "takeaway": "Management targeted first commercial production by September 2026 and said existing funds covered commissioning.",
+        "facts": [
+          {"label": "Cash", "metric": "cash", "period": "Point in time", "value": "£4.8m", "value_numeric": 4.8, "unit": "million", "currency": "GBP", "as_of_date": "2026-02-28", "basis": "reported", "note": "Cash before commissioning."}
+        ],
+        "guidance": [],
+        "management_claims": [
+          {"claim": "Commercial production is targeted to begin by September 2026 using existing funds.", "claim_key": "xyz-commercial-production-september-2026", "metric": "commercial production start", "target_value": "Commercial production", "target_date": "September 2026", "status": "open", "evidence": "Project Update, 1 March 2026."}
+        ],
+        "disclosure_assessment": {"status": "complete", "missing_items": []}
+      }
+    ],
+    "expected_case_change": ["weakens"],
+    "allowed_colours": ["red"],
+    "min_impact_score": 4,
+    "max_impact_score": 5,
+    "required_points": [
+      "Lead with the missed September production target and new £3m funding requirement.",
+      "Update the existing management claim using the same claim key and mark it missed or superseded only with a clear adverse outcome.",
+      "State that cash fell from £4.8m to £1.2m, but do not claim a precise runway because comparable monthly burn is not disclosed.",
+      "Explain that financing discussions are not binding funding.",
+      "Conclude that today's evidence weakens the case and materially increases execution and dilution risk."
+    ],
+    "required_prior_source_ids": ["memory-xyz-2026-03-01"]
+  }
+]

@@ -24,7 +24,7 @@ header[data-testid="stHeader"] { background:transparent; }
 .sca-brand-name { color:var(--sca-text); font-size:1.25rem; font-weight:700; letter-spacing:-.035em; }
 .sca-brand-product { color:var(--sca-muted); font-size:.78rem; font-weight:600; letter-spacing:.08em; text-transform:uppercase; }
 .sca-eyebrow,.sca-section-title { color:var(--sca-muted); font-size:.7rem; font-weight:700; letter-spacing:.09em; text-transform:uppercase; }
-.sca-ticker,.sca-price,.sca-fact-value,.sca-table .num { font-family:"Roboto Mono",ui-monospace,SFMono-Regular,Menlo,monospace; font-weight:600; }
+.sca-ticker,.sca-price,.sca-fact-value,.sca-table .num,.sca-intel-value { font-family:"Roboto Mono",ui-monospace,SFMono-Regular,Menlo,monospace; font-weight:600; }
 .sca-ticker { font-weight:700; letter-spacing:-.02em; }
 .sca-feed-item { border-top:1px solid var(--sca-border); padding:1.15rem 0 .8rem; }
 .sca-feed-item-low { padding:.75rem 0 .25rem; }
@@ -50,18 +50,31 @@ header[data-testid="stHeader"] { background:transparent; }
 .sca-change-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1.35rem; }
 .sca-change-label { color:var(--sca-muted); font-size:.68rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; margin-bottom:.35rem; }
 .sca-change-text { color:#2B3136; font-size:.9rem; line-height:1.55; }
-.sca-table { width:100%; border-collapse:collapse; font-size:.86rem; }
-.sca-table th { color:var(--sca-muted); font-size:.68rem; font-weight:700; letter-spacing:.07em; text-transform:uppercase; text-align:left; padding:.5rem .7rem; border-bottom:1px solid var(--sca-border); }
+.sca-table-wrap { width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+.sca-table { width:100%; min-width:680px; border-collapse:collapse; font-size:.86rem; }
+.sca-table th { color:var(--sca-muted); font-size:.68rem; font-weight:700; letter-spacing:.07em; text-transform:uppercase; text-align:left; padding:.5rem .7rem; border-bottom:1px solid var(--sca-border); white-space:nowrap; }
 .sca-table td { padding:.65rem .7rem; border-bottom:1px solid #E5E6E2; vertical-align:top; }
 .sca-list { margin:0; padding-left:1.15rem; color:#2B3136; font-size:.9rem; line-height:1.6; }
 .sca-company-banner { border-top:1px solid var(--sca-border); border-bottom:1px solid var(--sca-border); padding:1.2rem 0; margin-bottom:1.1rem; }
 .sca-building { background:var(--sca-blue-soft); border-left:3px solid var(--sca-blue); color:#294451; padding:.85rem 1rem; font-size:.84rem; line-height:1.5; margin:.8rem 0 1.3rem; }
 .sca-empty { border-top:1px solid var(--sca-border); padding:2rem 0; color:var(--sca-muted); font-size:.92rem; }
+.sca-intel-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:.7rem; margin:.15rem 0 1.4rem; }
+.sca-intel-card { background:var(--sca-surface); border:1px solid var(--sca-border); padding:.9rem 1rem; min-height:82px; }
+.sca-intel-value { color:var(--sca-text); font-size:1.18rem; line-height:1.2; }
+.sca-intel-label { color:var(--sca-muted); font-size:.7rem; line-height:1.35; margin-top:.38rem; }
+.sca-cell-note { color:var(--sca-muted); font-size:.68rem; line-height:1.35; margin-top:.18rem; font-weight:400; }
+.sca-source-link { color:var(--sca-blue); text-decoration:none; font-size:.76rem; line-height:1.4; }
+.sca-source-link:hover { text-decoration:underline; }
+.sca-memory-row { display:flex; gap:1.2rem; justify-content:space-between; align-items:flex-start; padding:.85rem 0; border-bottom:1px solid #E5E6E2; }
+.sca-memory-main { max-width:760px; }
+.sca-memory-title { color:#2B3136; font-size:.9rem; line-height:1.55; }
+.sca-memory-meta { color:var(--sca-muted); font-size:.72rem; line-height:1.45; margin-top:.3rem; }
+.sca-memory-source { flex:0 0 260px; text-align:right; }
 .sca-job-success{color:#2E6E49}.sca-job-degraded{color:#9A681F}.sca-job-failed{color:#A33F48}.sca-job-running{color:var(--sca-blue)}
 div[data-testid="stButton"]>button,div[data-testid="stLinkButton"]>a { border-radius:3px; border:1px solid #C9CCC8; background:transparent; color:var(--sca-text); min-height:2.1rem; font-size:.78rem; font-weight:600; box-shadow:none; }
 div[data-testid="stButton"]>button:hover,div[data-testid="stLinkButton"]>a:hover { border-color:var(--sca-blue); color:var(--sca-blue); background:#F4F7F8; }
 div[data-baseweb="select"]>div,div[data-testid="stTextInput"] input,div[data-testid="stDateInput"] input,div[data-testid="stTextArea"] textarea { border-radius:3px; border-color:#C9CCC8; background:var(--sca-surface); }
-@media(max-width:760px){.block-container{padding-left:1rem;padding-right:1rem}.sca-change-grid{grid-template-columns:1fr;gap:1rem}.sca-meta-spacer{display:none}.st-key-analyst-note{padding:1.2rem 1rem;border-left:0;border-right:0}}
+@media(max-width:760px){.block-container{padding-left:1rem;padding-right:1rem}.sca-change-grid{grid-template-columns:1fr;gap:1rem}.sca-intel-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.sca-memory-row{display:block}.sca-memory-source{text-align:left;margin-top:.45rem}.sca-meta-spacer{display:none}.st-key-analyst-note{padding:1.2rem 1rem;border-left:0;border-right:0}.sca-table{min-width:620px}}
 </style>
 """
 
@@ -71,7 +84,10 @@ def inject_styles() -> None:
 
 
 def render_brand() -> None:
-    st.markdown('<div class="sca-brand"><span class="sca-brand-name">smallcaps.ai</span><span class="sca-brand-product">AIM Intelligence</span></div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="sca-brand"><span class="sca-brand-name">smallcaps.ai</span><span class="sca-brand-product">AIM Intelligence</span></div>',
+        unsafe_allow_html=True,
+    )
 
 
 def require_beta_access(password: str, *, enabled: bool) -> None:
@@ -97,7 +113,13 @@ def require_beta_access(password: str, *, enabled: bool) -> None:
 
 
 def impact_badge(colour: str, level: str) -> str:
-    return '<span class="sca-impact"><span class="sca-impact-dot" style="background:' + impact_hex(colour) + '"></span>IMPACT ' + html.escape(level.upper()) + '</span>'
+    return (
+        '<span class="sca-impact"><span class="sca-impact-dot" style="background:'
+        + impact_hex(colour)
+        + '"></span>IMPACT '
+        + html.escape(level.upper())
+        + "</span>"
+    )
 
 
 def price_markup(price: dict[str, object] | None) -> str:
@@ -120,7 +142,9 @@ def query_value(name: str, default: str = "") -> str:
 
 def ensure_watchlist(default_tickers: tuple[str, ...]) -> set[str]:
     if "watchlist_tickers" not in st.session_state:
-        st.session_state["watchlist_tickers"] = {ticker.upper() for ticker in default_tickers}
+        st.session_state["watchlist_tickers"] = {
+            ticker.upper() for ticker in default_tickers
+        }
     return set(st.session_state["watchlist_tickers"])
 
 
