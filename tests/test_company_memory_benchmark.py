@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from pathlib import Path
 
 from analyst.company_memory import build_company_memory
@@ -38,18 +39,20 @@ def test_company_memory_benchmark_cases_are_locked_and_point_in_time() -> None:
     for case in cases:
         assert case.history
         current_at = case.current_announcement.published_at
-        assert all(
-            str(record.get("published_at") or "")
-            < current_at.isoformat()
+        history_dates = [
+            datetime.fromisoformat(
+                str(record.get("published_at") or "").replace("Z", "+00:00")
+            )
             for record in case.history
-        )
+        ]
+        assert all(published_at < current_at for published_at in history_dates)
         snapshot = build_company_memory(
             case.history,
             ticker=case.ticker,
             company=case.company,
             before=current_at,
         )
-        assert snapshot.generated_before == current_at.astimezone().isoformat()
+        assert snapshot.generated_before == current_at.astimezone(timezone.utc).isoformat()
         assert snapshot.announcement_count == len(case.history)
         assert case.required_prior_source_ids
 
