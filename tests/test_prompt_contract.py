@@ -86,6 +86,25 @@ def test_company_memory_prompt_locks_point_in_time_continuity_rules():
         assert token in prompt
 
 
+def test_analyst_intelligence_prompt_locks_sector_kpi_and_relationship_rules():
+    prompt = Path("prompts/ANALYST_INTELLIGENCE_LAYER_V1.md").read_text(
+        encoding="utf-8"
+    )
+    for token in (
+        "which operating numbers matter for this type of business",
+        "analyst_intelligence_profile",
+        "deterministic_intelligence_findings",
+        "analytical checklists, not company-reported facts",
+        "net fee income before gross contractor payroll pass-through",
+        "Growth quality",
+        "Earnings versus cash",
+        "Pipeline versus delivery",
+        "Sector-specific tension",
+        "Never invent a KPI",
+    ):
+        assert token in prompt
+
+
 def test_final_consistency_review_locks_evidence_and_impact_checks():
     prompt = Path("prompts/ANALYST_CONSISTENCY_REVIEW_V1.md").read_text(encoding="utf-8")
     for token in (
@@ -100,5 +119,5 @@ def test_final_consistency_review_locks_evidence_and_impact_checks():
     ):
         assert token in prompt
 
-    assert ANALYSIS_VERSION == "aim-intelligence-analyst-3.0"
-    assert DEFAULT_PROMPT_VERSION == "analyst-engine-3.0-company-memory"
+    assert ANALYSIS_VERSION == "aim-intelligence-analyst-3.1"
+    assert DEFAULT_PROMPT_VERSION == "analyst-engine-3.1-sector-intelligence"
