@@ -30,6 +30,18 @@ def _price_warnings(outcome: PriceJobOutcome | None) -> list[str]:
     return output
 
 
+def _price_summary(outcome: PriceJobOutcome | None) -> dict[str, object]:
+    if outcome is None:
+        return {}
+    return {
+        "price_status": outcome.status,
+        **{
+            f"price_{key}": value
+            for key, value in outcome.summary.items()
+        },
+    }
+
+
 def main() -> None:
     settings = Settings.from_env()
     errors, warnings = settings.runtime_issues("ingestion")
@@ -41,22 +53,49 @@ def main() -> None:
         factory = create_session_factory(engine)
         repository = IntelligenceRepository(factory)
         operations = OperationsRepository(factory)
-        operations.reconcile_stale_running(job_name=JOB_NAME)
-        price_outcome: PriceJobOutcome | None = None
         combined_warnings: list[str] = list(warnings)
+        price_outcome: PriceJobOutcome | None = None
 
+        # Market reactions use a separate advisory lock. Run them before the
+        # potentially longer OpenAI ingestion cycle so existing event-day prices
+        # continue to refresh even when a large RNS batch takes time to analyse.
+        # A newly stored RNS is picked up by the next ten-minute cron cycle.
+        if settings.market_data_enabled:
+            _progress("Updating event-day market reactions")
+            price_outcome = run_price_job(
+                settings,
+                engine=engine,
+                raise_on_failure=False,
+            )
+            combined_warnings.extend(_price_warnings(price_outcome))
+
+        operations.reconcile_stale_running(job_name=JOB_NAME)
         with advisory_job_lock(engine, JOB_NAME) as acquired:
             run_id = operations.begin_job(
                 JOB_NAME,
                 run_key=datetime.now(LONDON).date().isoformat(),
+                summary=_price_summary(price_outcome),
             )
             if not acquired:
+                lock_warning = (
+                    "Another ingestion worker currently holds the advisory lock."
+                )
+                combined_warnings.append(lock_warning)
                 operations.finish_job(
                     run_id,
                     status="skipped",
-                    warnings=[
-                        "Another ingestion worker currently holds the advisory lock."
-                    ],
+                    summary={
+                        "discovered": 0,
+                        "known": 0,
+                        "analysed": 0,
+                        "review": 0,
+                        "routine": 0,
+                        "deferred": 0,
+                        "blocked": 0,
+                        "failed": 0,
+                        **_price_summary(price_outcome),
+                    },
+                    warnings=combined_warnings,
                 )
                 print(
                     "Daily AIM ingestion skipped: another worker is active",
@@ -99,26 +138,9 @@ def main() -> None:
                     "deferred": result.deferred,
                     "blocked": result.blocked,
                     "failed": result.failed,
+                    **_price_summary(price_outcome),
                 }
                 combined_warnings.extend(result.warnings)
-
-                # The AIM cron already runs throughout the LSE day. Reusing that
-                # reliable service for market reactions makes price context work in
-                # the MVP even before a separate Railway price cron is provisioned.
-                # A dedicated price worker remains safe because its separate
-                # advisory lock makes overlapping cycles skip rather than duplicate.
-                if settings.market_data_enabled:
-                    _progress("Updating event-day market reactions")
-                    price_outcome = run_price_job(
-                        settings,
-                        engine=engine,
-                        raise_on_failure=False,
-                    )
-                    summary["price_status"] = price_outcome.status
-                    for key, value in price_outcome.summary.items():
-                        summary[f"price_{key}"] = value
-                    combined_warnings.extend(_price_warnings(price_outcome))
-
                 degraded = any(
                     (
                         result.review_required,
@@ -126,7 +148,7 @@ def main() -> None:
                         result.blocked,
                         result.failed,
                         price_outcome is not None
-                        and price_outcome.status == "failed",
+                        and price_outcome.status in {"degraded", "failed"},
                     )
                 )
                 operations.finish_job(
@@ -139,6 +161,7 @@ def main() -> None:
                 operations.finish_job(
                     run_id,
                     status="failed",
+                    summary=_price_summary(price_outcome),
                     warnings=combined_warnings,
                     error_text=f"{type(exc).__name__}: {exc}",
                 )
