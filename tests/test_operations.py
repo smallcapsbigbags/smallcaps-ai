@@ -1,6 +1,8 @@
+import uuid
 from datetime import datetime, timedelta, timezone
 
 from database.db import create_database_engine, create_session_factory, init_database
+from database.models import JobRunRow
 from database.operations import OperationsRepository, advisory_job_lock
 
 
@@ -39,10 +41,9 @@ def test_stale_running_job_is_reconciled_without_touching_recent_run() -> None:
     stale_id = repository.begin_job("daily-aim-ingestion", run_key="stale")
     recent_id = repository.begin_job("daily-aim-ingestion", run_key="recent")
 
-    # Set deterministic timestamps through the repository's session factory.
     with repository.session_factory() as session:
-        stale = session.get(__import__("database.models", fromlist=["JobRunRow"]).JobRunRow, __import__("uuid").UUID(stale_id))
-        recent = session.get(__import__("database.models", fromlist=["JobRunRow"]).JobRunRow, __import__("uuid").UUID(recent_id))
+        stale = session.get(JobRunRow, uuid.UUID(stale_id))
+        recent = session.get(JobRunRow, uuid.UUID(recent_id))
         assert stale is not None and recent is not None
         stale.started_at = now - timedelta(hours=4)
         recent.started_at = now - timedelta(minutes=20)
