@@ -5,7 +5,8 @@
   },
   "deploy": {
     "preDeployCommand": [
-      "python -m jobs.validate_runtime --service web --create-schema"
+      "python -m jobs.validate_runtime --service web --create-schema",
+      "python -m jobs.audit_production --service web --record"
     ],
     "startCommand": "streamlit run streamlit_app.py --server.address 0.0.0.0 --server.port $PORT",
     "healthcheckPath": "/_stcore/health",
