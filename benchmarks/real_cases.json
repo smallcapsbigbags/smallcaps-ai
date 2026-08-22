@@ -1,0 +1,471 @@
+[
+  {
+    "id": "spr-rule9-buyback-2026-08-21",
+    "day": "2026-08-21",
+    "ticker": "SPR",
+    "headline_contains": ["Share Buyback", "Rule 9"],
+    "event_type": "Buyback / control",
+    "allowed_colours": ["green", "amber"],
+    "min_score": 3,
+    "max_score": 4,
+    "main_change": "A potentially meaningful share buyback can reduce the share count while increasing the Adam family's percentage ownership, creating the Rule 9 waiver issue.",
+    "human_reference": [
+      "Quantify the proposed buyback as a percentage of the existing share count if the denominator is disclosed.",
+      "Explain Rule 9 and the Concert Party in plain English and make clear that the waiver does not itself mean Springfield is being taken over.",
+      "Connect the buyback to Springfield's recent balance-sheet and land-sale disclosures when supported by prior context.",
+      "Treat the key investment question as whether Springfield has genuinely surplus cash for a meaningful buyback without weakening the balance sheet."
+    ],
+    "calculation_opportunities": ["buyback authority as a percentage of existing shares"],
+    "required_concepts": ["buyback scale", "Rule 9", "control/Concert Party", "cash or balance-sheet capacity"],
+    "case_change": "strengthens",
+    "prior_context": [
+      {
+        "source_id": "gold-spr-2026-08-17",
+        "published_at": "2026-08-17T07:00:00+01:00",
+        "rns_type": "Corporate",
+        "headline": "Land Sale and Final Deferred Consideration Payment",
+        "facts": [
+          "Central Scotland land sold for £12m cash",
+          "£6.5m of proceeds used to settle final deferred consideration for the Mactaggart & Mickel acquisition",
+          "the announcement said the balance sheet was in a net cash position"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "kgh-moore-barlow-2026-08-21",
+    "day": "2026-08-21",
+    "ticker": "KGH",
+    "headline_contains": ["Moore Barlow", "Acquisition"],
+    "event_type": "Acquisition",
+    "allowed_colours": ["amber", "green"],
+    "min_score": 3,
+    "max_score": 4,
+    "main_change": "Knights is acquiring Moore Barlow for cash, so the useful analysis is transaction economics, funding and the quality/comparability of the target profit measure.",
+    "human_reference": [
+      "Lead with target revenue/profit and total/upfront cash consideration rather than strategic language.",
+      "Calculate simple price-to-revenue and price-to-disclosed-profit multiples when the inputs are verified.",
+      "State clearly that profit distributable to LLP members is not automatically comparable with EBITDA or normal corporate operating profit.",
+      "Assess whether acquisition funding changes leverage or balance-sheet risk if disclosed."
+    ],
+    "calculation_opportunities": ["consideration / target revenue", "consideration / disclosed target profit", "upfront consideration percentage", "deferred consideration amount"],
+    "required_concepts": ["target economics", "consideration", "profit measure comparability", "funding"],
+    "case_change": "strengthens",
+    "prior_context": []
+  },
+  {
+    "id": "rle-trading-update-2026-08-21",
+    "day": "2026-08-21",
+    "ticker": "RLE",
+    "headline_contains": ["Trading Update", "Notice of Results"],
+    "event_type": "Property wind-down / trading update",
+    "allowed_colours": ["amber", "green"],
+    "min_score": 2,
+    "max_score": 3,
+    "main_change": "Asset sales are progressing and management says scheduled disposals should repay debt and allow capital returns.",
+    "human_reference": [
+      "Identify sale proceeds and sale price versus book value.",
+      "Focus on the path to debt repayment and capital returns rather than treating the disposal as ordinary revenue.",
+      "Flag the discount to book value as part of the economics.",
+      "Keep the note concise because the core investment consequence is straightforward."
+    ],
+    "calculation_opportunities": ["discount to book value if both values are disclosed"],
+    "required_concepts": ["asset sale", "book value", "debt repayment", "capital returns"],
+    "case_change": "strengthens",
+    "prior_context": []
+  },
+  {
+    "id": "rbn-interims-warning-2026-08-20",
+    "day": "2026-08-20",
+    "ticker": "RBN",
+    "headline_contains": ["Interim Results"],
+    "event_type": "Profit warning / results",
+    "allowed_colours": ["red"],
+    "min_score": 4,
+    "max_score": 5,
+    "main_change": "A profit warning resets earnings expectations and should dominate the note, with margin pressure and operating-cost inflation examined as the drivers.",
+    "human_reference": [
+      "Do not allow revenue growth to obscure the profit warning.",
+      "Identify lower gross margin and higher operating costs as the important deterioration if disclosed.",
+      "Distinguish temporary explanations from a structural competitive/margin problem.",
+      "Keep balance-sheet or property-sale support separate from the earnings downgrade."
+    ],
+    "calculation_opportunities": ["guidance change percentage if prior and new guidance are directly comparable", "gross-margin movement"],
+    "required_concepts": ["profit warning", "gross margin", "operating costs", "guidance"],
+    "case_change": "weakens",
+    "prior_context": []
+  },
+  {
+    "id": "capd-h1-2026-08-20",
+    "day": "2026-08-20",
+    "ticker": "CAPD",
+    "headline_contains": ["H1", "2026 Results"],
+    "event_type": "Interim results / guidance",
+    "allowed_colours": ["amber", "green"],
+    "min_score": 3,
+    "max_score": 4,
+    "main_change": "Strong operational growth and higher revenue guidance are partly offset by profit forecast pressure/costs, so the note needs to separate volume growth from earnings quality.",
+    "human_reference": [
+      "Identify the operating drivers behind revenue growth rather than stopping at the headline percentage.",
+      "Separate investment gains or market-driven items from core operating performance.",
+      "Compare updated revenue guidance with prior guidance.",
+      "Explain why stronger revenue can coexist with weaker or unchanged profit expectations."
+    ],
+    "calculation_opportunities": ["guidance midpoint change", "margin movement"],
+    "required_concepts": ["revenue guidance", "operating profit", "core operations versus investment gains", "costs"],
+    "case_change": "strengthens",
+    "prior_context": []
+  },
+  {
+    "id": "mtec-major-contract-2026-08-18",
+    "day": "2026-08-18",
+    "ticker": "MTEC",
+    "headline_contains": ["largest contract", "contract"],
+    "event_type": "Contract award",
+    "allowed_colours": ["green"],
+    "min_score": 3,
+    "max_score": 4,
+    "main_change": "Made Tech has won the largest contract in its history; the analysis should test contract size, timing, revenue contribution and whether it changes forecasts.",
+    "human_reference": [
+      "Quantify contract value and timing.",
+      "Calculate contract value relative to verified company revenue if a reliable denominator is in evidence or prior context.",
+      "Distinguish total contract value from annual revenue recognition.",
+      "State whether management or broker forecasts actually change rather than assuming a large contract means an earnings upgrade."
+    ],
+    "calculation_opportunities": ["contract value relative to verified annual revenue"],
+    "required_concepts": ["contract value", "revenue timing", "forecast impact", "scale"],
+    "case_change": "strengthens",
+    "prior_context": []
+  },
+  {
+    "id": "snx-interims-2026-08-18",
+    "day": "2026-08-18",
+    "ticker": "SNX",
+    "headline_contains": ["Interim Results"],
+    "event_type": "Interim results",
+    "allowed_colours": ["amber", "red"],
+    "min_score": 3,
+    "max_score": 4,
+    "main_change": "The half-year contains weaker headline earnings despite some margin/order-book positives, so the analyst must separate current-year weakness from second-half weighting and future pipeline.",
+    "human_reference": [
+      "Lead with the deterioration in revenue/profit if material.",
+      "Assess gross-margin movement and whether it reflects mix or structural improvement.",
+      "Compare order book with prior periods rather than quoting it in isolation.",
+      "Challenge heavy second-half weighting and identify what must be delivered for full-year guidance."
+    ],
+    "calculation_opportunities": ["gross-margin movement", "order-book change"],
+    "required_concepts": ["profit change", "margin", "order book", "second-half weighting"],
+    "case_change": "weakens",
+    "prior_context": []
+  },
+  {
+    "id": "time-takeover-2026-08-17",
+    "day": "2026-08-17",
+    "ticker": "TIME",
+    "headline_contains": ["Recommended Cash Acquisition", "Acquisition of Time Finance"],
+    "event_type": "Recommended cash takeover",
+    "allowed_colours": ["green"],
+    "min_score": 5,
+    "max_score": 5,
+    "main_change": "A recommended cash offer creates a firm value-realisation event; the analysis should focus on premium, valuation context, shareholder support and remaining approval risk.",
+    "human_reference": [
+      "Show offer price and the disclosed premiums to relevant undisturbed/VWAP comparators.",
+      "Explain bidder type and strategic rationale only where supported.",
+      "Identify shareholder support/irrevocables and the approval threshold or conditions that remain.",
+      "Do not call the offer generous or cheap without a supported comparator; if discussing tangible assets or earnings, label the calculation and source clearly."
+    ],
+    "calculation_opportunities": ["offer premium", "offer price relative to disclosed tangible assets or earnings where verified"],
+    "required_concepts": ["offer price", "premium", "shareholder support", "approval/completion risk"],
+    "case_change": "strengthens",
+    "prior_context": []
+  },
+  {
+    "id": "mwe-interims-2026-08-17",
+    "day": "2026-08-17",
+    "ticker": "MWE",
+    "headline_contains": ["Interim Results"],
+    "event_type": "Interim results / mixed divisions",
+    "allowed_colours": ["green", "amber"],
+    "min_score": 3,
+    "max_score": 4,
+    "main_change": "Group revenue/profit and margins improve, but the antenna division remains weak; the analyst should not let strong group numbers hide the recurring divisional problem.",
+    "human_reference": [
+      "Identify group revenue, operating profit and gross-margin progress.",
+      "Separate the weak antenna division from stronger irrigation/distribution performance.",
+      "Challenge a timing explanation if the same division has declined in consecutive periods.",
+      "Use net cash and order timing as context without pretending they prove a turnaround."
+    ],
+    "calculation_opportunities": ["gross-margin movement", "segment decline"],
+    "required_concepts": ["group growth", "antenna division", "timing versus recurring weakness", "net cash"],
+    "case_change": "strengthens",
+    "prior_context": [
+      {
+        "source_id": "gold-mwe-q1-2026",
+        "published_at": "2026-05-01T07:00:00+01:00",
+        "rns_type": "Results & trading",
+        "facts": ["the antenna division had already reported a roughly 20% revenue decline in the previous quarter"]
+      }
+    ]
+  },
+  {
+    "id": "gatc-trading-update-2026-08-17",
+    "day": "2026-08-17",
+    "ticker": "GATC",
+    "headline_contains": ["Trading Update"],
+    "event_type": "Trading update / small beat",
+    "allowed_colours": ["green", "amber"],
+    "min_score": 2,
+    "max_score": 3,
+    "main_change": "FY26 profit is only slightly ahead of the latest guidance, even though performance is much better than where expectations started earlier in the year.",
+    "human_reference": [
+      "Use net fee income rather than gross contractor pass-through revenue as the economically meaningful recruiter KPI.",
+      "Compare c.£6.1m underlying pre-tax profit with the latest £6.0m guidance and treat the beat as small.",
+      "Recognise that the bigger improvement happened when guidance was previously raised from £4.5m.",
+      "Explain operating leverage and question how repeatable it is if lower headcount helped profits."
+    ],
+    "calculation_opportunities": ["profit beat versus latest guidance", "conversion/profit as a share of net fee income", "cost growth versus fee growth if disclosed"],
+    "required_concepts": ["net fee income", "latest guidance", "operating leverage", "repeatability"],
+    "case_change": "strengthens",
+    "prior_context": [
+      {
+        "source_id": "gold-gatc-2026-05-14",
+        "published_at": "2026-05-14T07:00:00+01:00",
+        "rns_type": "Results & trading",
+        "guidance": [
+          {"metric": "underlying pre-tax profit", "period": "FY26", "value": "£6.0m", "status": "upgraded", "previous_value": "£4.5m"}
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gms-contract-extension-2026-08-17",
+    "day": "2026-08-17",
+    "ticker": "GMS",
+    "headline_contains": ["Contract"],
+    "event_type": "Contract extension",
+    "allowed_colours": ["amber", "green", "grey"],
+    "min_score": 1,
+    "max_score": 3,
+    "main_change": "A vessel contract extension adds backlog but may be financially modest; the note should not overstate a routine extension if forecasts are unchanged.",
+    "human_reference": [
+      "Capture extension duration/options and updated backlog.",
+      "State whether contract economics or forecast impact are disclosed.",
+      "Do not call the extension major merely because backlog is large.",
+      "Keep the analysis brief when there is no meaningful change to expectations."
+    ],
+    "calculation_opportunities": [],
+    "required_concepts": ["extension duration", "backlog", "forecast impact", "materiality"],
+    "case_change": "unchanged",
+    "prior_context": []
+  },
+  {
+    "id": "tgp-contract-2026-08-17",
+    "day": "2026-08-17",
+    "ticker": "TGP",
+    "headline_contains": ["Contract"],
+    "event_type": "Contract award",
+    "allowed_colours": ["green", "amber"],
+    "min_score": 2,
+    "max_score": 3,
+    "main_change": "A c.£1m contract is useful only if its size, delivery timing and scale relative to Tekmar are made clear.",
+    "human_reference": [
+      "Capture total contract value and delivery timing.",
+      "Use the actual award value rather than the rounded headline if both are disclosed.",
+      "Avoid inferring margin or profit contribution when not disclosed.",
+      "Assess scale relative to verified company revenue only if a reliable denominator exists."
+    ],
+    "calculation_opportunities": ["contract value relative to verified annual revenue if available"],
+    "required_concepts": ["contract value", "delivery timing", "margin not disclosed", "scale"],
+    "case_change": "strengthens",
+    "prior_context": []
+  },
+  {
+    "id": "atm-strategic-funding-2026-08-17",
+    "day": "2026-08-17",
+    "ticker": "ATM",
+    "headline_contains": ["Strategic Funding", "Financial Close"],
+    "event_type": "Project financing",
+    "allowed_colours": ["green", "amber"],
+    "min_score": 3,
+    "max_score": 4,
+    "main_change": "Long-term project funding moves the asset toward construction/commissioning, so the key questions are amount, tenor, use of funds and remaining execution/funding risk.",
+    "human_reference": [
+      "Identify facility amount and tenor.",
+      "Explain what project stage the financing unlocks.",
+      "Separate subsidiary/project debt from group-level liquidity where relevant.",
+      "State what funding or execution risk remains rather than treating financial close as guaranteed project success."
+    ],
+    "calculation_opportunities": [],
+    "required_concepts": ["facility amount", "tenor", "construction/commissioning", "remaining project risk"],
+    "case_change": "strengthens",
+    "prior_context": []
+  },
+  {
+    "id": "f1sn-dfs-2026-08-17",
+    "day": "2026-08-17",
+    "ticker": "1SN",
+    "headline_contains": ["Feasibility", "Taronga"],
+    "event_type": "Resource project economics",
+    "allowed_colours": ["green", "amber"],
+    "min_score": 3,
+    "max_score": 4,
+    "main_change": "Updated feasibility economics materially increase project value, but the analysis must keep study assumptions separate from realised cash value.",
+    "human_reference": [
+      "Capture updated post-tax NPV and the commodity-price assumption used.",
+      "Compare with the previous DFS value if explicitly supplied.",
+      "Explain that NPV is a modelled project value, not cash on the balance sheet.",
+      "Identify the remaining financing, development and commodity-price dependencies."
+    ],
+    "calculation_opportunities": ["NPV increase versus prior DFS"],
+    "required_concepts": ["NPV", "commodity-price assumption", "prior DFS", "development risk"],
+    "case_change": "strengthens",
+    "prior_context": []
+  },
+  {
+    "id": "ang-half-year-trading-2026-08-19",
+    "day": "2026-08-19",
+    "ticker": "ANG",
+    "headline_contains": ["Half Year Trading Update", "Notice of Results"],
+    "event_type": "Retail trading update",
+    "allowed_colours": ["green", "amber"],
+    "min_score": 2,
+    "max_score": 3,
+    "main_change": "Sales growth and current trading are solid, with UK like-for-like performance more informative than total revenue growth when acquisitions/store openings contribute.",
+    "human_reference": [
+      "Separate total sales growth from like-for-like growth.",
+      "Identify store/online mix where disclosed.",
+      "Compare current trading with market expectations only when the company explicitly provides them.",
+      "Keep acquisitions and new-store growth separate from underlying organic performance."
+    ],
+    "calculation_opportunities": [],
+    "required_concepts": ["like-for-like", "total sales", "organic versus expansion", "outlook"],
+    "case_change": "strengthens",
+    "prior_context": []
+  },
+  {
+    "id": "amco-trading-update-2026-08-19",
+    "day": "2026-08-19",
+    "ticker": "AMCO",
+    "headline_contains": ["Trading Update"],
+    "event_type": "Trading update / earnings pressure",
+    "allowed_colours": ["amber", "red"],
+    "min_score": 3,
+    "max_score": 4,
+    "main_change": "Revenue growth is outweighed by weaker profit/margins and leverage concerns, so the note should focus on earnings quality and balance-sheet risk.",
+    "human_reference": [
+      "Do not let revenue growth hide EBITDA/margin deterioration.",
+      "Identify net debt and leverage where disclosed.",
+      "Explain whether acquisition activity or integration is contributing to the divergence between revenue and profit.",
+      "Assess whether guidance has changed or merely remains formally unchanged despite weaker economics."
+    ],
+    "calculation_opportunities": ["EBITDA margin", "net debt / EBITDA if both inputs are verified"],
+    "required_concepts": ["EBITDA", "margin", "net debt/leverage", "guidance"],
+    "case_change": "weakens",
+    "prior_context": []
+  },
+  {
+    "id": "eee-drill-update-2026-08-19",
+    "day": "2026-08-19",
+    "ticker": "EEE",
+    "headline_contains": ["Pitfield", "Drill"],
+    "event_type": "Exploration / technical update",
+    "allowed_colours": ["green", "amber", "grey"],
+    "min_score": 1,
+    "max_score": 3,
+    "main_change": "Technical drilling progress may be encouraging but should not be translated into commercial value without resource, recovery, funding or economic evidence.",
+    "human_reference": [
+      "Separate drilling/technical progress from project economics.",
+      "Identify grades/intercepts only if they are material and clearly disclosed.",
+      "Do not imply revenue or project value from technical progress alone.",
+      "State the next technical/economic proof point."
+    ],
+    "calculation_opportunities": [],
+    "required_concepts": ["technical progress", "no guaranteed economics", "funding or development dependency", "next proof point"],
+    "case_change": "unclear",
+    "prior_context": []
+  },
+  {
+    "id": "gpl-q4-2026-08-19",
+    "day": "2026-08-19",
+    "ticker": "GDP",
+    "headline_contains": ["Q4", "Operations"],
+    "event_type": "Operational update",
+    "allowed_colours": ["green", "amber"],
+    "min_score": 2,
+    "max_score": 3,
+    "main_change": "Operational performance should be judged on production/recovery, margins or cash consequences rather than general activity language.",
+    "human_reference": [
+      "Identify the operational KPI that actually drives economics.",
+      "Separate production/throughput changes from commodity-price effects where disclosed.",
+      "Surface cash/dividend or balance-sheet implications if material.",
+      "Keep the note concise if there is no guidance reset."
+    ],
+    "calculation_opportunities": [],
+    "required_concepts": ["operational KPI", "economics", "cash or balance sheet", "guidance"],
+    "case_change": "strengthens",
+    "prior_context": []
+  },
+  {
+    "id": "wnda-refinancing-2026-08-18",
+    "day": "2026-08-18",
+    "ticker": "WNDA",
+    "headline_contains": ["Refinancing", "Banking Facilities"],
+    "event_type": "Refinancing",
+    "allowed_colours": ["green", "amber"],
+    "min_score": 2,
+    "max_score": 4,
+    "main_change": "New banking facilities can reduce refinancing risk, but the analyst must check pricing, maturity, security, covenants and whether liquidity actually improves.",
+    "human_reference": [
+      "Capture facility size and maturity.",
+      "Compare with the facilities being replaced if the source allows.",
+      "Explain whether refinancing risk or liquidity headroom changes.",
+      "Do not call refinancing favourable if pricing/security/covenants materially worsen or are undisclosed."
+    ],
+    "calculation_opportunities": [],
+    "required_concepts": ["facility size", "maturity", "liquidity/refinancing risk", "pricing/covenants if disclosed"],
+    "case_change": "strengthens",
+    "prior_context": []
+  },
+  {
+    "id": "shld-interims-2026-08-20",
+    "day": "2026-08-20",
+    "ticker": "STX",
+    "headline_contains": ["Interim Results"],
+    "event_type": "Life sciences results / cash runway",
+    "allowed_colours": ["amber", "red", "grey"],
+    "min_score": 2,
+    "max_score": 4,
+    "main_change": "For a loss-making life-sciences company, revenue growth matters less than operating loss, cash balance, commercial progress and funding runway.",
+    "human_reference": [
+      "Prioritise cash and operating loss alongside revenue.",
+      "Translate the cash balance into a runway only if a defensible burn-rate basis is available; otherwise state runway is not safely calculable.",
+      "Separate commercial uptake from regulatory/clinical milestones.",
+      "Identify whether additional funding risk is rising or falling."
+    ],
+    "calculation_opportunities": ["simple runway only if recurring cash burn inputs are sufficiently comparable"],
+    "required_concepts": ["cash", "operating loss", "commercial progress", "funding runway"],
+    "case_change": "unclear",
+    "prior_context": []
+  },
+  {
+    "id": "time-out-trading-2026-08-18",
+    "day": "2026-08-18",
+    "ticker": "TMO",
+    "headline_contains": ["FY26 TRADING UPDATE", "Trading Update"],
+    "event_type": "Trading update",
+    "allowed_colours": ["green", "amber"],
+    "min_score": 2,
+    "max_score": 3,
+    "main_change": "Group trading should be split between media and markets/venues, with recurring growth separated from site openings and one-off timing.",
+    "human_reference": [
+      "Separate the performance of the group's main divisions.",
+      "Identify like-for-like/underlying trends where disclosed rather than only total growth.",
+      "Surface cash or leverage consequences of venue expansion if relevant.",
+      "Keep outlook changes distinct from management ambition."
+    ],
+    "calculation_opportunities": [],
+    "required_concepts": ["division mix", "underlying trading", "cash/leverage if relevant", "outlook"],
+    "case_change": "strengthens",
+    "prior_context": []
+  }
+]
