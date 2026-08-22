@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping, Sequence
 
 from analyst.models import AnalystNote, AnnouncementInput
 
@@ -87,7 +87,10 @@ _ADVERSE_RULES: tuple[tuple[str, re.Pattern[str], tuple[str, ...]], ...] = (
     ),
     (
         "emergency or rescue financing",
-        re.compile(r"\b(?:emergency|rescue) (?:finance|financing|funding)\b", re.IGNORECASE),
+        re.compile(
+            r"\b(?:emergency|rescue) (?:finance|financing|funding)\b",
+            re.IGNORECASE,
+        ),
         ("emergency", "rescue"),
     ),
     (
@@ -129,7 +132,10 @@ _ADVERSE_RULES: tuple[tuple[str, re.Pattern[str], tuple[str, ...]], ...] = (
     ),
     (
         "insolvency risk",
-        re.compile(r"\b(?:risk of|may enter|could enter) (?:administration|insolvency|liquidation)\b", re.IGNORECASE),
+        re.compile(
+            r"\b(?:risk of|may enter|could enter) (?:administration|insolvency|liquidation)\b",
+            re.IGNORECASE,
+        ),
         ("administration", "insolvency", "liquidation"),
     ),
     (
@@ -173,9 +179,26 @@ def _note_text(note: AnalystNote) -> str:
     for driver in note.impact_drivers:
         parts.extend((driver.dimension, driver.direction, driver.rationale))
     for fact in note.key_facts:
-        parts.extend((fact.label, fact.value, fact.note, fact.comparator, fact.previous_value))
+        parts.extend(
+            (
+                fact.label,
+                fact.value,
+                fact.note,
+                fact.comparator,
+                fact.previous_value,
+            )
+        )
     for event in note.guidance_events:
-        parts.extend((event.metric, event.period, event.value, event.comparator, event.previous_value, event.note))
+        parts.extend(
+            (
+                event.metric,
+                event.period,
+                event.value,
+                event.comparator,
+                event.previous_value,
+                event.note,
+            )
+        )
     return " ".join(parts).lower()
 
 
@@ -231,33 +254,103 @@ def _calculation_warnings(note: AnalystNote) -> Iterable[str]:
                 )
 
 
+def _collect_context_source_ids(value: object, output: set[str]) -> None:
+    """Collect source IDs from exact prior records and nested memory snapshots."""
+
+    if isinstance(value, Mapping):
+        source_id = value.get("source_id")
+        if isinstance(source_id, str) and source_id.strip():
+            output.add(source_id.strip())
+        for nested in value.values():
+            _collect_context_source_ids(nested, output)
+        return
+    if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
+        for nested in value:
+            _collect_context_source_ids(nested, output)
+
+
+def _prior_source_ids(
+    prior_context: Sequence[Mapping[str, object]],
+) -> set[str]:
+    output: set[str] = set()
+    _collect_context_source_ids(prior_context, output)
+    return output
+
+
+def _provenance_warnings(
+    note: AnalystNote,
+    prior_context: Sequence[Mapping[str, object]],
+) -> Iterable[str]:
+    if not prior_context:
+        return
+    allowed = _prior_source_ids(prior_context)
+    for fact in note.key_facts:
+        source_id = fact.comparator_source_id.strip()
+        if source_id and source_id not in allowed:
+            yield (
+                f"GUARDRAIL: Fact '{fact.label}' cites comparator source_id "
+                f"'{source_id}', which is not present in eligible prior context."
+            )
+    for event in note.guidance_events:
+        source_id = event.previous_source_id.strip()
+        if source_id and source_id not in allowed:
+            yield (
+                f"GUARDRAIL: Guidance '{event.metric}' cites previous_source_id "
+                f"'{source_id}', which is not present in eligible prior context."
+            )
+
+
 def guardrail_warnings(
     announcement: AnnouncementInput,
     note: AnalystNote,
+    *,
+    prior_context: Sequence[Mapping[str, object]] = (),
 ) -> list[str]:
     source = announcement.text
     output = _note_text(note)
     warnings: list[str] = []
 
     for label, source_pattern, required_terms in _ADVERSE_RULES:
-        if source_pattern.search(source) and not any(term in output for term in required_terms):
+        if source_pattern.search(source) and not any(
+            term in output for term in required_terms
+        ):
             warnings.append(
-                f"GUARDRAIL: Explicit {label} appears in the source but is absent from the analytical record."
+                f"GUARDRAIL: Explicit {label} appears in the source but is absent "
+                "from the analytical record."
             )
 
-    has_guidance_event = any(event.status in _GUIDANCE_STATUSES for event in note.guidance_events)
-    if has_guidance_event and _ASPIRATION_RE.search(source) and not _has_genuine_guidance(source):
+    has_guidance_event = any(
+        event.status in _GUIDANCE_STATUSES for event in note.guidance_events
+    )
+    if (
+        has_guidance_event
+        and _ASPIRATION_RE.search(source)
+        and not _has_genuine_guidance(source)
+    ):
         warnings.append(
-            "GUARDRAIL: The output classifies guidance, but the source appears to contain only unquantified or conditional management intent."
+            "GUARDRAIL: The output classifies guidance, but the source appears "
+            "to contain only unquantified or conditional management intent."
         )
 
     warnings.extend(_calculation_warnings(note))
+    warnings.extend(_provenance_warnings(note, prior_context))
     return list(dict.fromkeys(warnings))
 
 
 def apply_analysis_guardrails(
     announcement: AnnouncementInput,
     note: AnalystNote,
+    *,
+    prior_context: Sequence[Mapping[str, object]] = (),
 ) -> AnalystNote:
-    warnings = [*note.source_warnings, *guardrail_warnings(announcement, note)]
-    return note.model_copy(update={"source_warnings": list(dict.fromkeys(warnings))})
+    warnings = [
+        *note.source_warnings,
+        *guardrail_warnings(
+            announcement,
+            note,
+            prior_context=prior_context,
+        ),
+    ]
+    return note.model_copy(
+        update={"source_warnings": list(dict.fromkeys(warnings))}
+    )
