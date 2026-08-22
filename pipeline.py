@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from analyst.analyzer import AnalystEngine
+from analyst.company_context import build_prior_context_record
 from analyst.company_memory import build_company_memory
 from analyst.context_selector import select_prior_context
 from analyst.evidence import validate_announcement_evidence
@@ -54,15 +55,19 @@ class FoundationPipeline:
                 company=announcement.company,
                 before=announcement.published_at,
             )
-            # Keep the complete deterministic memory plus a small number of exact
-            # earlier RNS records. This gives the model both continuity and source-
-            # level evidence without sending the whole company history every time.
             selected_history = select_prior_context(
                 history,
                 [announcement],
                 limit=7,
             )
-            analysis_context = [memory.to_context_record(), *selected_history]
+            # The snapshot supplies continuity. Selected source-level records are
+            # then reshaped so company disclosure, Smallcaps.ai calculations and
+            # earlier analyst interpretation cannot be blurred together.
+            prior_records = [
+                build_prior_context_record(record)
+                for record in selected_history
+            ]
+            analysis_context = [memory.to_context_record(), *prior_records]
             expected_coverage = memory.coverage_status
 
         note = self.analyst_engine.analyse(announcement, analysis_context)
