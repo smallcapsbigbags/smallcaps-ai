@@ -24,6 +24,7 @@ class CompanyMemoryBenchmarkCase(StrictModel):
     max_impact_score: int = Field(ge=1, le=5)
     required_points: list[str] = Field(default_factory=list)
     required_prior_source_ids: list[str] = Field(default_factory=list)
+    required_claim_updates: dict[str, list[str]] = Field(default_factory=dict)
 
     @model_validator(mode="after")
     def validate_case(self) -> "CompanyMemoryBenchmarkCase":
@@ -35,6 +36,8 @@ class CompanyMemoryBenchmarkCase(StrictModel):
             raise ValueError("expected_case_change must not be empty")
         if not self.allowed_colours:
             raise ValueError("allowed_colours must not be empty")
+        if any(not statuses for statuses in self.required_claim_updates.values()):
+            raise ValueError("required_claim_updates statuses must not be empty")
         return self
 
 
@@ -133,7 +136,7 @@ Score out of 100:
 
 Critical failures are limited to serious errors: future-information leakage, invented material fact or comparator, materially wrong arithmetic, incompatible-period comparison presented as valid, wrong overall Impact direction, or falsely marking a management promise delivered/missed.
 
-`required_points` are analytical behaviours, not additional factual evidence. `required_prior_source_ids` identifies earlier records that should be traceable in structured comparator fields or clearly used in the note. A case fails `required_prior_sources_used` when those records are ignored despite being necessary for the expected comparison.
+`required_points` are analytical behaviours, not additional factual evidence. `required_prior_source_ids` identifies earlier records that should be traceable in structured comparator fields or clearly used in the note. `required_claim_updates` identifies a stable claim key and allowed new statuses where today's RNS directly tests the promise.
 
 Do not reward verbosity. A concise note can score fully. Return the structured CompanyMemoryJudgement."""
         response = self.client.responses.parse(
@@ -148,6 +151,60 @@ Do not reward verbosity. A concise note can score fully. Return the structured C
         if parsed is None:
             raise RuntimeError("Company Memory evaluator returned no structured result")
         return parsed
+
+
+def deterministic_case_checks(
+    case: CompanyMemoryBenchmarkCase,
+    note: AnalystNote,
+) -> dict[str, object]:
+    """Enforce machine-checkable benchmark constraints before model judging."""
+
+    errors: list[str] = []
+    if note.impact_colour not in case.allowed_colours:
+        errors.append(
+            f"impact colour {note.impact_colour!r} not in {case.allowed_colours!r}"
+        )
+    if not case.min_impact_score <= note.impact_score <= case.max_impact_score:
+        errors.append(
+            f"impact score {note.impact_score} outside "
+            f"{case.min_impact_score}-{case.max_impact_score}"
+        )
+
+    cited_sources = {
+        fact.comparator_source_id
+        for fact in note.key_facts
+        if fact.comparator_source_id
+    }
+    cited_sources.update(
+        event.previous_source_id
+        for event in note.guidance_events
+        if event.previous_source_id
+    )
+    missing_sources = sorted(set(case.required_prior_source_ids) - cited_sources)
+    if missing_sources:
+        errors.append(
+            "required prior source IDs not used in structured comparators: "
+            + ", ".join(missing_sources)
+        )
+
+    claim_statuses = {
+        claim.claim_key: claim.status
+        for claim in note.management_claims
+        if claim.claim_key
+    }
+    for claim_key, allowed_statuses in case.required_claim_updates.items():
+        status = claim_statuses.get(claim_key)
+        if status not in allowed_statuses:
+            errors.append(
+                f"claim {claim_key!r} status {status!r} not in {allowed_statuses!r}"
+            )
+
+    return {
+        "passed": not errors,
+        "errors": errors,
+        "cited_prior_source_ids": sorted(cited_sources),
+        "claim_statuses": claim_statuses,
+    }
 
 
 def load_company_memory_cases(path: Path) -> list[CompanyMemoryBenchmarkCase]:
