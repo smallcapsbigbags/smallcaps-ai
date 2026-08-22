@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import html
 from typing import Any
+from urllib.parse import urlparse
 
 import streamlit as st
 
@@ -21,12 +22,23 @@ def _escape(value: object) -> str:
     return html.escape(str(value or ""))
 
 
+def _safe_http_url(value: object) -> str:
+    url = str(value or "").strip()
+    parsed = urlparse(url)
+    if parsed.scheme.lower() not in {"http", "https"} or not parsed.netloc:
+        return ""
+    return url
+
+
 def _source_link(item: dict[str, Any]) -> str:
     title = _escape(item.get("title") or "Source RNS")
     published_at = str(item.get("published_at") or "")
-    date_text = _escape(format_day(published_at)) if published_at else ""
+    try:
+        date_text = _escape(format_day(published_at)) if published_at else ""
+    except ValueError:
+        date_text = ""
     label = " · ".join(part for part in (date_text, title) if part)
-    url = str(item.get("source_url") or "").strip()
+    url = _safe_http_url(item.get("source_url"))
     if not url:
         return label
     return (
@@ -35,11 +47,26 @@ def _source_link(item: dict[str, Any]) -> str:
     )
 
 
+def _table_wrap(markup: str) -> str:
+    return f'<div class="sca-table-wrap">{markup}</div>'
+
+
+def _section_heading(title: str, description: str = "") -> str:
+    description_markup = (
+        f'<div class="sca-body">{_escape(description)}</div>' if description else ""
+    )
+    return (
+        '<div class="sca-section">'
+        f'<div class="sca-section-title">{_escape(title)}</div>'
+        f"{description_markup}</div>"
+    )
+
+
 def _summary_cards(memory: dict[str, Any], count: int) -> str:
     items = (
         ("Analysed RNSs", str(count)),
         ("Current guidance items", str(len(memory.get("current_guidance") or []))),
-        ("Tracked KPI series", str(len(memory.get("metric_series") or []))),
+        ("Tracked metrics", str(len(memory.get("metric_series") or []))),
         (
             "Open management promises",
             str(len(memory.get("open_management_claims") or [])),
@@ -71,7 +98,7 @@ def _guidance_markup(items: list[dict[str, Any]]) -> str:
             f'<td>{_source_link(item)}</td>'
             "</tr>"
         )
-    return (
+    table = (
         '<table class="sca-table"><thead><tr>'
         "<th>Metric</th><th>Period</th><th>Current</th><th>Status</th>"
         "<th>Previous / comparator</th><th>Source</th>"
@@ -79,6 +106,7 @@ def _guidance_markup(items: list[dict[str, Any]]) -> str:
         + "".join(rows)
         + "</tbody></table>"
     )
+    return _table_wrap(table)
 
 
 def _change_text(series: dict[str, Any]) -> str:
@@ -103,10 +131,9 @@ def _metric_markup(items: list[dict[str, Any]]) -> str:
     for item in items:
         points = list(item.get("points") or [])
         latest = dict(points[-1]) if points else {}
+        basis_value = str(item.get("basis") or latest.get("basis") or "reported")
         basis = (
-            "Smallcaps.ai calc"
-            if latest.get("basis") == "calculated"
-            else "Reported"
+            "Smallcaps.ai calc" if basis_value == "calculated" else "Reported"
         )
         rows.append(
             "<tr>"
@@ -120,7 +147,7 @@ def _metric_markup(items: list[dict[str, Any]]) -> str:
             f'<td>{_source_link(latest)}</td>'
             "</tr>"
         )
-    return (
+    table = (
         '<table class="sca-table"><thead><tr>'
         "<th>Metric</th><th>Comparable period</th><th>Latest</th><th>Previous</th>"
         "<th>Change</th><th>Latest source</th>"
@@ -128,6 +155,7 @@ def _metric_markup(items: list[dict[str, Any]]) -> str:
         + "".join(rows)
         + "</tbody></table>"
     )
+    return _table_wrap(table)
 
 
 def _claims_markup(items: list[dict[str, Any]]) -> str:
@@ -171,13 +199,14 @@ def _resolved_claims_markup(items: list[dict[str, Any]]) -> str:
             f'<td>{_source_link(item)}</td>'
             "</tr>"
         )
-    return (
+    table = (
         '<table class="sca-table"><thead><tr>'
         "<th>Promise</th><th>Status</th><th>Outcome</th><th>Latest evidence</th>"
         "</tr></thead><tbody>"
         + "".join(rows)
         + "</tbody></table>"
     )
+    return _table_wrap(table)
 
 
 def _gaps_markup(items: list[dict[str, Any]]) -> str:
@@ -259,19 +288,18 @@ def render_company(
     )
     st.markdown(_summary_cards(memory, count), unsafe_allow_html=True)
 
-    st.markdown(
-        '<div class="sca-section"><div class="sca-section-title">Current guidance</div>',
-        unsafe_allow_html=True,
-    )
+    st.markdown(_section_heading("Current guidance"), unsafe_allow_html=True)
     st.markdown(
         _guidance_markup(list(memory.get("current_guidance") or [])),
         unsafe_allow_html=True,
     )
 
     st.markdown(
-        '<div class="sca-section"><div class="sca-section-title">Metrics that matter</div>'
-        '<div class="sca-body">Repeated comparable figures only. A movement is not '
-        "automatically good or bad; the latest Analyst Note explains the consequence.</div>",
+        _section_heading(
+            "Metrics that matter",
+            "Repeated comparable figures only. A movement is not automatically good "
+            "or bad; the latest Analyst Note explains the consequence.",
+        ),
         unsafe_allow_html=True,
     )
     st.markdown(
@@ -279,10 +307,7 @@ def render_company(
         unsafe_allow_html=True,
     )
 
-    st.markdown(
-        '<div class="sca-section"><div class="sca-section-title">Management promises</div>',
-        unsafe_allow_html=True,
-    )
+    st.markdown(_section_heading("Management promises"), unsafe_allow_html=True)
     st.markdown(
         _claims_markup(list(memory.get("open_management_claims") or [])),
         unsafe_allow_html=True,
@@ -292,19 +317,13 @@ def render_company(
         with st.expander("Delivered, missed or superseded promises"):
             st.markdown(_resolved_claims_markup(resolved), unsafe_allow_html=True)
 
-    st.markdown(
-        '<div class="sca-section"><div class="sca-section-title">What remains unclear</div>',
-        unsafe_allow_html=True,
-    )
+    st.markdown(_section_heading("What remains unclear"), unsafe_allow_html=True)
     st.markdown(
         _gaps_markup(list(memory.get("disclosure_gaps") or [])),
         unsafe_allow_html=True,
     )
 
-    st.markdown(
-        '<div class="sca-section"><div class="sca-section-title">RNS timeline</div></div>',
-        unsafe_allow_html=True,
-    )
+    st.markdown(_section_heading("RNS timeline"), unsafe_allow_html=True)
     announcements = list(history.get("announcements") or [])
     if not announcements:
         st.markdown(
@@ -344,7 +363,7 @@ def render_company(
                 use_container_width=True,
             ):
                 navigate("note", source_id=str(item["source_id"]))
-        source_url = str(item.get("source_url") or "")
+        source_url = _safe_http_url(item.get("source_url"))
         if source_url:
             with cols[1]:
                 st.link_button("Original RNS ↗", source_url)
