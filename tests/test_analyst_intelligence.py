@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from analyst.intelligence import (
+from analyst.intelligence_policy import (
     detect_analytical_tensions,
     finding_is_resolved,
     unresolved_intelligence_findings,
