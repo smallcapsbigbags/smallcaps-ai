@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from collections.abc import Sequence
 
-from analyst.intelligence import unresolved_intelligence_findings
+from analyst.intelligence_policy import unresolved_intelligence_findings
 from analyst.models import (
     AnalystNote,
     AnnouncementInput,
