@@ -51,5 +51,21 @@ def test_gold_standard_prompt_locks_human_grade_decision_rules():
     ):
         assert token in prompt
 
+
+def test_benchmark_override_prompt_locks_repeated_failure_fixes():
+    prompt = Path("prompts/GOLD_STANDARD_OVERRIDES_V1.md").read_text(encoding="utf-8")
+    for token in (
+        "Revenue growth must never hide deteriorating economics",
+        "Loss-making life sciences: cash and funding first",
+        "Earnings downgrades are adverse",
+        "New information outranks known risk",
+        "Signed contracts: distinguish modest value from no value",
+        "Acquisition denominator matching is mandatory",
+        "Buyback / Rule 9 calculations stay simple",
+        "Conditional wind-down progress is not automatically high Impact",
+        "Comparator metadata hygiene",
+    ):
+        assert token in prompt
+
     assert ANALYSIS_VERSION == "aim-intelligence-analyst-2.2"
     assert DEFAULT_PROMPT_VERSION == "analyst-engine-2.2-gold-standard"
