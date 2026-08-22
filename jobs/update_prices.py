@@ -52,8 +52,8 @@ def run_price_job(
 ) -> PriceJobOutcome:
     """Run one price-reaction cycle with its own lock and persisted job record.
 
-    The ingestion worker calls this after each RNS cycle, so market reactions remain
-    operational even when a separate Railway price service has not yet been created.
+    The ingestion worker calls this each cycle, so market reactions remain
+    operational even when a separate Railway price service has not been created.
     A dedicated price service may still call the same function; the advisory lock
     prevents duplicate work.
     """
@@ -81,15 +81,14 @@ def run_price_job(
         if current_london.tzinfo is None:
             current_london = current_london.replace(tzinfo=LONDON)
         current_london = current_london.astimezone(LONDON)
-        operations.reconcile_stale_running(
-            job_name=JOB_NAME,
-            now=current_london.astimezone(timezone.utc),
-        )
         run_day = current_london.date()
 
         with advisory_job_lock(active_engine, JOB_NAME) as acquired:
-            run_id = operations.begin_job(JOB_NAME, run_key=run_day.isoformat())
             if not acquired:
+                run_id = operations.begin_job(
+                    JOB_NAME,
+                    run_key=run_day.isoformat(),
+                )
                 message = "Another price worker currently holds the advisory lock."
                 operations.finish_job(
                     run_id,
@@ -103,6 +102,17 @@ def run_price_job(
                     warnings=tuple([*runtime_warnings, message]),
                 )
 
+            # Acquiring the lock proves no live worker currently owns this job.
+            # Only now is it safe to close durable rows left running by an older,
+            # crashed process.
+            operations.reconcile_stale_running(
+                job_name=JOB_NAME,
+                now=current_london.astimezone(timezone.utc),
+            )
+            run_id = operations.begin_job(
+                JOB_NAME,
+                run_key=run_day.isoformat(),
+            )
             try:
                 service = DailyPriceReactionService(
                     repository=repository,
