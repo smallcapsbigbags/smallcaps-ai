@@ -183,7 +183,9 @@ class _Analyst:
                     evidence="Trading and Balance Sheet Update, 21 August 2026.",
                 )
             ],
-            watch_items=["Completion of the land disposal programme by 31 January 2027."],
+            watch_items=[
+                "Completion of the land disposal programme by 31 January 2027."
+            ],
             disclosure_assessment=DisclosureAssessment(status="complete"),
             source_references=[announcement.source_url],
             confidence=0.93,
@@ -265,6 +267,6 @@ def test_complete_mvp_chain_from_discovery_to_company_intelligence() -> None:
     assert snapshot is not None
     assert snapshot["announcement_count"] == 1
     assert snapshot["coverage_status"] == "building"
-    assert len(snapshot["latest_guidance"]) == 1
+    assert len(snapshot["current_guidance"]) == 1
     assert len(snapshot["open_management_claims"]) == 1
-    assert snapshot["recent_analysis"][0]["source_id"] == source.item.source_id
+    assert snapshot["recent_impact_history"][0]["source_id"] == source.item.source_id
