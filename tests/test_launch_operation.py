@@ -35,7 +35,9 @@ def test_ingestion_cron_also_runs_market_reactions_for_mvp() -> None:
 
     assert "run_price_job" in ingestion_job
     assert "if settings.market_data_enabled" in ingestion_job
-    assert 'summary["price_status"]' in ingestion_job
+    assert "def _price_summary" in ingestion_job
+    assert '"price_status": outcome.status' in ingestion_job
+    assert "_price_summary(price_outcome)" in ingestion_job
     assert 'JOB_NAME = "daily-price-reactions"' in price_job
     assert "advisory_job_lock(active_engine, JOB_NAME)" in price_job
     assert config["deploy"]["cronSchedule"] == "*/10 6-18 * * 1-5"
