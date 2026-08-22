@@ -5,6 +5,7 @@ from ui.company import (
     _gaps_markup,
     _guidance_markup,
     _metric_markup,
+    _source_link,
 )
 
 
@@ -39,6 +40,7 @@ def test_company_intelligence_metric_table_labels_calculated_change() -> None:
     assert "Smallcaps.ai calculation" in markup
     assert "Reported" in markup
     assert "Trading Update" in markup
+    assert 'class="sca-table-wrap"' in markup
 
 
 def test_company_intelligence_guidance_and_claims_retain_source_links() -> None:
@@ -92,3 +94,17 @@ def test_company_intelligence_escapes_untrusted_database_text() -> None:
     assert "<img" not in markup
     assert "&lt;script&gt;" in markup
     assert "&lt;img" in markup
+
+
+def test_company_intelligence_rejects_non_http_source_links() -> None:
+    markup = _source_link(
+        {
+            "published_at": "2026-08-21T07:00:00+01:00",
+            "title": "Source RNS",
+            "source_url": "javascript:alert(1)",
+        }
+    )
+
+    assert "javascript:" not in markup
+    assert "href=" not in markup
+    assert "Source RNS" in markup
