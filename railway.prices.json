@@ -6,7 +6,7 @@
   "deploy": {
     "preDeployCommand": [
       "python -m jobs.validate_runtime --service prices --create-schema",
-      "python -m jobs.audit_production --service prices --record"
+      "python -m jobs.audit_production --service prices --record --reconcile-stale"
     ],
     "startCommand": "python -m jobs.update_prices",
     "cronSchedule": "*/15 7-17 * * 1-5",
