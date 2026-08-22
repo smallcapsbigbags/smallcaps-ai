@@ -3,7 +3,12 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-IMPACT_HEX = {"green": "#2E8B57", "red": "#C44D56", "amber": "#B98224", "grey": "#7A838B"}
+IMPACT_HEX = {
+    "green": "#2E8B57",
+    "red": "#C44D56",
+    "amber": "#B98224",
+    "grey": "#7A838B",
+}
 
 
 def impact_hex(colour: str) -> str:
@@ -17,10 +22,14 @@ def format_price_change(price: dict[str, Any] | None) -> str:
 
 
 def format_price_context(price: dict[str, Any] | None) -> str:
-    if not price:
+    if not price or price.get("daily_change_pct") is None:
         return "Market reaction pending"
     move = format_price_change(price)
-    return f"{move} at close" if str(price.get("phase") or "intraday") == "close" else f"{move} today"
+    return (
+        f"{move} at close"
+        if str(price.get("phase") or "intraday") == "close"
+        else f"{move} today"
+    )
 
 
 def format_market_price(value: object, *, currency: str = "GBp") -> str:
@@ -42,10 +51,16 @@ def format_day(value: str | datetime) -> str:
     return parsed.strftime("%-d %b %Y")
 
 
-def select_feed_facts(facts: list[dict[str, Any]], *, limit: int = 3) -> list[dict[str, Any]]:
+def select_feed_facts(
+    facts: list[dict[str, Any]],
+    *,
+    limit: int = 3,
+) -> list[dict[str, Any]]:
     output = []
     for fact in facts:
-        if fact.get("basis") in {"not-disclosed", "source-warning"} or not str(fact.get("value") or "").strip():
+        if fact.get("basis") in {"not-disclosed", "source-warning"} or not str(
+            fact.get("value") or ""
+        ).strip():
             continue
         output.append(fact)
         if len(output) >= limit:

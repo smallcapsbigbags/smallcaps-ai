@@ -9,6 +9,10 @@ from sqlalchemy import Engine
 from database.db import create_database_engine, create_session_factory, init_database
 from database.operations import OperationsRepository, advisory_job_lock
 from database.production_audit import ProductionAuditReport, run_production_audit
+from database.publication_safety import (
+    PublicationSafetyResult,
+    reconcile_publication_safety,
+)
 from settings import Settings
 
 JOB_NAME = "launch-production-audit"
@@ -84,6 +88,14 @@ def main() -> None:
         ),
     )
     parser.add_argument(
+        "--reconcile-publication",
+        action="store_true",
+        help=(
+            "Move current publishable rows with unavailable evidence, unusable "
+            "source links or implausibly short evidence into the owner review queue."
+        ),
+    )
+    parser.add_argument(
         "--historical-worker-failures-warn",
         action="store_true",
         help=(
@@ -123,6 +135,13 @@ def main() -> None:
                 operations,
             )
 
+        publication_result = PublicationSafetyResult()
+        if args.reconcile_publication:
+            publication_result = reconcile_publication_safety(
+                factory,
+                corrected_by=f"predeploy-{args.service}",
+            )
+
         report = run_production_audit(
             engine,
             factory,
@@ -137,6 +156,7 @@ def main() -> None:
         payload["runtime_warnings"] = runtime_warnings
         payload["reconciled_stale_jobs"] = reconciled_stale_jobs
         payload["active_worker_locks"] = active_worker_locks
+        payload["publication_safety"] = publication_result.as_dict()
 
         if args.record:
             run_id = operations.begin_job(
@@ -154,6 +174,13 @@ def main() -> None:
                     0,
                     f"Reconciled {reconciled_stale_jobs} stale running job record(s).",
                 )
+            if publication_result.moved_to_review:
+                warning_messages.insert(
+                    0,
+                    "Moved "
+                    f"{publication_result.moved_to_review} unsafe legacy record(s) "
+                    "from public pages to the owner review queue.",
+                )
             operations.finish_job(
                 run_id,
                 status=(
@@ -163,6 +190,7 @@ def main() -> None:
                     if report.warning_count
                     or runtime_warnings
                     or reconciled_stale_jobs
+                    or publication_result.moved_to_review
                     else "success"
                 ),
                 summary={
@@ -172,6 +200,7 @@ def main() -> None:
                     "failure_count": report.failure_count,
                     "reconciled_stale_jobs": reconciled_stale_jobs,
                     "active_worker_locks": active_worker_locks,
+                    "publication_safety": publication_result.as_dict(),
                     "counts": report.counts,
                     "version_counts": report.version_counts,
                     "warning_codes": [

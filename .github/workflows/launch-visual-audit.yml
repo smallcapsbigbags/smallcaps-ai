@@ -1,0 +1,148 @@
+name: launch-visual-audit
+
+on:
+  push:
+    branches: ["launch/pro-pass-3"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: launch-visual-audit
+  cancel-in-progress: true
+
+jobs:
+  screenshots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DATABASE_URL: sqlite+pysqlite:///data/launch-preview.db
+      PRIVATE_BETA_MODE: "true"
+      APP_BETA_PASSWORD: preview-access
+      APP_ADMIN_PASSWORD: preview-admin
+      MARKET_DATA_ENABLED: "true"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install application and browser dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install playwright==1.55.0
+          python -m playwright install --with-deps chromium
+
+      - name: Seed deterministic preview database
+        run: python -m jobs.seed_launch_preview
+
+      - name: Start Streamlit preview
+        shell: bash
+        run: |
+          mkdir -p /tmp/launch-screenshots
+          streamlit run streamlit_app.py \
+            --server.address 127.0.0.1 \
+            --server.port 8501 \
+            > /tmp/launch-screenshots/streamlit.log 2>&1 &
+          echo $! > /tmp/streamlit.pid
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:8501/_stcore/health >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/launch-screenshots/streamlit.log
+          exit 1
+
+      - name: Capture and validate desktop and mobile customer journeys
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from playwright.sync_api import sync_playwright
+
+          out = Path('/tmp/launch-screenshots')
+          base = 'http://127.0.0.1:8501'
+
+          def unlock(page):
+              page.goto(base, wait_until='domcontentloaded')
+              page.get_by_text('Every AIM announcement.', exact=False).wait_for(timeout=30000)
+              page.get_by_label('Private beta access code').fill('preview-access')
+              page.get_by_role('button', name='UNLOCK PRIVATE BETA').click()
+              page.get_by_text('AIM Intelligence', exact=True).wait_for(timeout=30000)
+
+          def assert_page_starts_at_heading(page, heading, *, max_y):
+              page.wait_for_timeout(500)
+              box = heading.bounding_box()
+              if box is None:
+                  raise AssertionError('Expected page heading has no visible bounding box')
+              if box['y'] < 0 or box['y'] > max_y:
+                  raise AssertionError(
+                      f'Internal navigation retained the previous scroll position: heading y={box["y"]}'
+                  )
+
+          with sync_playwright() as p:
+              browser = p.chromium.launch()
+
+              desktop = browser.new_context(viewport={'width': 1440, 'height': 1000})
+              page = desktop.new_page()
+              page.goto(base, wait_until='domcontentloaded')
+              page.get_by_text('Every AIM announcement.', exact=False).wait_for(timeout=30000)
+              page.screenshot(path=out / '01-beta-desktop.png', full_page=True)
+              page.get_by_label('Private beta access code').fill('preview-access')
+              page.get_by_role('button', name='UNLOCK PRIVATE BETA').click()
+              page.get_by_text('AIM Intelligence', exact=True).wait_for(timeout=30000)
+              page.screenshot(path=out / '02-feed-desktop.png', full_page=True)
+
+              analysis_buttons = page.get_by_role('button', name='Analysis →')
+              analysis_buttons.nth(1).click()
+              note_heading = page.get_by_text('What happened & why it matters', exact=True)
+              note_heading.wait_for(timeout=30000)
+              assert_page_starts_at_heading(page, note_heading, max_y=500)
+              page.screenshot(path=out / '03-note-desktop.png', full_page=True)
+              page.get_by_role('button', name='Company', exact=True).click()
+              company_heading = page.get_by_text('Company Intelligence', exact=True)
+              company_heading.wait_for(timeout=30000)
+              assert_page_starts_at_heading(page, company_heading, max_y=500)
+              page.screenshot(path=out / '04-company-desktop.png', full_page=True)
+              desktop.close()
+
+              mobile = browser.new_context(
+                  viewport={'width': 390, 'height': 844},
+                  device_scale_factor=1,
+                  is_mobile=True,
+              )
+              page = mobile.new_page()
+              unlock(page)
+              page.screenshot(path=out / '05-feed-mobile.png', full_page=True)
+              page.get_by_role('button', name='Analysis →').first.click()
+              note_heading = page.get_by_text('What happened & why it matters', exact=True)
+              note_heading.wait_for(timeout=30000)
+              assert_page_starts_at_heading(page, note_heading, max_y=420)
+
+              responsive_table = page.locator('table.sca-table-responsive').first
+              responsive_table.wait_for(timeout=30000)
+              overflow = responsive_table.evaluate(
+                  '(el) => el.scrollWidth > el.clientWidth + 2'
+              )
+              if overflow:
+                  raise AssertionError('Responsive Analyst Note table clips horizontally on mobile')
+
+              page.screenshot(path=out / '06-note-mobile.png', full_page=True)
+              mobile.close()
+
+              browser.close()
+          PY
+
+      - name: Upload visual audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smallcaps-launch-visual-audit
+          path: /tmp/launch-screenshots
+          if-no-files-found: error
+          retention-days: 14

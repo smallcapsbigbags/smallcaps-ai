@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import html
 from typing import Any
-from urllib.parse import urlparse
 
 import streamlit as st
 
@@ -14,20 +13,14 @@ from ui.common import (
     impact_badge,
     navigate,
     render_brand,
+    render_footer,
+    safe_http_url,
     toggle_watchlist,
 )
 
 
 def _escape(value: object) -> str:
     return html.escape(str(value or ""))
-
-
-def _safe_http_url(value: object) -> str:
-    url = str(value or "").strip()
-    parsed = urlparse(url)
-    if parsed.scheme.lower() not in {"http", "https"} or not parsed.netloc:
-        return ""
-    return url
 
 
 def _source_link(item: dict[str, Any]) -> str:
@@ -38,7 +31,7 @@ def _source_link(item: dict[str, Any]) -> str:
     except ValueError:
         date_text = ""
     label = " · ".join(part for part in (date_text, title) if part)
-    url = _safe_http_url(item.get("source_url"))
+    url = safe_http_url(item.get("source_url"))
     if not url:
         return label
     return (
@@ -65,10 +58,10 @@ def _section_heading(title: str, description: str = "") -> str:
 def _summary_cards(memory: dict[str, Any], count: int) -> str:
     items = (
         ("Analysed RNSs", str(count)),
-        ("Current guidance items", str(len(memory.get("current_guidance") or []))),
+        ("Current guidance", str(len(memory.get("current_guidance") or []))),
         ("Tracked metrics", str(len(memory.get("metric_series") or []))),
         (
-            "Open management promises",
+            "Open promises",
             str(len(memory.get("open_management_claims") or [])),
         ),
     )
@@ -79,6 +72,33 @@ def _summary_cards(memory: dict[str, Any], count: int) -> str:
         "</div>"
         for label, value in items
     ) + "</div>"
+
+
+def _latest_view_markup(item: dict[str, Any]) -> str:
+    published = str(item.get("published_at") or "")
+    date_text = format_day(published) if published else ""
+    time_text = format_time(published) if published else ""
+    price = item.get("price")
+    price_text = (
+        format_price_change(price)
+        if isinstance(price, dict) and price.get("daily_change_pct") is not None
+        else ""
+    )
+    price_markup = (
+        f'<span class="sca-price">{_escape(price_text)}</span>' if price_text else ""
+    )
+    return (
+        '<div class="sca-latest-card">'
+        '<div class="sca-meta">'
+        f'<span>{_escape(date_text)}</span><span>{_escape(time_text)}</span>'
+        f'<span>·</span><span>{_escape(item.get("rns_type"))}</span>'
+        '<span class="sca-meta-spacer"></span>'
+        f'{impact_badge(str(item.get("impact_colour") or "grey"), str(item.get("impact_level") or "low"))}'
+        f"{price_markup}</div>"
+        f'<div class="sca-headline">{_escape(item.get("headline"))}</div>'
+        f'<div class="sca-takeaway">{_escape(item.get("takeaway"))}</div>'
+        "</div>"
+    )
 
 
 def _guidance_markup(items: list[dict[str, Any]]) -> str:
@@ -233,21 +253,27 @@ def render_company(
     history = repository.company_history(ticker)
     memory = intelligence_repository.get_company_intelligence(ticker)
     if history is None or memory is None:
-        st.error("That company is not yet covered by Smallcaps.ai.")
+        st.error("This company is not yet covered by Smallcaps.ai.")
+        st.markdown(
+            '<div class="sca-body">Company Intelligence appears after the first publishable RNS analysis has been stored.</div>',
+            unsafe_allow_html=True,
+        )
         if st.button("← Back to AIM Intelligence"):
             navigate("feed")
+        render_footer()
         return
 
     watchlist = ensure_watchlist(default_watchlist)
-    top_cols = st.columns([1, 1.1, 5])
+    top_cols = st.columns([1, .75, 5])
     with top_cols[0]:
         if st.button("← Feed", use_container_width=True):
             navigate("feed")
     with top_cols[1]:
         starred = str(history["ticker"]).upper() in watchlist
         if st.button(
-            "★ Watchlist" if starred else "☆ Watchlist",
+            "★" if starred else "☆",
             use_container_width=True,
+            help="Remove from watchlist" if starred else "Add to watchlist",
         ):
             toggle_watchlist(str(history["ticker"]))
 
@@ -273,19 +299,40 @@ def render_company(
     if status == "established":
         building_copy = (
             "Coverage spans at least six analysed announcements and 12 months. "
-            "This view still uses only point-in-time company disclosures and "
-            "Smallcaps.ai calculations based on those disclosures."
+            "Every historical comparison still links back to the earlier RNS."
         )
     else:
         building_copy = (
-            "Company Intelligence is building from the RNSs analysed since coverage "
-            "began. Smallcaps.ai does not invent a backfilled 12-month thesis. The "
-            "available history is already supplied to the analyst when the next RNS arrives."
+            "This record is building from RNSs analysed since coverage began. "
+            "Smallcaps.ai shows the history it genuinely has and does not invent a backfilled thesis."
         )
     st.markdown(
         f'<div class="sca-building">{_escape(building_copy)}</div>',
         unsafe_allow_html=True,
     )
+
+    announcements = list(history.get("announcements") or [])
+    latest = dict(announcements[0]) if announcements else {}
+    if latest:
+        st.markdown(_section_heading("Latest view"), unsafe_allow_html=True)
+        st.markdown(_latest_view_markup(latest), unsafe_allow_html=True)
+        latest_cols = st.columns([1, 1, 4.5])
+        with latest_cols[0]:
+            if st.button(
+                "Analyst Note →",
+                key="latest-company-note",
+                use_container_width=True,
+            ):
+                navigate("note", source_id=str(latest["source_id"]))
+        latest_source = safe_http_url(latest.get("source_url"))
+        if latest_source:
+            with latest_cols[1]:
+                st.link_button(
+                    "Original RNS ↗",
+                    latest_source,
+                    use_container_width=True,
+                )
+
     st.markdown(_summary_cards(memory, count), unsafe_allow_html=True)
 
     st.markdown(_section_heading("Current guidance"), unsafe_allow_html=True)
@@ -324,12 +371,12 @@ def render_company(
     )
 
     st.markdown(_section_heading("RNS timeline"), unsafe_allow_html=True)
-    announcements = list(history.get("announcements") or [])
     if not announcements:
         st.markdown(
             '<div class="sca-empty">No publishable RNS analysis is available yet.</div>',
             unsafe_allow_html=True,
         )
+        render_footer()
         return
     if history.get("has_more"):
         st.caption(
@@ -342,7 +389,14 @@ def render_company(
             str(item["impact_colour"]),
             str(item["impact_level"]),
         )
-        price = _escape(format_price_change(item.get("price")))
+        item_price = item.get("price")
+        price = (
+            _escape(format_price_change(item_price))
+            if isinstance(item_price, dict)
+            and item_price.get("daily_change_pct") is not None
+            else ""
+        )
+        price_markup = f'<span class="sca-price">{price}</span>' if price else ""
         st.markdown(
             '<div class="sca-feed-item">'
             '<div class="sca-meta">'
@@ -350,20 +404,25 @@ def render_company(
             f'<span>{_escape(format_time(published))}</span><span>·</span>'
             f'<span>{_escape(item["rns_type"])}</span>'
             f'<span class="sca-meta-spacer"></span>{impact}'
-            f'<span class="sca-price">{price}</span></div>'
+            f'{price_markup}</div>'
             f'<div class="sca-headline">{_escape(item["headline"])}</div>'
             f'<div class="sca-takeaway">{_escape(item.get("takeaway"))}</div></div>',
             unsafe_allow_html=True,
         )
-        cols = st.columns([1.2, 1.1, 6])
+        cols = st.columns([1, 1, 4.5])
         with cols[0]:
             if st.button(
-                "Analyst Note →",
+                "Analysis →",
                 key=f"company-note-{item['source_id']}",
                 use_container_width=True,
             ):
                 navigate("note", source_id=str(item["source_id"]))
-        source_url = _safe_http_url(item.get("source_url"))
+        source_url = safe_http_url(item.get("source_url"))
         if source_url:
             with cols[1]:
-                st.link_button("Original RNS ↗", source_url)
+                st.link_button(
+                    "Original RNS ↗",
+                    source_url,
+                    use_container_width=True,
+                )
+    render_footer()

@@ -7,10 +7,17 @@ from database.company_intelligence import CompanyIntelligenceRepository
 from database.db import create_database_engine, create_session_factory, init_database
 from database.operations import OperationsRepository
 from database.product import ProductRepository
+from database.publication_safety import reconcile_publication_safety
 from database.repository import IntelligenceRepository
 from settings import Settings
 from ui.admin import render_admin
-from ui.common import inject_styles, query_value, require_beta_access
+from ui.common import (
+    inject_styles,
+    log_public_exception,
+    query_value,
+    render_service_error,
+    require_beta_access,
+)
 from ui.company import render_company
 from ui.feed import render_feed
 from ui.note import render_note
@@ -36,6 +43,13 @@ def get_repositories(
     engine = create_database_engine(database_url)
     init_database(engine)
     factory = create_session_factory(engine)
+    safety = reconcile_publication_safety(factory, corrected_by="web-startup")
+    if safety.moved_to_review:
+        print(
+            "[publication-safety] moved_to_review="
+            f"{safety.moved_to_review} source_ids={','.join(safety.source_ids)}",
+            flush=True,
+        )
     return (
         IntelligenceRepository(factory),
         ProductRepository(factory),
@@ -45,45 +59,60 @@ def get_repositories(
 
 
 def main() -> None:
-    settings = Settings.from_env()
     inject_styles()
+    try:
+        settings = Settings.from_env()
+    except Exception as exc:
+        render_service_error(reference=log_public_exception(exc))
+        return
+
     errors, _warnings = settings.runtime_issues("web")
     if errors:
-        st.error("Runtime configuration is incomplete.")
         for error in errors:
-            st.code(error, language=None)
-        st.stop()
+            print(f"[runtime-error] {error}", flush=True)
+        render_service_error(reference="runtime-configuration")
+        return
+
     require_beta_access(
         settings.app_beta_password,
         enabled=settings.private_beta_mode,
     )
-    (
-        intelligence_repository,
-        product_repository,
-        company_intelligence_repository,
-        operations_repository,
-    ) = get_repositories(settings.database_url)
-    view = query_value("view", "feed").lower()
-    if view == "note":
-        render_note(product_repository, query_value("source_id"))
-        return
-    if view == "company":
-        render_company(
-            product_repository,
-            company_intelligence_repository,
-            query_value("ticker"),
-            default_watchlist=settings.default_watchlist,
-        )
-        return
-    if view == "admin":
-        render_admin(
-            settings,
+
+    try:
+        (
             intelligence_repository,
             product_repository,
+            company_intelligence_repository,
             operations_repository,
-        )
+        ) = get_repositories(settings.database_url)
+    except Exception as exc:
+        render_service_error(reference=log_public_exception(exc))
         return
-    render_feed(product_repository, settings)
+
+    view = query_value("view", "feed").lower()
+    try:
+        if view == "note":
+            render_note(product_repository, query_value("source_id"))
+            return
+        if view == "company":
+            render_company(
+                product_repository,
+                company_intelligence_repository,
+                query_value("ticker"),
+                default_watchlist=settings.default_watchlist,
+            )
+            return
+        if view == "admin":
+            render_admin(
+                settings,
+                intelligence_repository,
+                product_repository,
+                operations_repository,
+            )
+            return
+        render_feed(product_repository, settings)
+    except Exception as exc:
+        render_service_error(reference=log_public_exception(exc))
 
 
 if __name__ == "__main__":

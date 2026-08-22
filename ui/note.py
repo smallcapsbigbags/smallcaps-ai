@@ -12,7 +12,13 @@ from product.formatting import (
     format_price_context,
     format_time,
 )
-from ui.common import impact_badge, navigate, render_brand
+from ui.common import (
+    impact_badge,
+    navigate,
+    render_brand,
+    render_footer,
+    safe_http_url,
+)
 
 
 def _html_table(
@@ -28,14 +34,18 @@ def _html_table(
         cells = []
         for index, value in enumerate(row):
             cls = ' class="num"' if index in numeric_columns else ""
-            cells.append(f"<td{cls}>{html.escape(value)}</td>")
+            label = headers[index] if index < len(headers) else ""
+            cells.append(
+                f'<td{cls} data-label="{html.escape(label, quote=True)}">'
+                f"{html.escape(value)}</td>"
+            )
         body.append("<tr>" + "".join(cells) + "</tr>")
     return (
-        '<table class="sca-table"><thead><tr>'
+        '<div class="sca-table-wrap"><table class="sca-table sca-table-responsive"><thead><tr>'
         + head
         + '</tr></thead><tbody>'
         + "".join(body)
-        + "</tbody></table>"
+        + "</tbody></table></div>"
     )
 
 
@@ -76,20 +86,39 @@ def render_note(
     render_brand()
     note = repository.get_note(source_id, public_only=public_only)
     if note is None:
-        st.error("That analysis is unavailable or not publishable.")
+        st.error("This Analyst Note is unavailable.")
+        st.markdown(
+            '<div class="sca-body">The link may be incomplete, or the analysis may be waiting for owner review.</div>',
+            unsafe_allow_html=True,
+        )
         if st.button("← Back to AIM Intelligence"):
             navigate("feed")
+        render_footer()
         return
-    top_cols = st.columns([1, 5])
+
+    source_urls = [
+        url for url in (safe_http_url(value) for value in note.get("source_urls") or []) if url
+    ]
+    top_cols = st.columns([1, 1.15, 1, 4.5])
     with top_cols[0]:
         if st.button("← Feed", use_container_width=True):
             navigate("feed")
     with top_cols[1]:
         if st.button(
-            f"{note['ticker']} company intelligence",
-            use_container_width=False,
+            "Company",
+            use_container_width=True,
+            help="Open the accumulated Company Intelligence record",
         ):
             navigate("company", ticker=str(note["ticker"]))
+    if source_urls:
+        with top_cols[2]:
+            st.link_button(
+                "RNS ↗",
+                source_urls[0],
+                use_container_width=True,
+                help="Open the original regulatory announcement",
+            )
+
     published = str(note["published_at"])
     impact = impact_badge(
         str(note["impact_colour"]),
@@ -132,6 +161,7 @@ def render_note(
                     source_label,
                 ]
             )
+
         st.markdown(
             '<div class="sca-section"></div><div class="sca-section-title">Key numbers</div>',
             unsafe_allow_html=True,
@@ -292,22 +322,26 @@ def render_note(
                 unsafe_allow_html=True,
             )
         else:
-            st.caption("Market reaction will appear once the price worker has run.")
+            st.caption("Market reaction will appear once a valid event-session price is available.")
 
         st.markdown(
             '<div class="sca-section"></div>',
             unsafe_allow_html=True,
         )
-        source_urls = list(note.get("source_urls") or [])
-        source_cols = st.columns([1.2, 1.35, 5])
+        source_cols = st.columns([1.1, 1.2, 4.5])
         if source_urls:
             with source_cols[0]:
-                st.link_button("View original RNS ↗", source_urls[0])
+                st.link_button(
+                    "Original RNS ↗",
+                    source_urls[0],
+                    use_container_width=True,
+                )
         with source_cols[1]:
-            if st.button("Company intelligence →", use_container_width=True):
+            if st.button("Company →", use_container_width=True):
                 navigate("company", ticker=str(note["ticker"]))
         with source_cols[2]:
             if str(change.get("coverage_status") or "building") == "building":
                 st.caption(
-                    "Smallcaps.ai company coverage is building naturally from daily RNS analysis."
+                    "Company coverage is building naturally from daily RNS analysis."
                 )
+    render_footer()

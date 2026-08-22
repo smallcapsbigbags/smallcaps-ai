@@ -5,8 +5,14 @@ from typing import Any
 
 import streamlit as st
 
+from database.feed_navigation import latest_publishable_day
 from database.product import ProductRepository
-from product.formatting import attention_count, format_time, select_feed_facts
+from product.formatting import (
+    attention_count,
+    format_day,
+    format_time,
+    select_feed_facts,
+)
 from settings import Settings
 from ui.common import (
     ensure_watchlist,
@@ -15,6 +21,8 @@ from ui.common import (
     navigate,
     price_markup,
     render_brand,
+    render_footer,
+    safe_http_url,
     toggle_watchlist,
 )
 
@@ -41,46 +49,60 @@ def _fact_markup(facts: list[dict[str, Any]]) -> str:
 
 
 def _render_actions(item: dict[str, Any], *, watchlist: set[str], low: bool) -> None:
-    source_url = str(item.get("source_url") or "")
+    source_url = safe_http_url(item.get("source_url"))
     if low:
-        cols = st.columns([1.15, 1.05, 7])
+        cols = st.columns(2)
         with cols[0]:
             if st.button(
-                "Read analysis →",
+                "Analysis →",
                 key=f"note-{item['source_id']}",
                 use_container_width=True,
+                help="Open the full Smallcaps.ai Analyst Note",
             ):
                 navigate("note", source_id=str(item["source_id"]))
         if source_url:
             with cols[1]:
-                st.link_button("Original RNS ↗", source_url)
+                st.link_button(
+                    "Original RNS ↗",
+                    source_url,
+                    use_container_width=True,
+                )
         return
-    cols = st.columns([1.2, 1.25, 1.1, 6])
+
+    cols = st.columns([1, 1, .7, .85])
     with cols[0]:
         if st.button(
-            "Read analysis →",
+            "Analysis →",
             key=f"note-{item['source_id']}",
             use_container_width=True,
+            help="Open the full Smallcaps.ai Analyst Note",
         ):
             navigate("note", source_id=str(item["source_id"]))
     with cols[1]:
         if st.button(
-            "Company intelligence",
+            "Company",
             key=f"company-{item['source_id']}",
             use_container_width=True,
+            help="Open the accumulated Company Intelligence record",
         ):
             navigate("company", ticker=str(item["ticker"]))
     with cols[2]:
         starred = str(item["ticker"]).upper() in watchlist
         if st.button(
-            "★ Watchlist" if starred else "☆ Watchlist",
+            "★" if starred else "☆",
             key=f"watch-{item['source_id']}",
             use_container_width=True,
+            help="Remove from watchlist" if starred else "Add to watchlist",
         ):
             toggle_watchlist(str(item["ticker"]))
     if source_url:
         with cols[3]:
-            st.link_button("Original RNS ↗", source_url)
+            st.link_button(
+                "RNS ↗",
+                source_url,
+                use_container_width=True,
+                help="Open the original regulatory announcement",
+            )
 
 
 def _render_item(item: dict[str, Any], *, watchlist: set[str]) -> None:
@@ -95,6 +117,7 @@ def _render_item(item: dict[str, Any], *, watchlist: set[str]) -> None:
     score = int(item.get("impact_score") or 1)
     low = score == 1
     item_class = "sca-feed-item sca-feed-item-low" if low else "sca-feed-item"
+
     if low:
         st.markdown(
             f'<div class="{item_class}"><div class="sca-meta"><span>{time_text}</span><span class="sca-ticker">{ticker}</span><span>{company}</span><span>·</span><span>{rns_type}</span><span class="sca-meta-spacer"></span>{impact}{price}</div><div class="sca-summary">{headline}</div></div>',
@@ -117,40 +140,57 @@ def _render_item(item: dict[str, Any], *, watchlist: set[str]) -> None:
     _render_actions(item, watchlist=watchlist, low=low)
 
 
+def _clear_filters() -> None:
+    st.session_state["feed_search"] = ""
+    st.session_state["feed_scope"] = "All AIM"
+    st.session_state["feed_sort"] = "Most Impactful"
+
+
 def render_feed(repository: ProductRepository, settings: Settings) -> None:
     render_brand()
     watchlist = ensure_watchlist(settings.default_watchlist)
     today = london_now().date()
+    latest_day = latest_publishable_day(repository.session_factory) or today
+    if latest_day > today:
+        latest_day = today
+    if "feed_date" not in st.session_state:
+        st.session_state["feed_date"] = latest_day
+
     heading_cols = st.columns([3, 1])
     with heading_cols[0]:
         st.markdown("## AIM Intelligence")
-        st.caption("What happened. Why it matters. What to watch.")
+        st.caption("What changed, why it matters, and what to watch next.")
     with heading_cols[1]:
         selected_day = st.date_input(
             "Feed date",
-            value=today,
             max_value=today,
+            key="feed_date",
             label_visibility="collapsed",
         )
+
     control_cols = st.columns([2.4, 1, 1.1])
     with control_cols[0]:
         search = st.text_input(
             "Search",
             placeholder="Ticker, company or announcement",
+            key="feed_search",
             label_visibility="collapsed",
         )
     with control_cols[1]:
         scope = st.selectbox(
             "Scope",
             ["All AIM", "Watchlist"],
+            key="feed_scope",
             label_visibility="collapsed",
         )
     with control_cols[2]:
         sort_label = st.selectbox(
             "Sort",
             ["Most Impactful", "Latest"],
+            key="feed_sort",
             label_visibility="collapsed",
         )
+
     ticker_filter = watchlist if scope == "Watchlist" else None
     items = repository.list_feed(
         selected_day,
@@ -158,22 +198,46 @@ def render_feed(repository: ProductRepository, settings: Settings) -> None:
         tickers=ticker_filter,
         sort="latest" if sort_label == "Latest" else "impact",
     )
+
     if scope == "Watchlist" and not watchlist:
         st.markdown(
-            '<div class="sca-empty">Your watchlist is empty. Add companies from the feed.</div>',
+            '<div class="sca-empty"><div class="sca-empty-title">Your watchlist is empty.</div>Add a company from the AIM Intelligence Feed or its Company Intelligence page.</div>',
             unsafe_allow_html=True,
         )
+        if st.button("View all AIM announcements", use_container_width=False):
+            st.session_state["feed_scope"] = "All AIM"
+            st.rerun()
+        render_footer()
         return
+
     if not items:
-        st.markdown(
-            '<div class="sca-empty">No publishable AIM analysis matches this view. The daily ingestion worker may not have completed yet.</div>',
-            unsafe_allow_html=True,
-        )
+        filtered = bool(search.strip()) or scope == "Watchlist"
+        if filtered:
+            st.markdown(
+                '<div class="sca-empty"><div class="sca-empty-title">No announcements match these filters.</div>Try another ticker, clear the search or return to All AIM.</div>',
+                unsafe_allow_html=True,
+            )
+            st.button("Clear filters", on_click=_clear_filters)
+        else:
+            date_label = html.escape(format_day(selected_day))
+            st.markdown(
+                f'<div class="sca-empty"><div class="sca-empty-title">No publishable AIM analysis for {date_label}.</div>There may have been no market session, or the ingestion worker may still be processing the day.</div>',
+                unsafe_allow_html=True,
+            )
+            if latest_day != selected_day and st.button(
+                f"View latest available · {format_day(latest_day)}"
+            ):
+                st.session_state["feed_date"] = latest_day
+                st.rerun()
+        render_footer()
         return
+
     attention = attention_count(items)
+    date_label = html.escape(format_day(selected_day))
     st.markdown(
-        f'<div class="sca-summary"><strong>{attention}</strong> announcement{"s" if attention != 1 else ""} warrant attention · {len(items)} publishable records</div>',
+        f'<div class="sca-summary"><strong>{attention}</strong> announcement{"s" if attention != 1 else ""} warrant attention · {len(items)} publishable record{"s" if len(items) != 1 else ""} · {date_label}</div>',
         unsafe_allow_html=True,
     )
     for item in items:
         _render_item(item, watchlist=watchlist)
+    render_footer()

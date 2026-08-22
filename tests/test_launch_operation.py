@@ -24,6 +24,7 @@ def test_all_production_services_run_integrity_audit_before_deploy() -> None:
             f"jobs.audit_production --service {service}" in command
             and "--record" in command
             and "--reconcile-stale" in command
+            and "--reconcile-publication" in command
             and "--historical-worker-failures-warn" in command
             for command in commands
         )
