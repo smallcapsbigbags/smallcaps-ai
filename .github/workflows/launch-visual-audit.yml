@@ -75,14 +75,34 @@ jobs:
               page.get_by_role('button', name='UNLOCK PRIVATE BETA').click()
               page.get_by_text('AIM Intelligence', exact=True).wait_for(timeout=30000)
 
-          def assert_page_starts_at_heading(page, heading, *, max_y):
+          def assert_page_at_top(page, top_control, *, max_y=240, max_scroll=32):
+              """Verify retained scroll, independent of how tall the new page header is."""
+
               page.wait_for_timeout(500)
-              box = heading.bounding_box()
+              box = top_control.bounding_box()
               if box is None:
-                  raise AssertionError('Expected page heading has no visible bounding box')
-              if box['y'] < 0 or box['y'] > max_y:
+                  raise AssertionError('Expected top navigation control is not visible')
+              positions = page.evaluate(
+                  """
+                  () => {
+                    const scrollTop = (el) => el ? Number(el.scrollTop || 0) : 0;
+                    return {
+                      window: Number(window.scrollY || 0),
+                      scrollingElement: scrollTop(document.scrollingElement),
+                      documentElement: scrollTop(document.documentElement),
+                      body: scrollTop(document.body),
+                      appView: scrollTop(document.querySelector('[data-testid="stAppViewContainer"]')),
+                      main: scrollTop(document.querySelector('[data-testid="stMain"]')),
+                      mainSection: scrollTop(document.querySelector('section.main')),
+                    };
+                  }
+                  """
+              )
+              largest = max(float(value or 0) for value in positions.values())
+              if largest > max_scroll or box['y'] < 0 or box['y'] > max_y:
                   raise AssertionError(
-                      f'Internal navigation retained the previous scroll position: heading y={box["y"]}'
+                      'Internal navigation did not begin at the top: '
+                      f'control_y={box["y"]}, scroll_positions={positions}'
                   )
 
           with sync_playwright() as p:
@@ -102,12 +122,16 @@ jobs:
               analysis_buttons.nth(1).click()
               note_heading = page.get_by_text('What happened & why it matters', exact=True)
               note_heading.wait_for(timeout=30000)
-              assert_page_starts_at_heading(page, note_heading, max_y=500)
+              note_top = page.get_by_role('button', name='← Feed', exact=True)
+              note_top.wait_for(timeout=30000)
+              assert_page_at_top(page, note_top)
               page.screenshot(path=out / '03-note-desktop.png', full_page=True)
               page.get_by_role('button', name='Company', exact=True).click()
               company_heading = page.get_by_text('Company Intelligence', exact=True)
               company_heading.wait_for(timeout=30000)
-              assert_page_starts_at_heading(page, company_heading, max_y=500)
+              company_top = page.get_by_role('button', name='← Feed', exact=True)
+              company_top.wait_for(timeout=30000)
+              assert_page_at_top(page, company_top)
               page.screenshot(path=out / '04-company-desktop.png', full_page=True)
               desktop.close()
 
@@ -122,7 +146,10 @@ jobs:
               page.get_by_role('button', name='Analysis →').first.click()
               note_heading = page.get_by_text('What happened & why it matters', exact=True)
               note_heading.wait_for(timeout=30000)
-              assert_page_starts_at_heading(page, note_heading, max_y=420)
+              note_top = page.get_by_role('button', name='← Feed', exact=True)
+              note_top.wait_for(timeout=30000)
+              assert_page_at_top(page, note_top, max_y=220)
+              page.screenshot(path=out / '06-note-mobile.png', full_page=True)
 
               responsive_table = page.locator('table.sca-table-responsive').first
               responsive_table.wait_for(timeout=30000)
@@ -132,9 +159,7 @@ jobs:
               if overflow:
                   raise AssertionError('Responsive Analyst Note table clips horizontally on mobile')
 
-              page.screenshot(path=out / '06-note-mobile.png', full_page=True)
               mobile.close()
-
               browser.close()
           PY
 
