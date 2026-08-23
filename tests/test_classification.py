@@ -55,6 +55,13 @@ def test_material_trading_notice_has_high_priority():
     assert material_priority(notice) == 90
 
 
+def test_generic_funding_update_is_material_but_not_automatically_solvency():
+    notice = item("Funding Update")
+    assert is_administrative_routine(notice) is False
+    assert material_priority(notice) == 90
+    assert classify_metadata_type(notice) == "Other"
+
+
 def test_solvency_notice_outranks_other_material_announcements():
     notice = item("Notice of Intention to Appoint Administrators")
     assert is_administrative_routine(notice) is False
