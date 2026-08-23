@@ -1,6 +1,13 @@
 from product.formatting import (
     attention_count,
+    attention_summary_label,
+    compact_feed_fact_label,
+    compact_feed_fact_value,
+    concise_feed_view,
     fact_is_numeric,
+    feed_comparator_text,
+    feed_verdict,
+    feed_view,
     format_price_change,
     impact_direction_label,
     impact_signal_label,
@@ -20,6 +27,12 @@ def test_price_formatting_and_attention_count() -> None:
             {"impact_score": 2},
         ]
     ) == 2
+
+
+def test_attention_summary_has_correct_singular_and_plural_grammar() -> None:
+    assert attention_summary_label(0) == "0 announcements need attention"
+    assert attention_summary_label(1) == "1 announcement needs attention"
+    assert attention_summary_label(8) == "8 announcements need attention"
 
 
 def test_feed_facts_exclude_missing_and_source_warning_rows() -> None:
@@ -55,4 +68,124 @@ def test_feed_numeric_typography_is_reserved_for_compact_data() -> None:
     )
     assert not fact_is_numeric(
         {"value": "No return expected from any successful asset sale"}
+    )
+
+
+def test_feed_compacts_known_long_evidence_labels_without_mutating_values() -> None:
+    administration = {
+        "label": "Notice of intention to appoint administrators",
+        "value": "Filed",
+    }
+    assert compact_feed_fact_label(administration) == "Administration"
+    assert compact_feed_fact_value(administration) == "Notice of intention filed"
+
+    assert (
+        compact_feed_fact_label(
+            {
+                "label": "Going concern funding position",
+                "value": "Insufficient funds",
+            }
+        )
+        == "Funding position"
+    )
+    assert (
+        compact_feed_fact_label(
+            {
+                "label": "Potential shareholder recovery",
+                "value": "No return expected",
+            }
+        )
+        == "Shareholder recovery"
+    )
+    assert (
+        compact_feed_fact_label(
+            {"label": "Possible offer target", "value": "Whole company"}
+        )
+        == "Offer scope"
+    )
+
+
+def test_feed_hides_non_information_comparators_but_keeps_real_prior_values() -> None:
+    assert (
+        feed_comparator_text(
+            {
+                "value": "Filed",
+                "previous_value": "No administration notice disclosed",
+            }
+        )
+        == ""
+    )
+    assert (
+        feed_comparator_text(
+            {
+                "value": "No return expected",
+                "comparator": "Not disclosed in supplied prior context",
+            }
+        )
+        == ""
+    )
+    assert (
+        feed_comparator_text(
+            {"value": "£18.2m", "previous_value": "£24.0m"}
+        )
+        == "£24.0m"
+    )
+
+
+def test_feed_verdict_promotes_supported_administration_outcome() -> None:
+    item = {
+        "headline": (
+            "Trellus Health signals imminent administration amid going-concern shortfall"
+        ),
+        "takeaway": (
+            "The company has insufficient funds to continue as a going concern and "
+            "has filed a notice of intention to appoint administrators."
+        ),
+        "impact_rationale": "A thesis-changing liquidity failure.",
+        "key_facts": [
+            {
+                "label": "Potential shareholder recovery",
+                "value": "No returns to shareholders expected if any sale is concluded",
+            }
+        ],
+    }
+    assert feed_verdict(item) == "Administration imminent; no shareholder return expected"
+    assert feed_view(item).startswith("Thesis broken.")
+
+
+def test_feed_verdict_promotes_preliminary_takeover_without_inventing_terms() -> None:
+    item = {
+        "headline": (
+            "Waterland takeover talks and possible divisional carve-out disclosed "
+            "under Rule 2.4"
+        ),
+        "takeaway": "The company is in discussions about a possible offer.",
+        "impact_rationale": "The process is preliminary and terms remain uncertain.",
+        "key_facts": [
+            {"label": "Potential bidder", "value": "Waterland Private Equity"}
+        ],
+    }
+    assert feed_verdict(item) == "Formal takeover interest emerges; terms remain unknown"
+    assert "no offer terms are disclosed yet" in feed_view(item)
+
+
+def test_feed_verdict_does_not_overwrite_takeover_when_terms_are_known() -> None:
+    headline = "Possible offer at 250p per share"
+    item = {
+        "headline": headline,
+        "takeaway": "The bidder is considering a possible offer at 250p per share.",
+        "key_facts": [],
+    }
+    assert feed_verdict(item) == headline
+
+
+def test_feed_view_is_capped_for_scanability() -> None:
+    long = (
+        "First sentence explains the main consequence. "
+        "Second sentence explains what remains to prove. "
+        "Third sentence belongs in the full note and should not be shown."
+    )
+    assert concise_feed_view(long) == (
+        "First sentence explains the main consequence. "
+        "Second sentence explains what remains to prove."
     )
