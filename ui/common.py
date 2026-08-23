@@ -331,7 +331,8 @@ def consume_scroll_to_top() -> None:
         })();
         </script>
         """,
-        height=0,
+        width=1,
+        height=1,
         tab_index=-1,
     )
 
