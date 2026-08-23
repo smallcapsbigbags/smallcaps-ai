@@ -140,7 +140,7 @@ jobs:
           def assert_feed_contract(page):
               page.get_by_text('CRITICAL · ADVERSE', exact=True).wait_for(timeout=30000)
               page.get_by_text('HIGH · MIXED', exact=True).wait_for(timeout=30000)
-              page.get_by_text('HIGH · FAVOURABLE', exact=True).wait_for(timeout=30000)
+              page.get_by_text('HIGH · FAVOURABLE', exact=True).first.wait_for(timeout=30000)
               page.get_by_text('Routine announcements · 1', exact=True).wait_for(
                   timeout=30000
               )
