@@ -104,6 +104,9 @@ MATERIAL_PATTERNS = [
     r"\bdisposal\b",
     r"\bplacing\b",
     r"\bfundrais(?:e|ing)\b",
+    r"\bfunding update\b",
+    r"\bfinancing update\b",
+    r"\bworking capital update\b",
     r"\bsubscription\b",
     r"\bretail offer\b",
     r"\bdebt\b",
@@ -313,13 +316,18 @@ def canonical_rns_type(announcement: AnnouncementLike, proposed: object = "") ->
     canonical_by_lower = {label.lower(): label for label in CANONICAL_RNS_TYPES}
     clean = " ".join(str(proposed or "").strip().split())
     lower = clean.lower()
+
+    # Generic labels are a request to infer from supported evidence, not a final
+    # public category. This is what upgrades an AI fallback `Other` to Takeover or
+    # Funding & solvency when the source itself makes the event clear.
+    if lower in {"", "other", "unknown", "uncategorised", "unclassified"}:
+        return classify_metadata_type(announcement)
     if lower in canonical_by_lower:
         return canonical_by_lower[lower]
     if lower in aliases:
         return aliases[lower]
-    if lower and lower not in {"other", "unknown", "uncategorised", "unclassified"}:
-        # Do not silently expose an arbitrary model-created taxonomy. Prefer a
-        # deterministic supported category when available; otherwise retain Other.
-        inferred = classify_metadata_type(announcement)
-        return inferred if inferred != "Other" else "Other"
-    return classify_metadata_type(announcement)
+
+    # Do not silently expose an arbitrary model-created taxonomy. Prefer a
+    # deterministic supported category when available; otherwise retain Other.
+    inferred = classify_metadata_type(announcement)
+    return inferred if inferred != "Other" else "Other"
