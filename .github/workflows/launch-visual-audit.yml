@@ -69,18 +69,29 @@ jobs:
 
           out = Path('/tmp/launch-screenshots')
           base = 'http://127.0.0.1:8501'
+          feed_search_placeholder = 'Ticker, company or announcement'
 
           def wait_for_feed(page):
               page.get_by_role('heading', name='AIM Intelligence', exact=True).wait_for(
                   timeout=30000
               )
-              page.get_by_placeholder('Ticker, company or announcement').wait_for(
-                  timeout=30000
-              )
+              page.get_by_placeholder(feed_search_placeholder).wait_for(timeout=30000)
               page.get_by_text(
                   'Administration imminent; no shareholder return expected',
                   exact=True,
               ).wait_for(timeout=30000)
+              page.get_by_text('Date & filters · 21 Aug 2026', exact=True).wait_for(
+                  timeout=30000
+              )
+              page.get_by_role('button', name='Read analysis →').first.wait_for(
+                  timeout=30000
+              )
+              page.wait_for_timeout(250)
+
+          def wait_for_feed_shell_gone(page):
+              page.get_by_placeholder(feed_search_placeholder).wait_for(
+                  state='detached', timeout=30000
+              )
 
           def unlock(page):
               page.goto(base, wait_until='domcontentloaded')
@@ -175,13 +186,14 @@ jobs:
               assert_no_page_overflow(page)
               page.screenshot(path=out / '02-feed-desktop.png', full_page=True)
 
-              springfield = page.get_by_text(
-                  'Meaningful buyback authority could retire about 10% of shares',
-                  exact=True,
+              springfield_record = page.locator(
+                  'article[data-feed-kind="material"]'
+              ).filter(
+                  has_text='Meaningful buyback authority could retire about 10% of shares'
               )
-              springfield.scroll_into_view_if_needed()
-              page.wait_for_timeout(250)
-              page.screenshot(path=out / '02b-feed-springfield-desktop.png')
+              springfield_record.first.screenshot(
+                  path=out / '02b-feed-springfield-desktop.png'
+              )
 
               page.evaluate(
                   """
@@ -195,16 +207,22 @@ jobs:
               page.get_by_role('button', name='Read analysis →').first.click()
               note_heading = page.get_by_text('What happened & why it matters', exact=True)
               note_heading.wait_for(timeout=30000)
+              wait_for_feed_shell_gone(page)
               note_top = page.get_by_role('button', name='← Feed', exact=True)
               note_top.wait_for(timeout=30000)
               assert_page_at_top(page, note_top)
+              page.mouse.move(10, 10)
+              page.wait_for_timeout(250)
               page.screenshot(path=out / '03-note-desktop.png', full_page=True)
               page.get_by_role('button', name='Company', exact=True).click()
               company_heading = page.get_by_text('Company Intelligence', exact=True)
               company_heading.wait_for(timeout=30000)
+              note_heading.wait_for(state='detached', timeout=30000)
               company_top = page.get_by_role('button', name='← Feed', exact=True)
               company_top.wait_for(timeout=30000)
               assert_page_at_top(page, company_top)
+              page.mouse.move(10, 10)
+              page.wait_for_timeout(250)
               page.screenshot(path=out / '04-company-desktop.png', full_page=True)
               desktop.close()
 
@@ -217,6 +235,14 @@ jobs:
               unlock(page)
               assert_feed_contract(page)
               assert_no_page_overflow(page)
+              first_record_box = page.locator(
+                  'article[data-feed-kind="material"]'
+              ).first.bounding_box()
+              if first_record_box is None or first_record_box['y'] > 540:
+                  raise AssertionError(
+                      'Feed controls dominate the mobile first viewport: '
+                      f'{first_record_box}'
+                  )
               page.screenshot(path=out / '05-feed-mobile.png', full_page=True)
 
               primary = page.get_by_role('button', name='Read analysis →').first
@@ -235,13 +261,17 @@ jobs:
                   raise AssertionError(
                       f'Narrative mobile evidence did not collapse to one column: {columns}'
                   )
+              page.screenshot(path=out / '05b-feed-trellus-actions-mobile.png')
 
               primary.click()
               note_heading = page.get_by_text('What happened & why it matters', exact=True)
               note_heading.wait_for(timeout=30000)
+              wait_for_feed_shell_gone(page)
               note_top = page.get_by_role('button', name='← Feed', exact=True)
               note_top.wait_for(timeout=30000)
               assert_page_at_top(page, note_top, max_y=220)
+              page.mouse.move(10, 10)
+              page.wait_for_timeout(250)
               page.screenshot(path=out / '06-note-mobile.png', full_page=True)
 
               responsive_table = page.locator('table.sca-table-responsive').first
