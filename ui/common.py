@@ -291,24 +291,45 @@ def consume_scroll_to_top() -> None:
         <script>
         (() => {
           const p = window.parent;
+          try { p.history.scrollRestoration = 'manual'; } catch (_) {}
+
           const reset = () => {
             try { p.scrollTo(0, 0); } catch (_) {}
-            const candidates = [
+            const documentCandidates = [
               p.document.scrollingElement,
               p.document.documentElement,
               p.document.body,
               p.document.querySelector('[data-testid="stAppViewContainer"]'),
+              p.document.querySelector('[data-testid="stMain"]'),
+              p.document.querySelector('section[data-testid="stMain"]'),
               p.document.querySelector('section.main')
             ];
-            candidates.forEach((el) => {
+            documentCandidates.forEach((el) => {
               if (!el) return;
               try { el.scrollTop = 0; el.scrollLeft = 0; } catch (_) {}
             });
+
+            // Streamlit has changed its main scroll container between releases.
+            // Reset any genuinely scrollable ancestor as a defensive fallback.
+            try {
+              p.document.querySelectorAll('body *').forEach((el) => {
+                const style = p.getComputedStyle(el);
+                if (!/(auto|scroll)/.test(style.overflowY)) return;
+                if (el.scrollHeight <= el.clientHeight) return;
+                el.scrollTop = 0;
+                el.scrollLeft = 0;
+              });
+            } catch (_) {}
           };
-          reset();
-          p.requestAnimationFrame(reset);
-          p.setTimeout(reset, 75);
-          p.setTimeout(reset, 250);
+
+          let frame = 0;
+          const settle = () => {
+            reset();
+            frame += 1;
+            if (frame < 16) p.requestAnimationFrame(settle);
+          };
+          settle();
+          [75, 150, 300, 450, 700].forEach((delay) => p.setTimeout(reset, delay));
         })();
         </script>
         """,
