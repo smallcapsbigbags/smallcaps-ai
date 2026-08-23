@@ -1,8 +1,7 @@
 from pathlib import Path
 
 from jobs.release_acceptance import run_release_acceptance
-from jobs.seed_launch_preview import seed as seed_launch
-from jobs.seed_pass1_preview import seed as seed_pass1
+from jobs.seed_release_preview import seed as seed_release
 
 
 def _sqlite_url(path: Path) -> str:
@@ -11,8 +10,7 @@ def _sqlite_url(path: Path) -> str:
 
 def test_release_acceptance_passes_complete_seeded_product_journey(tmp_path: Path) -> None:
     database_url = _sqlite_url(tmp_path / "release.db")
-    seed_launch(database_url)
-    seed_pass1(database_url)
+    seed_release(database_url)
 
     report = run_release_acceptance(
         database_url,
@@ -20,7 +18,7 @@ def test_release_acceptance_passes_complete_seeded_product_journey(tmp_path: Pat
         require_public_data=True,
     )
 
-    assert report["passed"] is True
+    assert report["passed"] is True, report
     assert report["failure_count"] == 0
     statuses = {
         check["code"]: check["status"]
