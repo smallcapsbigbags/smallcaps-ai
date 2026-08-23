@@ -13,6 +13,10 @@ def test_internal_navigation_resets_retained_scroll_position() -> None:
     assert "history.scrollRestoration = 'manual'" in common
     assert "frame < 16" in common
     assert "450" in common
+    assert "st.iframe(" in common
+    assert "tab_index=-1" in common
+    assert "streamlit.components.v1" not in common
+    assert "components.html(" not in common
 
 
 def test_mobile_responsive_tables_wrap_instead_of_clipping() -> None:
