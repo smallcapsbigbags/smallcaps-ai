@@ -2,6 +2,13 @@ from __future__ import annotations
 
 NOTE_CSS = """
 <style>
+/* Streamlit can briefly retain Feed nodes during an internal rerun. Once the
+   Note navigation exists, hide those stale controls so the target surface is
+   visually atomic rather than showing two page states at once. */
+.stApp:has(.st-key-note-nav) .st-key-feed-controls,
+.stApp:has(.st-key-note-nav) .st-key-feed-filter-panel {
+  display:none !important;
+}
 .st-key-analyst-note {
   background:transparent !important;
   border:0 !important;
