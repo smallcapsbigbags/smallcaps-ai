@@ -7,10 +7,16 @@ import streamlit as st
 
 from database.product import ProductRepository
 from product.formatting import (
+    compact_feed_fact_label,
+    compact_feed_fact_value,
+    fact_is_numeric,
+    feed_comparator_text,
+    feed_verdict,
     format_day,
     format_market_price,
-    format_price_context,
     format_time,
+    public_rns_type,
+    select_feed_facts,
 )
 from ui.common import (
     impact_badge,
@@ -19,6 +25,7 @@ from ui.common import (
     render_footer,
     safe_http_url,
 )
+from ui.note_styles import NOTE_CSS
 
 
 def _html_table(
@@ -49,32 +56,363 @@ def _html_table(
     )
 
 
-def _list_markup(items: list[str], empty: str) -> str:
-    if not items:
-        return f'<div class="sca-body">{html.escape(empty)}</div>'
-    return '<ul class="sca-list">' + "".join(
-        f"<li>{html.escape(item)}</li>" for item in items
+def _list_markup(items: list[str]) -> str:
+    clean = [str(item).strip() for item in items if str(item).strip()]
+    if not clean:
+        return ""
+    return '<ul class="sca-note-list">' + "".join(
+        f"<li>{html.escape(item)}</li>" for item in clean
     ) + "</ul>"
 
 
-def _concept_markup(items: list[dict[str, Any]]) -> str:
-    if not items:
+def _nav_source_urls(note: dict[str, Any]) -> list[str]:
+    return [
+        url
+        for url in (
+            safe_http_url(value) for value in note.get("source_urls") or []
+        )
+        if url
+    ]
+
+
+def _meta_markup(note: dict[str, Any]) -> str:
+    published = str(note["published_at"])
+    ticker = f'<span class="sca-ticker">{html.escape(str(note["ticker"]))}</span>'
+    parts = [
+        ticker,
+        html.escape(str(note["company"])),
+    ]
+    rns_type = public_rns_type(note.get("rns_type"))
+    if rns_type:
+        parts.append(html.escape(rns_type))
+    parts.extend(
+        [
+            html.escape(format_day(published)),
+            html.escape(format_time(published)),
+        ]
+    )
+    joined = '<span>·</span>'.join(f"<span>{part}</span>" for part in parts)
+    impact = impact_badge(
+        str(note.get("impact_colour") or "grey"),
+        str(note.get("impact_level") or "low"),
+    )
+    price = note.get("price") or {}
+    price_markup = ""
+    move = price.get("daily_change_pct")
+    if move is not None:
+        phase = "at close" if str(price.get("phase") or "") == "close" else "today"
+        price_markup = (
+            '<span class="sca-price">'
+            + html.escape(f"{float(move):+.1f}% {phase}")
+            + "</span>"
+        )
+    return (
+        '<div class="sca-meta sca-note-meta">'
+        + joined
+        + '<span class="sca-meta-spacer"></span>'
+        + impact
+        + price_markup
+        + "</div>"
+    )
+
+
+def _evidence_markup(facts: list[dict[str, Any]], *, limit: int = 3) -> str:
+    selected = select_feed_facts(facts, limit=limit)
+    if not selected:
         return ""
-    blocks = []
+    cells: list[str] = []
+    for fact in selected:
+        label = html.escape(compact_feed_fact_label(fact))
+        value = html.escape(compact_feed_fact_value(fact))
+        value_class = "sca-note-evidence-value"
+        if fact_is_numeric(fact):
+            value_class += " sca-note-evidence-value-num"
+        comparator = feed_comparator_text(fact)
+        comparator_markup = (
+            '<div class="sca-note-evidence-comparator">Previous: '
+            + html.escape(comparator)
+            + "</div>"
+            if comparator
+            else ""
+        )
+        calc_markup = (
+            '<div class="sca-note-calc">Smallcaps.ai calculation</div>'
+            if str(fact.get("basis") or "reported") == "calculated"
+            else ""
+        )
+        cells.append(
+            '<div class="sca-note-evidence-item">'
+            f'<div class="sca-note-evidence-label">{label}</div>'
+            f'<div class="{value_class}">{value}</div>'
+            + comparator_markup
+            + calc_markup
+            + "</div>"
+        )
+    return (
+        '<div class="sca-note-section" data-note-section="evidence">'
+        '<div class="sca-note-heading">Evidence from the RNS</div>'
+        '<div class="sca-note-evidence-grid">'
+        + "".join(cells)
+        + "</div></div>"
+    )
+
+
+def _full_fact_rows(facts: list[dict[str, Any]]) -> tuple[list[list[str]], list[str]]:
+    rows: list[list[str]] = []
+    calculations: list[str] = []
+    for fact in facts:
+        value = str(fact.get("value") or "").strip()
+        if not value:
+            continue
+        basis = str(fact.get("basis") or "reported")
+        if basis == "calculated":
+            source_label = "Smallcaps.ai calculation"
+            calculation_note = str(fact.get("note") or "").strip()
+            if calculation_note:
+                calculations.append(
+                    f"{compact_feed_fact_label(fact)}: {calculation_note}"
+                )
+        elif basis == "reported":
+            source_label = "Reported"
+        elif basis == "not-disclosed":
+            source_label = "Not disclosed"
+        else:
+            source_label = "Source warning"
+        rows.append(
+            [
+                compact_feed_fact_label(fact),
+                compact_feed_fact_value(fact),
+                feed_comparator_text(fact),
+                source_label,
+            ]
+        )
+    return rows, calculations
+
+
+def _change_markup(change: dict[str, Any]) -> str:
+    values = [
+        ("Before", str(change.get("before") or "").strip()),
+        ("Today", str(change.get("today") or "").strip()),
+        ("Why it matters", str(change.get("read_through") or "").strip()),
+    ]
+    visible = [(label, value) for label, value in values if value]
+    if not visible:
+        return ""
+    return '<div class="sca-note-detail-grid">' + "".join(
+        '<div class="sca-note-detail-card">'
+        f'<div class="sca-note-detail-label">{html.escape(label)}</div>'
+        f'<div class="sca-note-detail-text">{html.escape(value)}</div>'
+        "</div>"
+        for label, value in visible
+    ) + "</div>"
+
+
+def _concept_markup(items: list[dict[str, Any]]) -> str:
+    blocks: list[str] = []
     for item in items:
-        term = html.escape(str(item.get("term") or ""))
-        meaning = html.escape(str(item.get("plain_english") or ""))
-        matters = html.escape(str(item.get("why_it_matters") or ""))
+        term = str(item.get("term") or "").strip()
+        meaning = str(item.get("plain_english") or "").strip()
+        matters = str(item.get("why_it_matters") or "").strip()
         if not term or not meaning or not matters:
             continue
         blocks.append(
-            '<div class="sca-section">'
-            f'<div class="sca-section-title">{term}</div>'
-            f'<div class="sca-body"><strong>What it means:</strong> {meaning}</div>'
-            f'<div class="sca-body"><strong>Why it matters here:</strong> {matters}</div>'
+            '<div class="sca-note-disclosure">'
+            f'<div class="sca-note-detail-label">{html.escape(term)}</div>'
+            f'<div class="sca-note-detail-text"><strong>What it means:</strong> {html.escape(meaning)}</div>'
+            f'<div class="sca-note-detail-text"><strong>Why it matters here:</strong> {html.escape(matters)}</div>'
             "</div>"
         )
     return "".join(blocks)
+
+
+def _render_navigation(note: dict[str, Any], source_urls: list[str]) -> None:
+    with st.container(key="note-nav"):
+        cols = st.columns([.75, .8, 1.1, 5.5])
+        with cols[0]:
+            if st.button("← Feed", use_container_width=True):
+                navigate("feed")
+        with cols[1]:
+            if st.button(
+                "Company",
+                use_container_width=True,
+                help="Open the accumulated Company Intelligence record",
+            ):
+                navigate("company", ticker=str(note["ticker"]))
+        if source_urls:
+            with cols[2]:
+                st.link_button(
+                    "Original RNS ↗",
+                    source_urls[0],
+                    use_container_width=True,
+                    help="Open the original regulatory announcement",
+                )
+
+
+def _render_executive_layer(note: dict[str, Any]) -> None:
+    facts = list(note.get("key_facts") or [])
+    watch_items = [
+        str(item).strip() for item in note.get("watch_items") or [] if str(item).strip()
+    ]
+    analyst_view = str(note.get("analyst_view") or "").strip()
+    st.markdown(
+        '<div class="sca-note-shell">'
+        + _meta_markup(note)
+        + f'<h1 class="sca-note-title">{html.escape(feed_verdict(note))}</h1>'
+        + '<div class="sca-note-section" data-note-section="what-happened">'
+        + '<div class="sca-note-heading">What happened</div>'
+        + f'<div class="sca-note-takeaway">{html.escape(str(note.get("takeaway") or ""))}</div>'
+        + "</div>"
+        + _evidence_markup(facts, limit=3)
+        + (
+            '<div class="sca-note-section" data-note-section="our-view">'
+            '<div class="sca-note-heading">Our view</div>'
+            f'<div class="sca-note-view">{html.escape(analyst_view)}</div>'
+            '<div class="sca-note-provenance">Smallcaps.ai analysis — not a company-reported fact.</div>'
+            "</div>"
+            if analyst_view
+            else ""
+        )
+        + (
+            '<div class="sca-note-section" data-note-section="what-to-watch">'
+            '<div class="sca-note-heading">What to watch</div>'
+            '<div class="sca-note-watch">'
+            + _list_markup(watch_items)
+            + "</div></div>"
+            if watch_items
+            else ""
+        )
+        + '<div class="sca-note-depth"><div class="sca-note-depth-label">Supporting detail</div></div>'
+        + "</div>",
+        unsafe_allow_html=True,
+    )
+
+
+def _render_depth(note: dict[str, Any]) -> None:
+    facts = list(note.get("key_facts") or [])
+    fact_rows, calculations = _full_fact_rows(facts)
+    change = dict(note.get("what_changed") or {})
+    change_markup = _change_markup(change)
+    supports = [str(item).strip() for item in note.get("supports_case") or [] if str(item).strip()]
+    challenges = [str(item).strip() for item in note.get("challenges_case") or [] if str(item).strip()]
+    guidance = [
+        [
+            str(event.get("metric") or ""),
+            str(event.get("period") or ""),
+            str(event.get("value") or "Not disclosed"),
+            str(event.get("status") or "").replace("-", " ").title(),
+            str(event.get("previous_value") or event.get("comparator") or ""),
+        ]
+        for event in note.get("guidance_events") or []
+    ]
+    disclosure = dict(note.get("disclosure_assessment") or {})
+    missing = [str(item).strip() for item in disclosure.get("missing_items") or [] if str(item).strip()]
+    mismatch = str(disclosure.get("management_language_mismatch") or "").strip()
+    concepts = list(disclosure.get("concept_explanations") or [])
+    concept_markup = _concept_markup(concepts)
+    price = note.get("price")
+
+    with st.container(key="note-depth"):
+        if change_markup:
+            with st.expander("What changed", expanded=False):
+                st.markdown(change_markup, unsafe_allow_html=True)
+
+        if fact_rows:
+            with st.expander("Full evidence & calculations", expanded=False):
+                st.markdown(
+                    _html_table(
+                        ["Metric", "Current", "Previous", "Source"],
+                        fact_rows,
+                        numeric_columns={1, 2},
+                    ),
+                    unsafe_allow_html=True,
+                )
+                if calculations:
+                    st.markdown(
+                        '<div class="sca-note-disclosure">'
+                        '<div class="sca-note-detail-label">Calculation workings</div>'
+                        + _list_markup(calculations)
+                        + "</div>",
+                        unsafe_allow_html=True,
+                    )
+
+        if supports or challenges:
+            with st.expander("Investment case detail", expanded=False):
+                cols = st.columns(2)
+                if supports:
+                    with cols[0]:
+                        st.markdown(
+                            '<div class="sca-note-detail-label">Supports</div>'
+                            + _list_markup(supports),
+                            unsafe_allow_html=True,
+                        )
+                if challenges:
+                    with cols[1]:
+                        st.markdown(
+                            '<div class="sca-note-detail-label">Challenges</div>'
+                            + _list_markup(challenges),
+                            unsafe_allow_html=True,
+                        )
+
+        if guidance:
+            with st.expander("Guidance", expanded=False):
+                st.markdown(
+                    _html_table(
+                        ["Metric", "Period", "Current position", "Status", "Previous"],
+                        guidance,
+                        numeric_columns={2, 4},
+                    ),
+                    unsafe_allow_html=True,
+                )
+
+        if missing or mismatch or concept_markup:
+            with st.expander("Disclosure & terminology", expanded=False):
+                if missing:
+                    st.markdown(
+                        '<div class="sca-note-disclosure">'
+                        '<div class="sca-note-detail-label">What is missing</div>'
+                        + _list_markup(missing)
+                        + "</div>",
+                        unsafe_allow_html=True,
+                    )
+                if mismatch:
+                    st.markdown(
+                        '<div class="sca-note-disclosure">'
+                        '<div class="sca-note-detail-label">Management wording check</div>'
+                        f'<div class="sca-note-detail-text">{html.escape(mismatch)}</div>'
+                        "</div>",
+                        unsafe_allow_html=True,
+                    )
+                if concept_markup:
+                    st.markdown(concept_markup, unsafe_allow_html=True)
+
+        if price:
+            with st.expander("Market reaction", expanded=False):
+                currency = str(price.get("currency") or "GBp")
+                move = price.get("daily_change_pct")
+                rows = [
+                    [
+                        "Event-session move",
+                        "—" if move is None else f"{float(move):+.1f}%",
+                    ],
+                    [
+                        "Previous close",
+                        format_market_price(price.get("previous_close"), currency=currency),
+                    ],
+                    [
+                        "Latest / close",
+                        format_market_price(
+                            price.get("close_price")
+                            if price.get("close_price") is not None
+                            else price.get("latest_price"),
+                            currency=currency,
+                        ),
+                    ],
+                    ["Source", str(price.get("source") or "")],
+                ]
+                st.markdown(
+                    _html_table(["Measure", "Value"], rows, numeric_columns={1}),
+                    unsafe_allow_html=True,
+                )
 
 
 def render_note(
@@ -83,6 +421,7 @@ def render_note(
     *,
     public_only: bool = True,
 ) -> None:
+    st.markdown(NOTE_CSS, unsafe_allow_html=True)
     render_brand()
     note = repository.get_note(source_id, public_only=public_only)
     if note is None:
@@ -96,252 +435,9 @@ def render_note(
         render_footer()
         return
 
-    source_urls = [
-        url for url in (safe_http_url(value) for value in note.get("source_urls") or []) if url
-    ]
-    top_cols = st.columns([1, 1.15, 1, 4.5])
-    with top_cols[0]:
-        if st.button("← Feed", use_container_width=True):
-            navigate("feed")
-    with top_cols[1]:
-        if st.button(
-            "Company",
-            use_container_width=True,
-            help="Open the accumulated Company Intelligence record",
-        ):
-            navigate("company", ticker=str(note["ticker"]))
-    if source_urls:
-        with top_cols[2]:
-            st.link_button(
-                "RNS ↗",
-                source_urls[0],
-                use_container_width=True,
-                help="Open the original regulatory announcement",
-            )
-
-    published = str(note["published_at"])
-    impact = impact_badge(
-        str(note["impact_colour"]),
-        str(note["impact_level"]),
-    )
+    source_urls = _nav_source_urls(note)
+    _render_navigation(note, source_urls)
     with st.container(key="analyst-note"):
-        st.markdown(
-            f'<div class="sca-meta"><span class="sca-ticker">{html.escape(str(note["ticker"]))}</span><span>{html.escape(str(note["company"]))}</span><span>·</span><span>{html.escape(str(note["rns_type"]))}</span><span>·</span><span>{html.escape(format_day(published))}</span><span>{html.escape(format_time(published))}</span><span class="sca-meta-spacer"></span>{impact}<span class="sca-price">{html.escape(format_price_context(note.get("price")))}</span></div><h1 class="sca-note-title">{html.escape(str(note["headline"]))}</h1><div class="sca-section-title">What happened & why it matters</div><div class="sca-body">{html.escape(str(note["takeaway"]))}</div>',
-            unsafe_allow_html=True,
-        )
-
-        facts = []
-        calculations = []
-        for fact in note.get("key_facts") or []:
-            if not str(fact.get("value") or ""):
-                continue
-            basis = str(fact.get("basis") or "reported")
-            if basis == "calculated":
-                source_label = "Smallcaps.ai calculation"
-                calculation_note = str(fact.get("note") or "").strip()
-                if calculation_note:
-                    calculations.append(
-                        f"{fact.get('label') or fact.get('metric')}: {calculation_note}"
-                    )
-            elif basis == "reported":
-                source_label = "Reported"
-            elif basis == "not-disclosed":
-                source_label = "Not disclosed"
-            else:
-                source_label = "Source warning"
-            facts.append(
-                [
-                    str(fact.get("label") or fact.get("metric") or ""),
-                    str(fact.get("value") or ""),
-                    str(
-                        fact.get("previous_value")
-                        or fact.get("comparator")
-                        or ""
-                    ),
-                    source_label,
-                ]
-            )
-
-        st.markdown(
-            '<div class="sca-section"></div><div class="sca-section-title">Key numbers</div>',
-            unsafe_allow_html=True,
-        )
-        if facts:
-            st.markdown(
-                _html_table(
-                    ["Metric", "Current", "Previous / comparator", "Source"],
-                    facts,
-                    numeric_columns={1, 2},
-                ),
-                unsafe_allow_html=True,
-            )
-        else:
-            st.caption("No decision-useful figures were disclosed.")
-        if calculations:
-            st.markdown(
-                '<div class="sca-section-title">How Smallcaps.ai calculated it</div>'
-                + _list_markup(calculations, ""),
-                unsafe_allow_html=True,
-            )
-
-        change = dict(note.get("what_changed") or {})
-        st.markdown(
-            f'<div class="sca-section"><div class="sca-section-title">What changed</div><div class="sca-change-grid"><div><div class="sca-change-label">Before</div><div class="sca-change-text">{html.escape(str(change.get("before") or "Coverage building."))}</div></div><div><div class="sca-change-label">Today</div><div class="sca-change-text">{html.escape(str(change.get("today") or ""))}</div></div><div><div class="sca-change-label">Why it matters</div><div class="sca-change-text">{html.escape(str(change.get("read_through") or ""))}</div></div></div></div>',
-            unsafe_allow_html=True,
-        )
-        st.markdown(
-            f'<div class="sca-section"><div class="sca-section-title">Smallcaps.ai view</div><div class="sca-analyst-view">{html.escape(str(note.get("analyst_view") or ""))}</div><div class="sca-body">This is Smallcaps.ai analysis, not a company-reported fact.</div></div>',
-            unsafe_allow_html=True,
-        )
-
-        cols = st.columns(2)
-        with cols[0]:
-            st.markdown(
-                '<div class="sca-section"><div class="sca-section-title">What supports the case</div>'
-                + _list_markup(
-                    list(note.get("supports_case") or []),
-                    "No new supporting evidence identified.",
-                )
-                + "</div>",
-                unsafe_allow_html=True,
-            )
-        with cols[1]:
-            st.markdown(
-                '<div class="sca-section"><div class="sca-section-title">What could go wrong</div>'
-                + _list_markup(
-                    list(note.get("challenges_case") or []),
-                    "No new challenge identified.",
-                )
-                + "</div>",
-                unsafe_allow_html=True,
-            )
-
-        guidance = [
-            [
-                str(event.get("metric") or ""),
-                str(event.get("period") or ""),
-                str(event.get("value") or "Not disclosed"),
-                str(event.get("status") or "").replace("-", " ").title(),
-                str(
-                    event.get("previous_value")
-                    or event.get("comparator")
-                    or ""
-                ),
-            ]
-            for event in note.get("guidance_events") or []
-        ]
-        st.markdown(
-            '<div class="sca-section"></div><div class="sca-section-title">Guidance</div>',
-            unsafe_allow_html=True,
-        )
-        if guidance:
-            st.markdown(
-                _html_table(
-                    ["Metric", "Period", "Current position", "Status", "Previous"],
-                    guidance,
-                    numeric_columns={2, 4},
-                ),
-                unsafe_allow_html=True,
-            )
-        else:
-            st.caption("No genuine guidance change identified.")
-
-        st.markdown(
-            '<div class="sca-section"><div class="sca-section-title">What to watch</div>'
-            + _list_markup(
-                list(note.get("watch_items") or []),
-                "No specific watch item identified.",
-            )
-            + "</div>",
-            unsafe_allow_html=True,
-        )
-
-        disclosure = dict(note.get("disclosure_assessment") or {})
-        missing = list(disclosure.get("missing_items") or [])
-        mismatch = str(
-            disclosure.get("management_language_mismatch") or ""
-        ).strip()
-        if missing:
-            st.markdown(
-                '<div class="sca-section"><div class="sca-section-title">What is missing</div>'
-                + _list_markup(missing, "")
-                + "</div>",
-                unsafe_allow_html=True,
-            )
-        if mismatch:
-            st.markdown(
-                f'<div class="sca-section"><div class="sca-section-title">Management wording check</div><div class="sca-body">{html.escape(mismatch)}</div></div>',
-                unsafe_allow_html=True,
-            )
-
-        concepts = list(disclosure.get("concept_explanations") or [])
-        if concepts:
-            st.markdown(
-                '<div class="sca-section"></div><div class="sca-section-title">Worth explaining</div>',
-                unsafe_allow_html=True,
-            )
-            st.markdown(_concept_markup(concepts), unsafe_allow_html=True)
-
-        st.markdown(
-            '<div class="sca-section"></div><div class="sca-section-title">Market reaction</div>',
-            unsafe_allow_html=True,
-        )
-        price = note.get("price")
-        if price:
-            currency = str(price.get("currency") or "GBp")
-            move = price.get("daily_change_pct")
-            rows = [
-                [
-                    "Event-session move",
-                    "—" if move is None else f"{float(move):+.1f}%",
-                ],
-                [
-                    "Previous close",
-                    format_market_price(
-                        price.get("previous_close"),
-                        currency=currency,
-                    ),
-                ],
-                [
-                    "Latest / close",
-                    format_market_price(
-                        price.get("close_price")
-                        if price.get("close_price") is not None
-                        else price.get("latest_price"),
-                        currency=currency,
-                    ),
-                ],
-                ["Source", str(price.get("source") or "")],
-            ]
-            st.markdown(
-                _html_table(
-                    ["Measure", "Value"],
-                    rows,
-                    numeric_columns={1},
-                ),
-                unsafe_allow_html=True,
-            )
-        else:
-            st.caption("Market reaction will appear once a valid event-session price is available.")
-
-        st.markdown(
-            '<div class="sca-section"></div>',
-            unsafe_allow_html=True,
-        )
-        source_cols = st.columns([1.1, 1.2, 4.5])
-        if source_urls:
-            with source_cols[0]:
-                st.link_button(
-                    "Original RNS ↗",
-                    source_urls[0],
-                    use_container_width=True,
-                )
-        with source_cols[1]:
-            if st.button("Company →", use_container_width=True):
-                navigate("company", ticker=str(note["ticker"]))
-        with source_cols[2]:
-            if str(change.get("coverage_status") or "building") == "building":
-                st.caption(
-                    "Company coverage is building naturally from daily RNS analysis."
-                )
+        _render_executive_layer(note)
+        _render_depth(note)
     render_footer()
