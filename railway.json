@@ -5,7 +5,7 @@
   },
   "deploy": {
     "preDeployCommand": [
-      "sh -c 'python -m jobs.validate_runtime --service web --create-schema && python -m jobs.audit_production --service web --record --reconcile-stale --reconcile-publication --historical-worker-failures-warn'"
+      "sh -c 'python -m jobs.validate_runtime --service web --create-schema && python -m jobs.audit_production --service web --record --reconcile-stale --reconcile-publication --historical-worker-failures-warn && python -m jobs.release_acceptance --require-public-data'"
     ],
     "startCommand": "streamlit run streamlit_app.py --server.address 0.0.0.0 --server.port $PORT",
     "healthcheckPath": "/_stcore/health",
