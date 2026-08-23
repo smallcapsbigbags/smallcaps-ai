@@ -176,7 +176,6 @@ def _has_offer_terms(context: str) -> bool:
             "price per share",
             "pence per share",
             "cash per share",
-            "firm offer",
         )
     ):
         return True
