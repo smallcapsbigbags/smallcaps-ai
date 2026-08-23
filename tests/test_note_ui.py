@@ -156,3 +156,9 @@ def test_note_mobile_design_collapses_evidence_and_detail_to_one_column() -> Non
     assert ".sca-note-detail-grid{grid-template-columns:1fr" in NOTE_CSS
     assert "min-height:2.55rem" in NOTE_CSS
     assert ".st-key-analyst-note" in NOTE_CSS
+
+
+def test_note_hides_transient_feed_controls_during_streamlit_navigation() -> None:
+    assert ".stApp:has(.st-key-note-nav) .st-key-feed-controls" in NOTE_CSS
+    assert ".stApp:has(.st-key-note-nav) .st-key-feed-filter-panel" in NOTE_CSS
+    assert "display:none !important" in NOTE_CSS
