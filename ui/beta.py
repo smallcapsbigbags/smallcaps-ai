@@ -38,7 +38,7 @@ BETA_CSS = """
   max-width:620px;
   margin:.35rem 0 0;
 }
-.st-key-beta-access-shell form {
+.st-key-beta-access-shell [data-testid="stForm"] {
   border:0 !important;
   padding:0 !important;
 }
@@ -46,7 +46,7 @@ BETA_CSS = """
   min-height:2.85rem !important;
   border-radius:5px !important;
 }
-.st-key-beta-access-shell button[data-testid="stBaseButton-primary"] {
+.st-key-beta-access-shell [data-testid="stFormSubmitButton"] button {
   min-height:2.85rem !important;
   background:var(--sca-text) !important;
   border-color:var(--sca-text) !important;
@@ -54,7 +54,7 @@ BETA_CSS = """
   color:#fff !important;
   font-weight:700 !important;
 }
-.st-key-beta-access-shell button[data-testid="stBaseButton-primary"]:hover {
+.st-key-beta-access-shell [data-testid="stFormSubmitButton"] button:hover {
   background:#2A3035 !important;
   border-color:#2A3035 !important;
   color:#fff !important;
@@ -71,7 +71,7 @@ BETA_CSS = """
   .sca-beta-simple-title{font-size:2.45rem;line-height:1.02}
   .sca-beta-simple-copy{font-size:.98rem;line-height:1.58}
   .st-key-beta-access-shell input,
-  .st-key-beta-access-shell button[data-testid="stBaseButton-primary"]{min-height:2.95rem !important}
+  .st-key-beta-access-shell [data-testid="stFormSubmitButton"] button{min-height:2.95rem !important}
 }
 </style>
 """
