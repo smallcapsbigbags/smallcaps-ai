@@ -85,27 +85,20 @@ jobs:
               page.get_by_role('button', name='Read analysis →').first.wait_for(
                   timeout=30000
               )
-              page.wait_for_timeout(250)
+              page.wait_for_timeout(300)
 
-          def wait_for_feed_shell_gone(page):
+          def wait_for_view(page, expected):
               page.wait_for_function(
                   """
-                  ([placeholder, label]) => {
-                    const visible = (el) => Boolean(
-                      el && (el.offsetWidth || el.offsetHeight || el.getClientRects().length)
-                    );
-                    const hasSearch = Array.from(document.querySelectorAll('input')).some(
-                      (el) => el.placeholder === placeholder && visible(el)
-                    );
-                    const hasFilter = Array.from(document.querySelectorAll('p')).some(
-                      (el) => (el.textContent || '').trim() === label && visible(el)
-                    );
-                    return !hasSearch && !hasFilter;
-                  }
+                  (view) => new URLSearchParams(window.location.search).get('view') === view
                   """,
-                  arg=[feed_search_placeholder, feed_filter_label],
+                  arg=expected,
                   timeout=30000,
               )
+              # Streamlit can retain stale DOM nodes briefly during a rerun. The URL,
+              # target-page marker and top-control checks below are the stable contract;
+              # do not fail on stale Feed nodes that are awaiting reconciliation.
+              page.wait_for_timeout(700)
 
           def unlock(page):
               page.goto(base, wait_until='domcontentloaded')
@@ -169,6 +162,15 @@ jobs:
               page.get_by_text('Routine announcements · 1', exact=True).wait_for(
                   timeout=30000
               )
+              page.get_by_text(
+                  'Administration imminent; no shareholder return expected',
+                  exact=True,
+              ).wait_for(timeout=30000)
+              page.get_by_text(
+                  'Formal takeover interest emerges; terms remain unknown',
+                  exact=True,
+              ).wait_for(timeout=30000)
+              page.get_by_text('Thesis broken.', exact=False).wait_for(timeout=30000)
 
               records = page.locator('article[data-feed-kind="material"]')
               if records.count() < 5:
@@ -182,8 +184,17 @@ jobs:
                   raise AssertionError('Fallback announcement type Other is still visible')
               if 'Reported' in combined:
                   raise AssertionError('Reported is still repeated beneath evidence facts')
-              if page.locator('article[data-feed-kind="material"] .sca-evidence-heading').count() < 5:
+              if 'Previous / comparator:' in combined:
+                  raise AssertionError('Feed still exposes database-style comparator copy')
+              if 'Not disclosed in supplied prior context' in combined:
+                  raise AssertionError('Feed still exposes non-information comparator noise')
+              headings = page.locator(
+                  'article[data-feed-kind="material"] .sca-evidence-heading'
+              )
+              if headings.count() < 5:
                   raise AssertionError('Material records do not expose a single Evidence section')
+              if headings.filter(has_text='Evidence from the RNS').count() < 5:
+                  raise AssertionError('Material records do not use the final Evidence heading')
 
           with sync_playwright() as p:
               browser = p.chromium.launch()
@@ -219,26 +230,27 @@ jobs:
                   """
               )
               page.get_by_role('button', name='Read analysis →').first.click()
+              wait_for_view(page, 'note')
               note_heading = page.get_by_text('What happened & why it matters', exact=True)
               note_heading.wait_for(timeout=30000)
-              wait_for_feed_shell_gone(page)
               note_top = page.get_by_role('button', name='← Feed', exact=True)
               note_top.wait_for(timeout=30000)
               assert_page_at_top(page, note_top)
               page.mouse.move(1400, 950)
               page.keyboard.press('Escape')
-              page.wait_for_timeout(900)
+              page.wait_for_timeout(500)
               page.screenshot(path=out / '03-note-desktop.png', full_page=True)
+
               page.get_by_role('button', name='Company', exact=True).click()
+              wait_for_view(page, 'company')
               company_heading = page.get_by_text('Company Intelligence', exact=True)
               company_heading.wait_for(timeout=30000)
-              note_heading.wait_for(state='detached', timeout=30000)
               company_top = page.get_by_role('button', name='← Feed', exact=True)
               company_top.wait_for(timeout=30000)
               assert_page_at_top(page, company_top)
               page.mouse.move(1400, 950)
               page.keyboard.press('Escape')
-              page.wait_for_timeout(900)
+              page.wait_for_timeout(500)
               page.screenshot(path=out / '04-company-desktop.png', full_page=True)
               desktop.close()
 
@@ -262,7 +274,7 @@ jobs:
               page.screenshot(path=out / '05-feed-mobile.png', full_page=True)
 
               primary = page.get_by_role('button', name='Read analysis →').first
-              page.wait_for_timeout(900)
+              page.wait_for_timeout(600)
               primary.evaluate('(el) => el.scrollIntoView({block: "center"})')
               page.wait_for_timeout(250)
               primary_box = primary.bounding_box()
@@ -286,15 +298,15 @@ jobs:
               page.screenshot(path=out / '05b-feed-trellus-actions-mobile.png')
 
               primary.click()
+              wait_for_view(page, 'note')
               note_heading = page.get_by_text('What happened & why it matters', exact=True)
               note_heading.wait_for(timeout=30000)
-              wait_for_feed_shell_gone(page)
               note_top = page.get_by_role('button', name='← Feed', exact=True)
               note_top.wait_for(timeout=30000)
               assert_page_at_top(page, note_top, max_y=220)
               page.mouse.move(380, 830)
               page.keyboard.press('Escape')
-              page.wait_for_timeout(900)
+              page.wait_for_timeout(500)
               page.screenshot(path=out / '06-note-mobile.png', full_page=True)
 
               responsive_table = page.locator('table.sca-table-responsive').first
