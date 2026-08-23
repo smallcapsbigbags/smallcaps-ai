@@ -72,63 +72,8 @@ jobs:
           feed_search_placeholder = 'Ticker, company or announcement'
           feed_filter_label = 'Date & filters · 21 Aug 2026'
 
-          def wait_for_view(page, expected):
-              page.wait_for_function(
-                  """
-                  (view) => new URLSearchParams(window.location.search).get('view') === view
-                  """,
-                  arg=expected,
-                  timeout=30000,
-              )
-              page.wait_for_timeout(1500)
-
-          def wait_for_feed(page):
-              page.get_by_role('heading', name='AIM Intelligence', exact=True).wait_for(timeout=30000)
-              page.get_by_placeholder(feed_search_placeholder).wait_for(timeout=30000)
-              page.get_by_text(
-                  'Administration imminent; no shareholder return expected',
-                  exact=True,
-              ).wait_for(timeout=30000)
-              page.get_by_text(feed_filter_label, exact=True).first.wait_for(timeout=30000)
-              page.get_by_role('button', name='Read analysis →').first.wait_for(timeout=30000)
-              page.wait_for_timeout(300)
-
-          def unlock(page):
-              page.goto(base, wait_until='domcontentloaded')
-              page.get_by_text('Every AIM announcement.', exact=False).wait_for(timeout=30000)
-              page.get_by_label('Private beta access code').fill('preview-access')
-              page.get_by_role('button', name='UNLOCK PRIVATE BETA').click()
-              wait_for_feed(page)
-
-          def assert_page_at_top(page, top_control, *, max_y=240, max_scroll=32):
-              page.wait_for_timeout(500)
-              box = top_control.bounding_box()
-              if box is None:
-                  raise AssertionError('Expected top navigation control is not visible')
-              positions = page.evaluate(
-                  """
-                  () => {
-                    const scrollTop = (el) => el ? Number(el.scrollTop || 0) : 0;
-                    return {
-                      window: Number(window.scrollY || 0),
-                      scrollingElement: scrollTop(document.scrollingElement),
-                      documentElement: scrollTop(document.documentElement),
-                      body: scrollTop(document.body),
-                      appView: scrollTop(document.querySelector('[data-testid="stAppViewContainer"]')),
-                      main: scrollTop(document.querySelector('[data-testid="stMain"]')),
-                    };
-                  }
-                  """
-              )
-              largest = max(float(value or 0) for value in positions.values())
-              if largest > max_scroll or box['y'] < 0 or box['y'] > max_y:
-                  raise AssertionError(
-                      'Internal navigation did not begin at the top: '
-                      f'control_y={box["y"]}, scroll_positions={positions}'
-                  )
-
-          def assert_no_page_overflow(page):
-              dimensions = page.evaluate(
+          def assert_no_overflow(page):
+              dims = page.evaluate(
                   """
                   () => {
                     const root = document.documentElement;
@@ -142,81 +87,146 @@ jobs:
                   }
                   """
               )
-              if dimensions['documentScroll'] > dimensions['documentClient'] + 2:
-                  raise AssertionError(f'Document clips horizontally: {dimensions}')
-              if dimensions['appScroll'] > dimensions['appClient'] + 2:
-                  raise AssertionError(f'App clips horizontally: {dimensions}')
+              if dims['documentScroll'] > dims['documentClient'] + 2:
+                  raise AssertionError(f'Document clips horizontally: {dims}')
+              if dims['appScroll'] > dims['appClient'] + 2:
+                  raise AssertionError(f'App clips horizontally: {dims}')
 
-          def assert_feed_contract(page):
+          def assert_at_top(page, control, *, max_y=240, max_scroll=32):
+              page.wait_for_timeout(500)
+              box = control.bounding_box()
+              if box is None:
+                  raise AssertionError('Top navigation control is not visible')
+              scrolls = page.evaluate(
+                  """
+                  () => {
+                    const top = (el) => el ? Number(el.scrollTop || 0) : 0;
+                    return {
+                      window: Number(window.scrollY || 0),
+                      root: top(document.scrollingElement),
+                      app: top(document.querySelector('[data-testid="stAppViewContainer"]')),
+                      main: top(document.querySelector('[data-testid="stMain"]')),
+                    };
+                  }
+                  """
+              )
+              if max(float(v or 0) for v in scrolls.values()) > max_scroll or not (0 <= box['y'] <= max_y):
+                  raise AssertionError(f'Navigation did not begin at top: y={box["y"]}, scrolls={scrolls}')
+
+          def wait_view(page, view):
+              page.wait_for_function(
+                  "(v) => new URLSearchParams(window.location.search).get('view') === v",
+                  arg=view,
+                  timeout=30000,
+              )
+              page.wait_for_timeout(1200)
+
+          def assert_beta(page):
+              page.get_by_text('Know what changed.', exact=False).wait_for(timeout=30000)
+              page.get_by_text('See the evidence.', exact=False).wait_for(timeout=30000)
+              page.get_by_text('Every AIM announcement analysed in minutes', exact=False).wait_for(timeout=30000)
+              page.get_by_label('Private beta access code').wait_for(timeout=30000)
+              page.get_by_role('button', name='Enter Smallcaps.ai', exact=True).wait_for(timeout=30000)
+              text = page.locator('[data-testid="stMain"]').inner_text()
+              for forbidden in ('Read the change', 'See the numbers', 'Check the source', 'UNLOCK PRIVATE BETA'):
+                  if forbidden in text:
+                      raise AssertionError(f'Old beta copy remains visible: {forbidden}')
+
+          def submit_beta(page):
+              page.get_by_label('Private beta access code').fill('preview-access')
+              page.get_by_role('button', name='Enter Smallcaps.ai', exact=True).click()
+
+          def wait_feed(page):
+              page.get_by_role('heading', name='AIM Intelligence', exact=True).wait_for(timeout=30000)
+              page.get_by_placeholder(feed_search_placeholder).wait_for(timeout=30000)
+              page.get_by_text(feed_filter_label, exact=True).first.wait_for(timeout=30000)
+              page.get_by_text('Administration imminent; no shareholder return expected', exact=True).first.wait_for(timeout=30000)
+              page.get_by_role('button', name='Read analysis →').first.wait_for(timeout=30000)
+              page.wait_for_timeout(300)
+
+          def unlock_feed(page):
+              page.goto(base, wait_until='domcontentloaded')
+              assert_beta(page)
+              submit_beta(page)
+              wait_feed(page)
+
+          def unlock_company(page, ticker):
+              page.goto(f'{base}?view=company&ticker={ticker}', wait_until='domcontentloaded')
+              assert_beta(page)
+              submit_beta(page)
+              page.get_by_text('Company Intelligence', exact=True).first.wait_for(timeout=30000)
+              page.wait_for_timeout(800)
+
+          def assert_feed(page):
               for label in ('CRITICAL · ADVERSE', 'HIGH · MIXED', 'HIGH · FAVOURABLE'):
                   page.get_by_text(label, exact=True).first.wait_for(timeout=30000)
               page.get_by_text('Routine announcements · 1', exact=True).wait_for(timeout=30000)
-              page.get_by_text(
-                  'Formal takeover interest emerges; terms remain unknown', exact=True
-              ).wait_for(timeout=30000)
-              page.get_by_text('Thesis broken.', exact=False).wait_for(timeout=30000)
-
+              page.get_by_text('Formal takeover interest emerges; terms remain unknown', exact=True).first.wait_for(timeout=30000)
+              page.get_by_text('Thesis broken.', exact=False).first.wait_for(timeout=30000)
               records = page.locator('article[data-feed-kind="material"]')
               if records.count() < 5:
-                  raise AssertionError(
-                      f'Expected at least five material preview records, got {records.count()}'
-                  )
+                  raise AssertionError(f'Expected at least five material records, got {records.count()}')
               combined = '\n'.join(records.all_inner_texts())
-              for forbidden in (
-                  'IMPACT HIGH', '· GREEN', '· RED', '\nOther\n',
-                  'Previous / comparator:', 'Not disclosed in supplied prior context',
-              ):
+              for forbidden in ('IMPACT HIGH', '· GREEN', '· RED', '\nOther\n', 'Previous / comparator:', 'Not disclosed in supplied prior context'):
                   if forbidden in f'\n{combined}\n':
-                      raise AssertionError(f'Feed still exposes deprecated copy: {forbidden}')
-              headings = page.locator(
-                  'article[data-feed-kind="material"] .sca-evidence-heading'
-              )
+                      raise AssertionError(f'Feed exposes deprecated copy: {forbidden}')
+              headings = page.locator('article[data-feed-kind="material"] .sca-evidence-heading')
               if headings.filter(has_text='Evidence from the RNS').count() < 5:
-                  raise AssertionError('Material records do not use the final Evidence heading')
+                  raise AssertionError('Feed does not use the final Evidence heading')
 
-          def assert_note_contract(page):
-              page.get_by_text(
-                  'Administration imminent; no shareholder return expected',
-                  exact=True,
-              ).wait_for(timeout=30000)
+          def assert_note(page):
+              page.get_by_text('Administration imminent; no shareholder return expected', exact=True).first.wait_for(timeout=30000)
               headings = [
-                  page.get_by_text('What happened', exact=True),
-                  page.get_by_text('Evidence from the RNS', exact=True),
-                  page.get_by_text('Our view', exact=True),
-                  page.get_by_text('What to watch', exact=True),
-                  page.get_by_text('Supporting detail', exact=True),
+                  page.get_by_text('What happened', exact=True).first,
+                  page.get_by_text('Evidence from the RNS', exact=True).first,
+                  page.get_by_text('Our view', exact=True).first,
+                  page.get_by_text('What to watch', exact=True).first,
+                  page.get_by_text('Supporting detail', exact=True).first,
               ]
+              boxes = []
               for heading in headings:
                   heading.wait_for(timeout=30000)
-              boxes = [heading.bounding_box() for heading in headings]
+                  boxes.append(heading.bounding_box())
               if any(box is None for box in boxes):
-                  raise AssertionError('Analyst Note executive hierarchy is not fully visible')
+                  raise AssertionError('Analyst Note hierarchy is not fully visible')
               ys = [box['y'] for box in boxes if box is not None]
               if ys != sorted(ys):
                   raise AssertionError(f'Analyst Note hierarchy is out of order: {ys}')
+              page.get_by_role('link', name='Original RNS ↗', exact=True).first.wait_for(timeout=30000)
 
-              page.get_by_role('link', name='Original RNS ↗', exact=True).wait_for(timeout=30000)
+          def assert_company(page, *, rich=False):
+              page.get_by_text('Company Intelligence', exact=True).first.wait_for(timeout=30000)
+              page.get_by_text('Current position', exact=True).first.wait_for(timeout=30000)
+              page.get_by_text('RNS timeline', exact=True).first.wait_for(timeout=30000)
+              if page.locator('.sca-intel-card').count():
+                  raise AssertionError('Company page still renders system-count cards')
               text = page.locator('[data-testid="stMain"]').inner_text()
-              for forbidden in (
-                  'No new supporting evidence identified.',
-                  'No new challenge identified.',
-                  'No genuine guidance change identified.',
-                  'No specific watch item identified.',
-                  'Market reaction will appear once',
-              ):
+              for forbidden in ('Tracked metrics', 'Open promises', 'This record is building from RNSs analysed since coverage began.'):
                   if forbidden in text:
-                      raise AssertionError(f'Analyst Note still exposes empty-state copy: {forbidden}')
+                      raise AssertionError(f'Company page exposes system-first copy: {forbidden}')
+              if rich:
+                  for heading in ('Guidance', 'Metrics that matter', 'Management promises', 'What remains unclear'):
+                      page.get_by_text(heading, exact=True).first.wait_for(timeout=30000)
+                  page.get_by_text('history still building', exact=False).first.wait_for(timeout=30000)
+                  page.get_by_text('Meaningful buyback authority could retire about 10% of shares', exact=True).first.wait_for(timeout=30000)
+                  if page.locator('.sca-company-metric').count() < 3:
+                      raise AssertionError('Springfield should expose three primary company metrics')
+                  if page.locator('[data-company-timeline="row"]').count() < 2:
+                      raise AssertionError('Springfield timeline should contain both preview RNSs')
 
-          def assert_mobile_note_layout(page):
-              assert_no_page_overflow(page)
-              evidence_grid = page.locator('.sca-note-evidence-grid').first
-              columns = evidence_grid.evaluate(
-                  '(el) => getComputedStyle(el).gridTemplateColumns'
-              )
+          def assert_mobile_note(page):
+              assert_no_overflow(page)
+              columns = page.locator('.sca-note-evidence-grid').first.evaluate('(el) => getComputedStyle(el).gridTemplateColumns')
               if ' ' in columns.strip():
-                  raise AssertionError(
-                      f'Analyst Note evidence did not collapse to one mobile column: {columns}'
-                  )
+                  raise AssertionError(f'Note evidence did not collapse to one column: {columns}')
+
+          def assert_mobile_company(page):
+              assert_no_overflow(page)
+              grid = page.locator('.sca-company-metrics').first
+              grid.wait_for(timeout=30000)
+              columns = grid.evaluate('(el) => getComputedStyle(el).gridTemplateColumns')
+              if ' ' in columns.strip():
+                  raise AssertionError(f'Company metrics did not collapse to one column: {columns}')
 
           with sync_playwright() as p:
               browser = p.chromium.launch()
@@ -224,86 +234,96 @@ jobs:
               desktop = browser.new_context(viewport={'width': 1440, 'height': 1000})
               page = desktop.new_page()
               page.goto(base, wait_until='domcontentloaded')
-              page.get_by_text('Every AIM announcement.', exact=False).wait_for(timeout=30000)
+              assert_beta(page)
+              assert_no_overflow(page)
               page.screenshot(path=out / '01-beta-desktop.png', full_page=True)
-              page.get_by_label('Private beta access code').fill('preview-access')
-              page.get_by_role('button', name='UNLOCK PRIVATE BETA').click()
-              wait_for_feed(page)
-              assert_feed_contract(page)
-              assert_no_page_overflow(page)
+              submit_beta(page)
+              wait_feed(page)
+              assert_feed(page)
+              assert_no_overflow(page)
               page.screenshot(path=out / '02-feed-desktop.png', full_page=True)
 
-              springfield_record = page.locator(
-                  'article[data-feed-kind="material"]'
-              ).filter(has_text='Meaningful buyback authority could retire about 10% of shares')
-              springfield_record.first.screenshot(path=out / '02b-feed-springfield-desktop.png')
+              springfield = page.locator('article[data-feed-kind="material"]').filter(has_text='Meaningful buyback authority could retire about 10% of shares')
+              springfield.first.screenshot(path=out / '02b-feed-springfield-desktop.png')
 
               page.get_by_role('button', name='Read analysis →').first.click()
-              wait_for_view(page, 'note')
-              note_top = page.get_by_role('button', name='← Feed', exact=True)
+              wait_view(page, 'note')
+              note_top = page.get_by_role('button', name='← Feed', exact=True).first
               note_top.wait_for(timeout=30000)
-              assert_page_at_top(page, note_top)
-              assert_note_contract(page)
-              assert_no_page_overflow(page)
+              assert_at_top(page, note_top)
+              assert_note(page)
+              assert_no_overflow(page)
               page.screenshot(path=out / '03-note-desktop.png', full_page=True)
 
-              page.get_by_text('Full evidence & calculations', exact=True).click()
+              page.get_by_text('Full evidence & calculations', exact=True).first.click()
               table = page.locator('table.sca-table-responsive').first
               table.wait_for(timeout=30000)
-              page.get_by_role('cell', name='Administration', exact=True).wait_for(timeout=30000)
-              page.wait_for_timeout(500)
+              page.get_by_role('cell', name='Administration', exact=True).first.wait_for(timeout=30000)
               if table.evaluate('(el) => el.scrollWidth > el.clientWidth + 2'):
-                  raise AssertionError('Expanded Analyst Note table clips horizontally on desktop')
+                  raise AssertionError('Expanded note table clips on desktop')
               page.screenshot(path=out / '03b-note-depth-desktop.png', full_page=True)
 
-              page.get_by_role('button', name='Company', exact=True).click()
-              wait_for_view(page, 'company')
-              company_heading = page.get_by_text('Company Intelligence', exact=True)
-              company_heading.wait_for(timeout=30000)
-              company_top = page.get_by_role('button', name='← Feed', exact=True)
+              page.get_by_role('button', name='Company', exact=True).first.click()
+              wait_view(page, 'company')
+              company_top = page.get_by_role('button', name='← Feed', exact=True).first
               company_top.wait_for(timeout=30000)
-              assert_page_at_top(page, company_top)
-              page.screenshot(path=out / '04-company-desktop.png', full_page=True)
+              assert_at_top(page, company_top)
+              assert_company(page)
+              page.screenshot(path=out / '04-company-trellus-desktop.png', full_page=True)
               desktop.close()
 
-              mobile = browser.new_context(
-                  viewport={'width': 390, 'height': 844},
-                  device_scale_factor=1,
-                  is_mobile=True,
-              )
+              rich_desktop = browser.new_context(viewport={'width': 1440, 'height': 1000})
+              page = rich_desktop.new_page()
+              unlock_company(page, 'SPR')
+              assert_company(page, rich=True)
+              assert_no_overflow(page)
+              page.screenshot(path=out / '04b-company-springfield-desktop.png', full_page=True)
+              rich_desktop.close()
+
+              mobile = browser.new_context(viewport={'width': 390, 'height': 844}, device_scale_factor=1, is_mobile=True)
               page = mobile.new_page()
-              unlock(page)
-              assert_feed_contract(page)
-              assert_no_page_overflow(page)
-              page.screenshot(path=out / '05-feed-mobile.png', full_page=True)
+              page.goto(base, wait_until='domcontentloaded')
+              assert_beta(page)
+              assert_no_overflow(page)
+              page.screenshot(path=out / '05-beta-mobile.png', full_page=True)
+              submit_beta(page)
+              wait_feed(page)
+              assert_feed(page)
+              assert_no_overflow(page)
+              page.screenshot(path=out / '06-feed-mobile.png', full_page=True)
 
               primary = page.get_by_role('button', name='Read analysis →').first
               primary.evaluate('(el) => el.scrollIntoView({block: "center"})')
               page.wait_for_timeout(250)
-              primary_box = primary.bounding_box()
-              if primary_box is None or primary_box['height'] < 43.5:
-                  raise AssertionError(f'Primary mobile action is not a 44px target: {primary_box}')
-              page.screenshot(path=out / '05b-feed-trellus-actions-mobile.png')
-
+              box = primary.bounding_box()
+              if box is None or box['height'] < 43.5:
+                  raise AssertionError(f'Primary mobile action is not a 44px target: {box}')
               primary.click()
-              wait_for_view(page, 'note')
-              note_top = page.get_by_role('button', name='← Feed', exact=True)
+              wait_view(page, 'note')
+              note_top = page.get_by_role('button', name='← Feed', exact=True).first
               note_top.wait_for(timeout=30000)
-              assert_page_at_top(page, note_top, max_y=220)
-              assert_note_contract(page)
-              assert_mobile_note_layout(page)
-              page.screenshot(path=out / '06-note-mobile.png', full_page=True)
+              assert_at_top(page, note_top, max_y=220)
+              assert_note(page)
+              assert_mobile_note(page)
+              page.screenshot(path=out / '07-note-mobile.png', full_page=True)
 
-              page.get_by_text('Full evidence & calculations', exact=True).click()
+              page.get_by_text('Full evidence & calculations', exact=True).first.click()
               table = page.locator('table.sca-table-responsive').first
               table.wait_for(timeout=30000)
               page.get_by_text('Administration', exact=True).last.wait_for(timeout=30000)
-              page.wait_for_timeout(500)
               if table.evaluate('(el) => el.scrollWidth > el.clientWidth + 2'):
-                  raise AssertionError('Expanded Analyst Note table clips horizontally on mobile')
-              page.screenshot(path=out / '06b-note-depth-mobile.png', full_page=True)
-
+                  raise AssertionError('Expanded note table clips on mobile')
+              page.screenshot(path=out / '07b-note-depth-mobile.png', full_page=True)
               mobile.close()
+
+              rich_mobile = browser.new_context(viewport={'width': 390, 'height': 844}, device_scale_factor=1, is_mobile=True)
+              page = rich_mobile.new_page()
+              unlock_company(page, 'SPR')
+              assert_company(page, rich=True)
+              assert_mobile_company(page)
+              page.screenshot(path=out / '08-company-springfield-mobile.png', full_page=True)
+              rich_mobile.close()
+
               browser.close()
           PY
 

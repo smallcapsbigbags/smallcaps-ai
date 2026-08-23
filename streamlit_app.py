@@ -11,12 +11,12 @@ from database.publication_safety import reconcile_publication_safety
 from database.repository import IntelligenceRepository
 from settings import Settings
 from ui.admin import render_admin
+from ui.beta import require_beta_access
 from ui.common import (
     inject_styles,
     log_public_exception,
     query_value,
     render_service_error,
-    require_beta_access,
 )
 from ui.company import render_company
 from ui.feed import render_feed
