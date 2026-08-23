@@ -80,7 +80,7 @@ jobs:
                   arg=expected,
                   timeout=30000,
               )
-              page.wait_for_timeout(700)
+              page.wait_for_timeout(1500)
 
           def wait_for_feed(page):
               page.get_by_role('heading', name='AIM Intelligence', exact=True).wait_for(timeout=30000)
@@ -250,6 +250,8 @@ jobs:
               page.get_by_text('Full evidence & calculations', exact=True).click()
               table = page.locator('table.sca-table-responsive').first
               table.wait_for(timeout=30000)
+              page.get_by_role('cell', name='Administration', exact=True).wait_for(timeout=30000)
+              page.wait_for_timeout(500)
               if table.evaluate('(el) => el.scrollWidth > el.clientWidth + 2'):
                   raise AssertionError('Expanded Analyst Note table clips horizontally on desktop')
               page.screenshot(path=out / '03b-note-depth-desktop.png', full_page=True)
@@ -295,6 +297,8 @@ jobs:
               page.get_by_text('Full evidence & calculations', exact=True).click()
               table = page.locator('table.sca-table-responsive').first
               table.wait_for(timeout=30000)
+              page.get_by_text('Administration', exact=True).last.wait_for(timeout=30000)
+              page.wait_for_timeout(500)
               if table.evaluate('(el) => el.scrollWidth > el.clientWidth + 2'):
                   raise AssertionError('Expanded Analyst Note table clips horizontally on mobile')
               page.screenshot(path=out / '06b-note-depth-mobile.png', full_page=True)
