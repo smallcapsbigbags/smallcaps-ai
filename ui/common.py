@@ -295,7 +295,7 @@ def consume_scroll_to_top() -> None:
 
           const reset = () => {
             try { p.scrollTo(0, 0); } catch (_) {}
-            const documentCandidates = [
+            const candidates = [
               p.document.scrollingElement,
               p.document.documentElement,
               p.document.body,
@@ -304,22 +304,10 @@ def consume_scroll_to_top() -> None:
               p.document.querySelector('section[data-testid="stMain"]'),
               p.document.querySelector('section.main')
             ];
-            documentCandidates.forEach((el) => {
+            candidates.forEach((el) => {
               if (!el) return;
               try { el.scrollTop = 0; el.scrollLeft = 0; } catch (_) {}
             });
-
-            // Streamlit has changed its main scroll container between releases.
-            // Reset any genuinely scrollable ancestor as a defensive fallback.
-            try {
-              p.document.querySelectorAll('body *').forEach((el) => {
-                const style = p.getComputedStyle(el);
-                if (!/(auto|scroll)/.test(style.overflowY)) return;
-                if (el.scrollHeight <= el.clientHeight) return;
-                el.scrollTop = 0;
-                el.scrollLeft = 0;
-              });
-            } catch (_) {}
           };
 
           let frame = 0;
