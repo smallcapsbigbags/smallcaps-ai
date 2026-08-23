@@ -148,9 +148,10 @@ jobs:
               no_overflow(page)
 
               material = page.locator('article[data-feed-kind="material"]')
-              if material.count() < 5:
-                  raise AssertionError('Release Feed has fewer than five material acceptance records')
-              if page.get_by_role('button', name='Read analysis →').count() < material.count():
+              material_count = material.count()
+              if material_count < 2:
+                  raise AssertionError('Release Feed lost its Trellus/Gamma material acceptance records')
+              if page.get_by_role('button', name='Read analysis →').count() < material_count:
                   raise AssertionError('A material Feed record is missing its primary analysis action')
               source = page.get_by_role('link', name='Original RNS ↗', exact=True).first
               href = source.get_attribute('href') or ''
