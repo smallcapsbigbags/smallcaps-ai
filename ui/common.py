@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hmac
 import html
+import secrets
 import traceback
 from datetime import datetime
 from urllib.parse import urlparse
@@ -115,6 +116,7 @@ header[data-testid="stHeader"] { background:transparent; }
 .sca-beta-point { background:var(--sca-surface); border:1px solid var(--sca-border); padding:.8rem .9rem; color:#30363B; font-size:.82rem; line-height:1.45; }
 .sca-footer { border-top:1px solid var(--sca-border); margin-top:2.25rem; padding-top:1rem; color:var(--sca-muted); font-size:.73rem; line-height:1.55; }
 .sca-service-error { background:var(--sca-surface); border:1px solid var(--sca-border); border-left:3px solid var(--sca-blue); padding:1rem 1.1rem; max-width:720px; }
+.sca-error-reference { color:var(--sca-muted); font-size:.72rem; margin-top:.55rem; }
 .sca-job-success{color:#2E6E49}.sca-job-degraded{color:#9A681F}.sca-job-failed{color:#A33F48}.sca-job-running{color:var(--sca-blue)}
 div[data-testid="stButton"]>button,div[data-testid="stLinkButton"]>a {
   border-radius:3px;
@@ -179,18 +181,32 @@ def render_footer() -> None:
     )
 
 
-def render_service_error() -> None:
+def render_service_error(*, reference: str = "") -> None:
+    clean_reference = html.escape(str(reference or "").strip())
+    reference_markup = (
+        f'<div class="sca-error-reference">Reference: {clean_reference}</div>'
+        if clean_reference
+        else ""
+    )
     render_brand()
     st.markdown(
-        '<div class="sca-service-error"><strong>Smallcaps.ai is temporarily unavailable.</strong><br>We have logged the problem. No research has been deleted; please try again shortly.</div>',
+        '<div class="sca-service-error"><strong>Smallcaps.ai is temporarily unavailable.</strong><br>'
+        "We have logged the problem. No research has been deleted; please try again shortly."
+        + reference_markup
+        + "</div>",
         unsafe_allow_html=True,
     )
     render_footer()
 
 
-def log_public_exception(exc: BaseException) -> None:
-    print(f"[web] {type(exc).__name__}: {exc}", flush=True)
-    traceback.print_exc()
+def log_public_exception(exc: BaseException) -> str:
+    reference = f"WEB-{secrets.token_hex(4).upper()}"
+    print(
+        f"[web][{reference}] {type(exc).__name__}: {exc}",
+        flush=True,
+    )
+    traceback.print_exception(type(exc), exc, exc.__traceback__)
+    return reference
 
 
 def require_beta_access(password: str, *, enabled: bool) -> None:
@@ -275,6 +291,8 @@ def consume_scroll_to_top() -> None:
         <script>
         (() => {
           const p = window.parent;
+          try { p.history.scrollRestoration = 'manual'; } catch (_) {}
+
           const reset = () => {
             try { p.scrollTo(0, 0); } catch (_) {}
             const candidates = [
@@ -282,6 +300,8 @@ def consume_scroll_to_top() -> None:
               p.document.documentElement,
               p.document.body,
               p.document.querySelector('[data-testid="stAppViewContainer"]'),
+              p.document.querySelector('[data-testid="stMain"]'),
+              p.document.querySelector('section[data-testid="stMain"]'),
               p.document.querySelector('section.main')
             ];
             candidates.forEach((el) => {
@@ -289,10 +309,15 @@ def consume_scroll_to_top() -> None:
               try { el.scrollTop = 0; el.scrollLeft = 0; } catch (_) {}
             });
           };
-          reset();
-          p.requestAnimationFrame(reset);
-          p.setTimeout(reset, 75);
-          p.setTimeout(reset, 250);
+
+          let frame = 0;
+          const settle = () => {
+            reset();
+            frame += 1;
+            if (frame < 16) p.requestAnimationFrame(settle);
+          };
+          settle();
+          [75, 150, 300, 450, 700].forEach((delay) => p.setTimeout(reset, delay));
         })();
         </script>
         """,

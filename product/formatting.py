@@ -10,9 +10,39 @@ IMPACT_HEX = {
     "grey": "#7A838B",
 }
 
+IMPACT_DIRECTION_LABELS = {
+    "green": "FAVOURABLE",
+    "red": "ADVERSE",
+    "amber": "MIXED",
+    "grey": "NEUTRAL",
+}
+
 
 def impact_hex(colour: str) -> str:
     return IMPACT_HEX.get(colour, IMPACT_HEX["grey"])
+
+
+def impact_direction_label(colour: str, *, level: str = "") -> str:
+    """Translate an internal colour token into investor-facing language.
+
+    The public interface should describe investment meaning rather than expose
+    implementation labels such as RED or GREEN. Low-impact grey records are
+    routine; higher-impact grey records are directionally neutral.
+    """
+
+    clean_colour = str(colour or "").strip().lower()
+    if clean_colour not in IMPACT_DIRECTION_LABELS:
+        clean_colour = "grey"
+    if clean_colour == "grey" and str(level or "").strip().lower() == "low":
+        return "ROUTINE"
+    return IMPACT_DIRECTION_LABELS[clean_colour]
+
+
+def impact_signal_label(colour: str, level: str) -> str:
+    """Return the semantic public signal reserved for the Jobs UX pass."""
+
+    clean_level = str(level or "low").strip().upper() or "LOW"
+    return f"{clean_level} · {impact_direction_label(colour, level=level)}"
 
 
 def format_price_change(price: dict[str, Any] | None) -> str:

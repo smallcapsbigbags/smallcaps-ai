@@ -58,12 +58,19 @@ def get_repositories(
     )
 
 
+def _render_public_exception(exc: BaseException) -> None:
+    """Log the full failure and show only a safe incident reference publicly."""
+
+    reference = log_public_exception(exc)
+    render_service_error(reference=reference)
+
+
 def main() -> None:
     inject_styles()
     try:
         settings = Settings.from_env()
     except Exception as exc:
-        render_service_error(reference=log_public_exception(exc))
+        _render_public_exception(exc)
         return
 
     errors, _warnings = settings.runtime_issues("web")
@@ -86,7 +93,7 @@ def main() -> None:
             operations_repository,
         ) = get_repositories(settings.database_url)
     except Exception as exc:
-        render_service_error(reference=log_public_exception(exc))
+        _render_public_exception(exc)
         return
 
     view = query_value("view", "feed").lower()
@@ -112,7 +119,7 @@ def main() -> None:
             return
         render_feed(product_repository, settings)
     except Exception as exc:
-        render_service_error(reference=log_public_exception(exc))
+        _render_public_exception(exc)
 
 
 if __name__ == "__main__":

@@ -9,6 +9,10 @@ def test_internal_navigation_resets_retained_scroll_position() -> None:
     assert "consume_scroll_to_top()" in common.split("def inject_styles", 1)[1]
     assert "p.scrollTo(0, 0)" in common
     assert "stAppViewContainer" in common
+    assert "stMain" in common
+    assert "history.scrollRestoration = 'manual'" in common
+    assert "frame < 16" in common
+    assert "450" in common
 
 
 def test_mobile_responsive_tables_wrap_instead_of_clipping() -> None:
