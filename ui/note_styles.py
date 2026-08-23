@@ -2,6 +2,12 @@ from __future__ import annotations
 
 NOTE_CSS = """
 <style>
+.st-key-analyst-note {
+  background:transparent !important;
+  border:0 !important;
+  margin-top:.2rem !important;
+  padding:0 !important;
+}
 .st-key-note-nav {
   margin:.1rem 0 .9rem;
 }
@@ -204,10 +210,11 @@ NOTE_CSS = """
   margin-top:.9rem;
 }
 @media(max-width:760px){
+  .st-key-analyst-note{padding:0 !important;border:0 !important;background:transparent !important}
   .st-key-note-nav [data-testid="stHorizontalBlock"]{flex-wrap:wrap;gap:.2rem}
   .st-key-note-nav [data-testid="stColumn"]{flex:0 0 auto !important;width:auto !important;min-width:0 !important}
   .st-key-note-nav button,.st-key-note-nav a{min-height:2.55rem !important;font-size:.75rem !important}
-  .sca-note-title{font-size:2rem;line-height:1.08;margin-top:.65rem}
+  .sca-note-title{font-size:1.85rem;line-height:1.08;margin-top:.65rem}
   .sca-note-takeaway{font-size:.98rem;line-height:1.58}
   .sca-note-section{margin-top:1.25rem}
   .sca-note-evidence-grid{grid-template-columns:1fr;gap:.72rem}
