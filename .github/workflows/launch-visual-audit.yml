@@ -2,7 +2,7 @@ name: launch-visual-audit
 
 on:
   push:
-    branches: ["launch/pro-pass-3"]
+    branches: ["main"]
   pull_request:
     branches: ["main"]
   workflow_dispatch:
@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: launch-visual-audit
+  group: launch-visual-audit-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -39,7 +39,9 @@ jobs:
           python -m playwright install --with-deps chromium
 
       - name: Seed deterministic preview database
-        run: python -m jobs.seed_launch_preview
+        run: |
+          python -m jobs.seed_launch_preview
+          python -m jobs.seed_pass1_preview
 
       - name: Start Streamlit preview
         shell: bash
@@ -69,15 +71,16 @@ jobs:
           base = 'http://127.0.0.1:8501'
 
           def wait_for_feed(page):
-              # The brand also contains the words “AIM Intelligence”. Wait for
-              # Feed-only controls so screenshots cannot capture the beta gate
-              # while Streamlit is still completing its rerun.
               page.get_by_role('heading', name='AIM Intelligence', exact=True).wait_for(
                   timeout=30000
               )
               page.get_by_placeholder('Ticker, company or announcement').wait_for(
                   timeout=30000
               )
+              page.get_by_text(
+                  'Administration imminent; no shareholder return expected',
+                  exact=True,
+              ).wait_for(timeout=30000)
 
           def unlock(page):
               page.goto(base, wait_until='domcontentloaded')
@@ -87,8 +90,6 @@ jobs:
               wait_for_feed(page)
 
           def assert_page_at_top(page, top_control, *, max_y=240, max_scroll=32):
-              """Verify retained scroll, independent of how tall the new page header is."""
-
               page.wait_for_timeout(500)
               box = top_control.bounding_box()
               if box is None:
@@ -116,6 +117,49 @@ jobs:
                       f'control_y={box["y"]}, scroll_positions={positions}'
                   )
 
+          def assert_no_page_overflow(page):
+              dimensions = page.evaluate(
+                  """
+                  () => {
+                    const root = document.documentElement;
+                    const app = document.querySelector('[data-testid="stAppViewContainer"]');
+                    return {
+                      documentClient: Number(root.clientWidth || 0),
+                      documentScroll: Number(root.scrollWidth || 0),
+                      appClient: Number(app ? app.clientWidth : 0),
+                      appScroll: Number(app ? app.scrollWidth : 0),
+                    };
+                  }
+                  """
+              )
+              if dimensions['documentScroll'] > dimensions['documentClient'] + 2:
+                  raise AssertionError(f'Document clips horizontally: {dimensions}')
+              if dimensions['appScroll'] > dimensions['appClient'] + 2:
+                  raise AssertionError(f'App clips horizontally: {dimensions}')
+
+          def assert_feed_contract(page):
+              page.get_by_text('CRITICAL · ADVERSE', exact=True).wait_for(timeout=30000)
+              page.get_by_text('HIGH · MIXED', exact=True).wait_for(timeout=30000)
+              page.get_by_text('HIGH · FAVOURABLE', exact=True).wait_for(timeout=30000)
+              page.get_by_text('Routine announcements · 1', exact=True).wait_for(
+                  timeout=30000
+              )
+
+              records = page.locator('article[data-feed-kind="material"]')
+              if records.count() < 5:
+                  raise AssertionError(
+                      f'Expected at least five material preview records, got {records.count()}'
+                  )
+              combined = '\n'.join(records.all_inner_texts())
+              if 'IMPACT HIGH' in combined or '· GREEN' in combined or '· RED' in combined:
+                  raise AssertionError('Feed still exposes implementation colour labels')
+              if '\nOther\n' in f'\n{combined}\n':
+                  raise AssertionError('Fallback announcement type Other is still visible')
+              if 'Reported' in combined:
+                  raise AssertionError('Reported is still repeated beneath evidence facts')
+              if page.locator('article[data-feed-kind="material"] .sca-evidence-heading').count() < 5:
+                  raise AssertionError('Material records do not expose a single Evidence section')
+
           with sync_playwright() as p:
               browser = p.chromium.launch()
 
@@ -127,10 +171,28 @@ jobs:
               page.get_by_label('Private beta access code').fill('preview-access')
               page.get_by_role('button', name='UNLOCK PRIVATE BETA').click()
               wait_for_feed(page)
+              assert_feed_contract(page)
+              assert_no_page_overflow(page)
               page.screenshot(path=out / '02-feed-desktop.png', full_page=True)
 
-              analysis_buttons = page.get_by_role('button', name='Analysis →')
-              analysis_buttons.nth(1).click()
+              springfield = page.get_by_text(
+                  'Meaningful buyback authority could retire about 10% of shares',
+                  exact=True,
+              )
+              springfield.scroll_into_view_if_needed()
+              page.wait_for_timeout(250)
+              page.screenshot(path=out / '02b-feed-springfield-desktop.png')
+
+              page.evaluate(
+                  """
+                  () => {
+                    const app = document.querySelector('[data-testid="stAppViewContainer"]');
+                    window.scrollTo(0, 0);
+                    if (app) app.scrollTop = 0;
+                  }
+                  """
+              )
+              page.get_by_role('button', name='Read analysis →').first.click()
               note_heading = page.get_by_text('What happened & why it matters', exact=True)
               note_heading.wait_for(timeout=30000)
               note_top = page.get_by_role('button', name='← Feed', exact=True)
@@ -153,8 +215,28 @@ jobs:
               )
               page = mobile.new_page()
               unlock(page)
+              assert_feed_contract(page)
+              assert_no_page_overflow(page)
               page.screenshot(path=out / '05-feed-mobile.png', full_page=True)
-              page.get_by_role('button', name='Analysis →').first.click()
+
+              primary = page.get_by_role('button', name='Read analysis →').first
+              primary.scroll_into_view_if_needed()
+              page.wait_for_timeout(200)
+              primary_box = primary.bounding_box()
+              if primary_box is None or primary_box['height'] < 43.5:
+                  raise AssertionError(
+                      f'Primary mobile action is smaller than 44px: {primary_box}'
+                  )
+              evidence_grid = page.locator('.sca-evidence-grid').first
+              columns = evidence_grid.evaluate(
+                  '(el) => getComputedStyle(el).gridTemplateColumns'
+              )
+              if ' ' in columns.strip():
+                  raise AssertionError(
+                      f'Narrative mobile evidence did not collapse to one column: {columns}'
+                  )
+
+              primary.click()
               note_heading = page.get_by_text('What happened & why it matters', exact=True)
               note_heading.wait_for(timeout=30000)
               note_top = page.get_by_role('button', name='← Feed', exact=True)
