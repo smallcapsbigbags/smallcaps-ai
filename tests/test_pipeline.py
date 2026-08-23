@@ -213,4 +213,4 @@ def test_real_rns_fixture_runs_end_to_end_and_versions_analysis() -> None:
     assert current["impact_colour"] == "amber"
     assert current["impact_level"] == "medium"
     assert current["quality_status"] == "publishable"
-    assert current["analysis_version"] == "aim-intelligence-analyst-3.1"
+    assert current["analysis_version"] == "aim-intelligence-analyst-3.2"

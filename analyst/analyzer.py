@@ -36,6 +36,7 @@ class OpenAIAnalystEngine:
         override_prompt_path: Path | None = None,
         memory_prompt_path: Path | None = None,
         intelligence_prompt_path: Path | None = None,
+        editorial_prompt_path: Path | None = None,
         review_prompt_path: Path | None = None,
         timeout_seconds: int = 180,
         max_output_tokens: int = 12_000,
@@ -64,6 +65,9 @@ class OpenAIAnalystEngine:
         self.intelligence_prompt_path = intelligence_prompt_path or (
             prompts_dir / "ANALYST_INTELLIGENCE_LAYER_V1.md"
         )
+        self.editorial_prompt_path = editorial_prompt_path or (
+            prompts_dir / "EDITORIAL_OUTPUT_CONTRACT_V1.md"
+        )
         self.review_prompt_path = review_prompt_path or (
             prompts_dir / "ANALYST_CONSISTENCY_REVIEW_V1.md"
         )
@@ -75,7 +79,10 @@ class OpenAIAnalystEngine:
         intelligence_prompt = self.intelligence_prompt_path.read_text(
             encoding="utf-8"
         )
+        editorial_prompt = self.editorial_prompt_path.read_text(encoding="utf-8")
         consistency_prompt = self.review_prompt_path.read_text(encoding="utf-8")
+        # The editorial contract is last so its tighter public-output requirements
+        # supersede any softer legacy length target without weakening evidence rules.
         self.system_prompt = "\n\n".join(
             (
                 core_prompt,
@@ -84,10 +91,11 @@ class OpenAIAnalystEngine:
                 override_prompt,
                 memory_prompt,
                 intelligence_prompt,
+                editorial_prompt,
             )
         )
         self.review_prompt = "\n\n".join(
-            (consistency_prompt, memory_prompt, intelligence_prompt)
+            (consistency_prompt, memory_prompt, intelligence_prompt, editorial_prompt)
         )
 
     @staticmethod
@@ -135,10 +143,12 @@ class OpenAIAnalystEngine:
                 "Audit this draft against the exact same evidence, company memory and "
                 "deterministic analyst-intelligence checks. Verify each heuristic finding "
                 "before using it. Correct only real consistency, comparator, Impact, KPI, "
-                "calculation, management-promise, coverage-status or plain-English "
-                "problems. Do not invent a missing sector KPI, add outside information or "
-                "change a defensible judgement merely to create a different opinion. "
-                "Return the complete corrected AnalystNote.\n\n"
+                "calculation, management-promise, coverage-status, plain-English or "
+                "editorial-output-contract problems. Do not invent a missing sector KPI, "
+                "add outside information or change a defensible judgement merely to create "
+                "a different opinion. The final headline, takeaway, first three facts, "
+                "impact rationale and analyst view must satisfy the attached editorial "
+                "contract. Return the complete corrected AnalystNote.\n\n"
                 + json.dumps(review_payload, ensure_ascii=False)
             ),
             text_format=AnalystNote,
@@ -192,8 +202,11 @@ class OpenAIAnalystEngine:
                 "most useful safe calculations when verified inputs support them, show the "
                 "inputs, and keep reported facts, calculations and Smallcaps.ai "
                 "interpretation separate. Make the change to the investment case explicit "
-                "in the analyst view. Explain important specialist concepts in the "
-                "structured concept explanations. Do not expose private reasoning.\n\n"
+                "in the first sentence of the analyst view. Make the first three key facts "
+                "Feed-ready: decision-useful order, short labels and self-contained values. "
+                "Use the canonical RNS taxonomy and the attached editorial output contract. "
+                "Explain important specialist concepts in the structured concept "
+                "explanations. Do not expose private reasoning.\n\n"
                 + json.dumps(payload, ensure_ascii=False)
             ),
             text_format=AnalystNote,
