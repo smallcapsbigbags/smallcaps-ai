@@ -179,6 +179,31 @@ def test_feed_verdict_does_not_overwrite_takeover_when_terms_are_known() -> None
     assert feed_verdict(item) == headline
 
 
+def test_preliminary_takeover_no_offer_price_is_treated_as_missing_terms() -> None:
+    item = {
+        "headline": "Rule 2.4 possible offer discussions",
+        "takeaway": "No offer price has been disclosed.",
+        "impact_rationale": "The situation remains preliminary.",
+        "key_facts": [],
+    }
+    assert feed_verdict(item) == "Formal takeover interest emerges; terms remain unknown"
+
+
+def test_completed_administrator_appointment_is_not_called_imminent() -> None:
+    item = {
+        "headline": "Administrators appointed",
+        "takeaway": "Administrators have been appointed following the earlier notice.",
+        "impact_rationale": "The company is now in administration.",
+        "key_facts": [
+            {
+                "label": "Shareholder recovery",
+                "value": "No return to shareholders expected",
+            }
+        ],
+    }
+    assert feed_verdict(item) == "Administration underway; no shareholder return expected"
+
+
 def test_feed_view_is_capped_for_scanability() -> None:
     long = (
         "First sentence explains the main consequence. "
