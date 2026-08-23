@@ -131,7 +131,10 @@ def _guidance_markup(items: list[dict[str, Any]]) -> str:
         metric = str(item.get("metric") or "").strip()
         if not metric:
             continue
+        current = str(item.get("value") or "Not quantified").strip()
         previous = str(item.get("previous_value") or item.get("comparator") or "").strip()
+        if previous == current:
+            previous = ""
         previous_markup = (
             '<div><div class="sca-company-cell-label">Previous</div>'
             f'<div class="sca-company-cell-value">{_escape(previous)}</div></div>'
@@ -151,7 +154,7 @@ def _guidance_markup(items: list[dict[str, Any]]) -> str:
             '<div><div class="sca-company-cell-label">Period</div>'
             f'<div class="sca-company-cell-value">{_escape(item.get("period"))}</div></div>'
             '<div><div class="sca-company-cell-label">Current</div>'
-            f'<div class="sca-company-cell-value sca-company-cell-value-strong">{_escape(item.get("value") or "Not quantified")}</div></div>'
+            f'<div class="sca-company-cell-value sca-company-cell-value-strong">{_escape(current)}</div></div>'
             '<div><div class="sca-company-cell-label">Status</div>'
             f'<div class="sca-company-cell-value">{_escape(str(item.get("status") or "").replace("-", " ").title())}</div></div>'
             + previous_markup
@@ -208,7 +211,7 @@ def _claims_markup(items: list[dict[str, Any]]) -> str:
         claim = str(item.get("claim") or "").strip()
         if not claim:
             continue
-        target = " · ".join(
+        target_raw = " · ".join(
             part
             for part in (
                 str(item.get("target_value") or "").strip(),
@@ -216,7 +219,7 @@ def _claims_markup(items: list[dict[str, Any]]) -> str:
             )
             if part
         )
-        meta = f"Target: {target}" if target else "Open commitment"
+        meta = f"Target: {_escape(target_raw)}" if target_raw else "Open commitment"
         source = _source_anchor(item, "Source RNS ↗")
         if source:
             meta += f" · {source}"
@@ -438,7 +441,11 @@ def render_company(
 
     if announcements:
         st.markdown(
-            _section_intro("timeline", "RNS timeline", "How the investment case has developed through published announcements."),
+            _section_intro(
+                "timeline",
+                "RNS timeline",
+                "How the investment case has developed through published announcements.",
+            ),
             unsafe_allow_html=True,
         )
         visible = announcements[:12]
