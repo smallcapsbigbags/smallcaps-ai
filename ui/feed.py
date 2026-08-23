@@ -337,14 +337,11 @@ def render_feed(repository: ProductRepository, settings: Settings) -> None:
         return
 
     attention = attention_count(items)
-    date_label = html.escape(format_day(selected_day))
     st.markdown(
         '<div class="sca-feed-summary">'
         f'<strong>{attention} need attention</strong>'
         '<span class="sca-feed-summary-separator">·</span>'
         f'<span>{len(items)} analysed announcement{"s" if len(items) != 1 else ""}</span>'
-        '<span class="sca-feed-summary-separator">·</span>'
-        f'<span>{date_label}</span>'
         "</div>",
         unsafe_allow_html=True,
     )
