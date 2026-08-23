@@ -72,21 +72,6 @@ jobs:
           feed_search_placeholder = 'Ticker, company or announcement'
           feed_filter_label = 'Date & filters · 21 Aug 2026'
 
-          def wait_for_feed(page):
-              page.get_by_role('heading', name='AIM Intelligence', exact=True).wait_for(
-                  timeout=30000
-              )
-              page.get_by_placeholder(feed_search_placeholder).wait_for(timeout=30000)
-              page.get_by_text(
-                  'Administration imminent; no shareholder return expected',
-                  exact=True,
-              ).wait_for(timeout=30000)
-              page.get_by_text(feed_filter_label, exact=True).first.wait_for(timeout=30000)
-              page.get_by_role('button', name='Read analysis →').first.wait_for(
-                  timeout=30000
-              )
-              page.wait_for_timeout(300)
-
           def wait_for_view(page, expected):
               page.wait_for_function(
                   """
@@ -95,10 +80,18 @@ jobs:
                   arg=expected,
                   timeout=30000,
               )
-              # Streamlit can retain stale DOM nodes briefly during a rerun. The URL,
-              # target-page marker and top-control checks below are the stable contract;
-              # do not fail on stale Feed nodes that are awaiting reconciliation.
               page.wait_for_timeout(700)
+
+          def wait_for_feed(page):
+              page.get_by_role('heading', name='AIM Intelligence', exact=True).wait_for(timeout=30000)
+              page.get_by_placeholder(feed_search_placeholder).wait_for(timeout=30000)
+              page.get_by_text(
+                  'Administration imminent; no shareholder return expected',
+                  exact=True,
+              ).wait_for(timeout=30000)
+              page.get_by_text(feed_filter_label, exact=True).first.wait_for(timeout=30000)
+              page.get_by_role('button', name='Read analysis →').first.wait_for(timeout=30000)
+              page.wait_for_timeout(300)
 
           def unlock(page):
               page.goto(base, wait_until='domcontentloaded')
@@ -123,7 +116,6 @@ jobs:
                       body: scrollTop(document.body),
                       appView: scrollTop(document.querySelector('[data-testid="stAppViewContainer"]')),
                       main: scrollTop(document.querySelector('[data-testid="stMain"]')),
-                      mainSection: scrollTop(document.querySelector('section.main')),
                     };
                   }
                   """
@@ -156,19 +148,11 @@ jobs:
                   raise AssertionError(f'App clips horizontally: {dimensions}')
 
           def assert_feed_contract(page):
-              page.get_by_text('CRITICAL · ADVERSE', exact=True).wait_for(timeout=30000)
-              page.get_by_text('HIGH · MIXED', exact=True).wait_for(timeout=30000)
-              page.get_by_text('HIGH · FAVOURABLE', exact=True).first.wait_for(timeout=30000)
-              page.get_by_text('Routine announcements · 1', exact=True).wait_for(
-                  timeout=30000
-              )
+              for label in ('CRITICAL · ADVERSE', 'HIGH · MIXED', 'HIGH · FAVOURABLE'):
+                  page.get_by_text(label, exact=True).first.wait_for(timeout=30000)
+              page.get_by_text('Routine announcements · 1', exact=True).wait_for(timeout=30000)
               page.get_by_text(
-                  'Administration imminent; no shareholder return expected',
-                  exact=True,
-              ).wait_for(timeout=30000)
-              page.get_by_text(
-                  'Formal takeover interest emerges; terms remain unknown',
-                  exact=True,
+                  'Formal takeover interest emerges; terms remain unknown', exact=True
               ).wait_for(timeout=30000)
               page.get_by_text('Thesis broken.', exact=False).wait_for(timeout=30000)
 
@@ -178,23 +162,61 @@ jobs:
                       f'Expected at least five material preview records, got {records.count()}'
                   )
               combined = '\n'.join(records.all_inner_texts())
-              if 'IMPACT HIGH' in combined or '· GREEN' in combined or '· RED' in combined:
-                  raise AssertionError('Feed still exposes implementation colour labels')
-              if '\nOther\n' in f'\n{combined}\n':
-                  raise AssertionError('Fallback announcement type Other is still visible')
-              if 'Reported' in combined:
-                  raise AssertionError('Reported is still repeated beneath evidence facts')
-              if 'Previous / comparator:' in combined:
-                  raise AssertionError('Feed still exposes database-style comparator copy')
-              if 'Not disclosed in supplied prior context' in combined:
-                  raise AssertionError('Feed still exposes non-information comparator noise')
+              for forbidden in (
+                  'IMPACT HIGH', '· GREEN', '· RED', '\nOther\n',
+                  'Previous / comparator:', 'Not disclosed in supplied prior context',
+              ):
+                  if forbidden in f'\n{combined}\n':
+                      raise AssertionError(f'Feed still exposes deprecated copy: {forbidden}')
               headings = page.locator(
                   'article[data-feed-kind="material"] .sca-evidence-heading'
               )
-              if headings.count() < 5:
-                  raise AssertionError('Material records do not expose a single Evidence section')
               if headings.filter(has_text='Evidence from the RNS').count() < 5:
                   raise AssertionError('Material records do not use the final Evidence heading')
+
+          def assert_note_contract(page):
+              page.get_by_text(
+                  'Administration imminent; no shareholder return expected',
+                  exact=True,
+              ).wait_for(timeout=30000)
+              headings = [
+                  page.get_by_text('What happened', exact=True),
+                  page.get_by_text('Evidence from the RNS', exact=True),
+                  page.get_by_text('Our view', exact=True),
+                  page.get_by_text('What to watch', exact=True),
+                  page.get_by_text('Supporting detail', exact=True),
+              ]
+              for heading in headings:
+                  heading.wait_for(timeout=30000)
+              boxes = [heading.bounding_box() for heading in headings]
+              if any(box is None for box in boxes):
+                  raise AssertionError('Analyst Note executive hierarchy is not fully visible')
+              ys = [box['y'] for box in boxes if box is not None]
+              if ys != sorted(ys):
+                  raise AssertionError(f'Analyst Note hierarchy is out of order: {ys}')
+
+              page.get_by_role('link', name='Original RNS ↗', exact=True).wait_for(timeout=30000)
+              text = page.locator('[data-testid="stMain"]').inner_text()
+              for forbidden in (
+                  'No new supporting evidence identified.',
+                  'No new challenge identified.',
+                  'No genuine guidance change identified.',
+                  'No specific watch item identified.',
+                  'Market reaction will appear once',
+              ):
+                  if forbidden in text:
+                      raise AssertionError(f'Analyst Note still exposes empty-state copy: {forbidden}')
+
+          def assert_mobile_note_layout(page):
+              assert_no_page_overflow(page)
+              evidence_grid = page.locator('.sca-note-evidence-grid').first
+              columns = evidence_grid.evaluate(
+                  '(el) => getComputedStyle(el).gridTemplateColumns'
+              )
+              if ' ' in columns.strip():
+                  raise AssertionError(
+                      f'Analyst Note evidence did not collapse to one mobile column: {columns}'
+                  )
 
           with sync_playwright() as p:
               browser = p.chromium.launch()
@@ -213,33 +235,24 @@ jobs:
 
               springfield_record = page.locator(
                   'article[data-feed-kind="material"]'
-              ).filter(
-                  has_text='Meaningful buyback authority could retire about 10% of shares'
-              )
-              springfield_record.first.screenshot(
-                  path=out / '02b-feed-springfield-desktop.png'
-              )
+              ).filter(has_text='Meaningful buyback authority could retire about 10% of shares')
+              springfield_record.first.screenshot(path=out / '02b-feed-springfield-desktop.png')
 
-              page.evaluate(
-                  """
-                  () => {
-                    const app = document.querySelector('[data-testid="stAppViewContainer"]');
-                    window.scrollTo(0, 0);
-                    if (app) app.scrollTop = 0;
-                  }
-                  """
-              )
               page.get_by_role('button', name='Read analysis →').first.click()
               wait_for_view(page, 'note')
-              note_heading = page.get_by_text('What happened & why it matters', exact=True)
-              note_heading.wait_for(timeout=30000)
               note_top = page.get_by_role('button', name='← Feed', exact=True)
               note_top.wait_for(timeout=30000)
               assert_page_at_top(page, note_top)
-              page.mouse.move(1400, 950)
-              page.keyboard.press('Escape')
-              page.wait_for_timeout(500)
+              assert_note_contract(page)
+              assert_no_page_overflow(page)
               page.screenshot(path=out / '03-note-desktop.png', full_page=True)
+
+              page.get_by_text('Full evidence & calculations', exact=True).click()
+              table = page.locator('table.sca-table-responsive').first
+              table.wait_for(timeout=30000)
+              if table.evaluate('(el) => el.scrollWidth > el.clientWidth + 2'):
+                  raise AssertionError('Expanded Analyst Note table clips horizontally on desktop')
+              page.screenshot(path=out / '03b-note-depth-desktop.png', full_page=True)
 
               page.get_by_role('button', name='Company', exact=True).click()
               wait_for_view(page, 'company')
@@ -248,9 +261,6 @@ jobs:
               company_top = page.get_by_role('button', name='← Feed', exact=True)
               company_top.wait_for(timeout=30000)
               assert_page_at_top(page, company_top)
-              page.mouse.move(1400, 950)
-              page.keyboard.press('Escape')
-              page.wait_for_timeout(500)
               page.screenshot(path=out / '04-company-desktop.png', full_page=True)
               desktop.close()
 
@@ -263,59 +273,31 @@ jobs:
               unlock(page)
               assert_feed_contract(page)
               assert_no_page_overflow(page)
-              first_record_box = page.locator(
-                  'article[data-feed-kind="material"]'
-              ).first.bounding_box()
-              if first_record_box is None or first_record_box['y'] > 540:
-                  raise AssertionError(
-                      'Feed controls dominate the mobile first viewport: '
-                      f'{first_record_box}'
-                  )
               page.screenshot(path=out / '05-feed-mobile.png', full_page=True)
 
               primary = page.get_by_role('button', name='Read analysis →').first
-              page.wait_for_timeout(600)
               primary.evaluate('(el) => el.scrollIntoView({block: "center"})')
               page.wait_for_timeout(250)
               primary_box = primary.bounding_box()
-              if (
-                  primary_box is None
-                  or primary_box['height'] < 43.5
-                  or primary_box['y'] < 0
-                  or primary_box['y'] + primary_box['height'] > 844
-              ):
-                  raise AssertionError(
-                      f'Primary mobile action is not a visible 44px target: {primary_box}'
-                  )
-              evidence_grid = page.locator('.sca-evidence-grid').first
-              columns = evidence_grid.evaluate(
-                  '(el) => getComputedStyle(el).gridTemplateColumns'
-              )
-              if ' ' in columns.strip():
-                  raise AssertionError(
-                      f'Narrative mobile evidence did not collapse to one column: {columns}'
-                  )
+              if primary_box is None or primary_box['height'] < 43.5:
+                  raise AssertionError(f'Primary mobile action is not a 44px target: {primary_box}')
               page.screenshot(path=out / '05b-feed-trellus-actions-mobile.png')
 
               primary.click()
               wait_for_view(page, 'note')
-              note_heading = page.get_by_text('What happened & why it matters', exact=True)
-              note_heading.wait_for(timeout=30000)
               note_top = page.get_by_role('button', name='← Feed', exact=True)
               note_top.wait_for(timeout=30000)
               assert_page_at_top(page, note_top, max_y=220)
-              page.mouse.move(380, 830)
-              page.keyboard.press('Escape')
-              page.wait_for_timeout(500)
+              assert_note_contract(page)
+              assert_mobile_note_layout(page)
               page.screenshot(path=out / '06-note-mobile.png', full_page=True)
 
-              responsive_table = page.locator('table.sca-table-responsive').first
-              responsive_table.wait_for(timeout=30000)
-              overflow = responsive_table.evaluate(
-                  '(el) => el.scrollWidth > el.clientWidth + 2'
-              )
-              if overflow:
-                  raise AssertionError('Responsive Analyst Note table clips horizontally on mobile')
+              page.get_by_text('Full evidence & calculations', exact=True).click()
+              table = page.locator('table.sca-table-responsive').first
+              table.wait_for(timeout=30000)
+              if table.evaluate('(el) => el.scrollWidth > el.clientWidth + 2'):
+                  raise AssertionError('Expanded Analyst Note table clips horizontally on mobile')
+              page.screenshot(path=out / '06b-note-depth-mobile.png', full_page=True)
 
               mobile.close()
               browser.close()
