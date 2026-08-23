@@ -115,9 +115,10 @@ def test_final_consistency_review_locks_evidence_and_impact_checks():
         "Comparator integrity",
         "Useful maths",
         "Investment-case change",
+        "Editorial output contract",
         "no unsupported comparator",
     ):
         assert token in prompt
 
-    assert ANALYSIS_VERSION == "aim-intelligence-analyst-3.1"
-    assert DEFAULT_PROMPT_VERSION == "analyst-engine-3.1-sector-intelligence"
+    assert ANALYSIS_VERSION == "aim-intelligence-analyst-3.2"
+    assert DEFAULT_PROMPT_VERSION == "analyst-engine-3.2-editorial-contract"
