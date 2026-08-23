@@ -1,6 +1,7 @@
+import inspect
 from pathlib import Path
 
-from ui.note import _change_markup, _evidence_markup, _list_markup
+from ui.note import _change_markup, _evidence_markup, _list_markup, _render_executive_layer
 from ui.note_styles import NOTE_CSS
 
 
@@ -86,18 +87,18 @@ def test_note_change_detail_only_shows_supported_values() -> None:
 
 
 def test_note_source_uses_executive_hierarchy_and_progressive_disclosure() -> None:
-    source = Path("ui/note.py").read_text(encoding="utf-8")
-
+    executive = inspect.getsource(_render_executive_layer)
     markers = [
         'data-note-section="what-happened"',
-        'data-note-section="evidence"',
+        "_evidence_markup",
         'data-note-section="our-view"',
         'data-note-section="what-to-watch"',
         "Supporting detail",
     ]
-    positions = [source.index(marker) for marker in markers]
+    positions = [executive.index(marker) for marker in markers]
     assert positions == sorted(positions)
 
+    source = Path("ui/note.py").read_text(encoding="utf-8")
     assert 'st.expander("What changed"' in source
     assert 'st.expander("Full evidence & calculations"' in source
     assert 'st.expander("Investment case detail"' in source
