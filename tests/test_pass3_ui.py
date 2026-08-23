@@ -7,6 +7,7 @@ from ui.company import (
     _gaps_markup,
     _guidance_markup,
     _metric_cards_markup,
+    _metric_series_is_displayable,
     _timeline_markup,
 )
 from ui.company_styles import COMPANY_CSS
@@ -73,6 +74,7 @@ def test_company_guidance_and_metrics_present_decision_useful_information() -> N
     assert "£14.0m" in guidance
     assert "Maintained" in guidance
     assert "RNS ↗" in guidance
+    assert "Previous</div>" not in guidance
 
     metrics = _metric_cards_markup(
         [
@@ -85,6 +87,8 @@ def test_company_guidance_and_metrics_present_decision_useful_information() -> N
                 "basis": "reported",
                 "points": [
                     {
+                        "value": "£18.2m",
+                        "value_numeric": 18.2,
                         "basis": "reported",
                         "source_url": "https://example.com/debt",
                     }
@@ -96,6 +100,30 @@ def test_company_guidance_and_metrics_present_decision_useful_information() -> N
     assert "£18.2m" in metrics
     assert "Down 24.2% from £24.0m" in metrics
     assert "Reported" in metrics
+
+
+def test_company_public_kpis_exclude_one_off_narrative_facts() -> None:
+    assert not _metric_series_is_displayable(
+        {
+            "latest_value": "No return expected from any asset sale",
+            "points": [{"value": "No return expected from any asset sale"}],
+        }
+    )
+    assert _metric_series_is_displayable(
+        {
+            "latest_value": "£18.2m",
+            "points": [{"value": "£18.2m", "value_numeric": 18.2}],
+        }
+    )
+    assert _metric_series_is_displayable(
+        {
+            "latest_value": "In line with expectations",
+            "points": [
+                {"value": "In line with expectations"},
+                {"value": "In line with expectations"},
+            ],
+        }
+    )
 
 
 def test_company_timeline_is_compact_and_hides_other() -> None:
@@ -180,6 +208,8 @@ def test_beta_entrance_has_one_message_one_input_one_action() -> None:
     assert "sca-beta-points" not in source
     assert "UNLOCK PRIVATE BETA" not in source
     assert "max-width:620px" in BETA_CSS
+    assert '[data-testid="stForm"]' in BETA_CSS
+    assert '[data-testid="stFormSubmitButton"] button' in BETA_CSS
 
 
 def test_streamlit_app_uses_new_beta_boundary() -> None:
