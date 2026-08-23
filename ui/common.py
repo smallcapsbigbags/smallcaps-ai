@@ -9,7 +9,6 @@ from urllib.parse import urlparse
 from zoneinfo import ZoneInfo
 
 import streamlit as st
-import streamlit.components.v1 as components
 
 from product.formatting import format_price_change, impact_hex, impact_signal_label
 
@@ -297,7 +296,7 @@ def consume_scroll_to_top() -> None:
 
     if not st.session_state.pop(_SCROLL_FLAG, False):
         return
-    components.html(
+    st.iframe(
         """
         <script>
         (() => {
@@ -333,6 +332,7 @@ def consume_scroll_to_top() -> None:
         </script>
         """,
         height=0,
+        tab_index=-1,
     )
 
 
