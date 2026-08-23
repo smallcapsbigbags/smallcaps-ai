@@ -41,12 +41,12 @@ jobs:
       - name: Seed deterministic release database
         run: |
           mkdir -p /tmp/release-acceptance
-          python -m jobs.seed_launch_preview
-          python -m jobs.seed_pass1_preview
+          python -m jobs.seed_release_preview
 
       - name: Validate cross-surface public read models
         run: |
-          python -m jobs.release_acceptance --allow-sqlite --require-public-data | tee /tmp/release-acceptance/release-acceptance.json
+          python -m jobs.release_acceptance --allow-sqlite --require-public-data > /tmp/release-acceptance/release-acceptance.json
+          cat /tmp/release-acceptance/release-acceptance.json
 
       - name: Start Streamlit release candidate
         shell: bash
