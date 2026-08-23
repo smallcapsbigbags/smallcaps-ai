@@ -1,0 +1,206 @@
+name: release-acceptance
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-acceptance-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DATABASE_URL: sqlite+pysqlite:///data/release-acceptance.db
+      PRIVATE_BETA_MODE: "true"
+      APP_BETA_PASSWORD: preview-access
+      APP_ADMIN_PASSWORD: preview-admin
+      MARKET_DATA_ENABLED: "true"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install application and browser dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install playwright==1.55.0
+          python -m playwright install --with-deps chromium
+
+      - name: Seed deterministic release database
+        run: |
+          mkdir -p /tmp/release-acceptance
+          python -m jobs.seed_launch_preview
+          python -m jobs.seed_pass1_preview
+
+      - name: Validate cross-surface public read models
+        run: |
+          python -m jobs.release_acceptance --allow-sqlite --require-public-data | tee /tmp/release-acceptance/release-acceptance.json
+
+      - name: Start Streamlit release candidate
+        shell: bash
+        run: |
+          streamlit run streamlit_app.py \
+            --server.address 127.0.0.1 \
+            --server.port 8501 \
+            > /tmp/release-acceptance/streamlit.log 2>&1 &
+          echo $! > /tmp/streamlit-release.pid
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:8501/_stcore/health >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/release-acceptance/streamlit.log
+          exit 1
+
+      - name: Validate 1280px release journey and keyboard access
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from playwright.sync_api import sync_playwright
+
+          out = Path('/tmp/release-acceptance')
+          base = 'http://127.0.0.1:8501'
+
+          def no_overflow(page):
+              dims = page.evaluate(
+                  """
+                  () => {
+                    const root = document.documentElement;
+                    const app = document.querySelector('[data-testid="stAppViewContainer"]');
+                    return {
+                      dc: Number(root.clientWidth || 0),
+                      ds: Number(root.scrollWidth || 0),
+                      ac: Number(app ? app.clientWidth : 0),
+                      as: Number(app ? app.scrollWidth : 0),
+                    };
+                  }
+                  """
+              )
+              if dims['ds'] > dims['dc'] + 2 or dims['as'] > dims['ac'] + 2:
+                  raise AssertionError(f'Horizontal overflow at 1280px: {dims}')
+
+          def wait_view(page, view):
+              page.wait_for_function(
+                  "(v) => new URLSearchParams(window.location.search).get('view') === v",
+                  arg=view,
+                  timeout=30000,
+              )
+              page.wait_for_timeout(900)
+
+          def assert_keyboard_primary(page):
+              search = page.get_by_placeholder('Ticker, company or announcement')
+              search.focus()
+              found = False
+              for _ in range(80):
+                  page.keyboard.press('Tab')
+                  state = page.evaluate(
+                      """
+                      () => {
+                        const el = document.activeElement;
+                        if (!el) return null;
+                        const style = getComputedStyle(el);
+                        return {
+                          text: (el.innerText || el.getAttribute('aria-label') || '').trim(),
+                          outlineStyle: style.outlineStyle,
+                          outlineWidth: style.outlineWidth,
+                        };
+                      }
+                      """
+                  )
+                  if state and state['text'] == 'Read analysis →':
+                      if state['outlineStyle'] == 'none' or state['outlineWidth'] in {'0px', '0'}:
+                          raise AssertionError(f'Primary action has no visible keyboard focus: {state}')
+                      found = True
+                      break
+              if not found:
+                  raise AssertionError('Read analysis → was not reachable by keyboard from Feed search')
+
+          with sync_playwright() as p:
+              browser = p.chromium.launch()
+              context = browser.new_context(viewport={'width': 1280, 'height': 900})
+              page = context.new_page()
+
+              page.goto(base, wait_until='domcontentloaded')
+              page.get_by_text('Know what changed.', exact=False).wait_for(timeout=30000)
+              page.get_by_text('See the evidence.', exact=False).wait_for(timeout=30000)
+              if page.get_by_role('button', name='Enter Smallcaps.ai', exact=True).count() != 1:
+                  raise AssertionError('Private beta must expose exactly one primary entrance action')
+              page.get_by_label('Private beta access code').fill('preview-access')
+              page.get_by_role('button', name='Enter Smallcaps.ai', exact=True).click()
+
+              page.get_by_role('heading', name='AIM Intelligence', exact=True).wait_for(timeout=30000)
+              page.get_by_text('Administration imminent; no shareholder return expected', exact=True).first.wait_for(timeout=30000)
+              page.get_by_text('Formal takeover interest emerges; terms remain unknown', exact=True).first.wait_for(timeout=30000)
+              page.get_by_text('CRITICAL · ADVERSE', exact=True).first.wait_for(timeout=30000)
+              no_overflow(page)
+
+              material = page.locator('article[data-feed-kind="material"]')
+              if material.count() < 5:
+                  raise AssertionError('Release Feed has fewer than five material acceptance records')
+              if page.get_by_role('button', name='Read analysis →').count() < material.count():
+                  raise AssertionError('A material Feed record is missing its primary analysis action')
+              source = page.get_by_role('link', name='Original RNS ↗', exact=True).first
+              href = source.get_attribute('href') or ''
+              if not href.startswith(('http://', 'https://')):
+                  raise AssertionError(f'Original RNS link is not a direct HTTP source: {href!r}')
+
+              assert_keyboard_primary(page)
+              page.screenshot(path=out / '01-feed-1280.png', full_page=True)
+
+              page.get_by_role('button', name='Read analysis →').first.click()
+              wait_view(page, 'note')
+              for heading in ('What happened', 'Evidence from the RNS', 'Our view', 'What to watch', 'Supporting detail'):
+                  page.get_by_text(heading, exact=True).first.wait_for(timeout=30000)
+              note_source = page.get_by_role('link', name='Original RNS ↗', exact=True).first
+              note_href = note_source.get_attribute('href') or ''
+              if not note_href.startswith(('http://', 'https://')):
+                  raise AssertionError('Analyst Note lost original-source provenance')
+              no_overflow(page)
+              page.screenshot(path=out / '02-note-1280.png', full_page=True)
+
+              page.get_by_role('button', name='Company', exact=True).first.click()
+              wait_view(page, 'company')
+              page.get_by_text('Company Intelligence', exact=True).first.wait_for(timeout=30000)
+              page.get_by_text('Current position', exact=True).first.wait_for(timeout=30000)
+              page.get_by_text('RNS timeline', exact=True).first.wait_for(timeout=30000)
+              if page.locator('.sca-intel-card').count():
+                  raise AssertionError('Deprecated system-count cards returned in release candidate')
+              no_overflow(page)
+              page.screenshot(path=out / '03-company-1280.png', full_page=True)
+
+              context.close()
+              browser.close()
+          PY
+
+      - name: Reject runtime tracebacks and deprecated component calls
+        run: |
+          if grep -Fq 'st.components.v1.html' /tmp/release-acceptance/streamlit.log; then
+            cat /tmp/release-acceptance/streamlit.log
+            exit 1
+          fi
+          if grep -Eq 'Traceback \(most recent call last\)|Uncaught app exception' /tmp/release-acceptance/streamlit.log; then
+            cat /tmp/release-acceptance/streamlit.log
+            exit 1
+          fi
+
+      - name: Upload Pass 5 release evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smallcaps-pass5-release-acceptance
+          path: /tmp/release-acceptance
+          if-no-files-found: error
+          retention-days: 90
