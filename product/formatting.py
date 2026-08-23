@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from datetime import datetime
 from typing import Any
 
@@ -17,32 +18,71 @@ IMPACT_DIRECTION_LABELS = {
     "grey": "NEUTRAL",
 }
 
+IMPACT_LEVELS = {"low", "medium", "high", "critical"}
+_HIDDEN_PUBLIC_TYPES = {"other", "unknown", "uncategorised", "unclassified"}
+
+
+def _normalise_impact_colour(colour: object) -> str:
+    clean = str(colour or "").strip().lower()
+    return clean if clean in IMPACT_DIRECTION_LABELS else "grey"
+
+
+def _normalise_impact_level(level: object) -> str:
+    clean = str(level or "").strip().lower()
+    return clean if clean in IMPACT_LEVELS else "low"
+
 
 def impact_hex(colour: str) -> str:
-    return IMPACT_HEX.get(colour, IMPACT_HEX["grey"])
+    return IMPACT_HEX[_normalise_impact_colour(colour)]
 
 
 def impact_direction_label(colour: str, *, level: str = "") -> str:
     """Translate an internal colour token into investor-facing language.
 
-    The public interface should describe investment meaning rather than expose
+    The public interface describes investment meaning rather than exposing
     implementation labels such as RED or GREEN. Low-impact grey records are
     routine; higher-impact grey records are directionally neutral.
     """
 
-    clean_colour = str(colour or "").strip().lower()
-    if clean_colour not in IMPACT_DIRECTION_LABELS:
-        clean_colour = "grey"
-    if clean_colour == "grey" and str(level or "").strip().lower() == "low":
+    clean_colour = _normalise_impact_colour(colour)
+    clean_level = _normalise_impact_level(level)
+    if clean_colour == "grey" and clean_level == "low":
         return "ROUTINE"
     return IMPACT_DIRECTION_LABELS[clean_colour]
 
 
 def impact_signal_label(colour: str, level: str) -> str:
-    """Return the semantic public signal reserved for the Jobs UX pass."""
+    """Return the accessible public impact signal used across the product."""
 
-    clean_level = str(level or "low").strip().upper() or "LOW"
-    return f"{clean_level} · {impact_direction_label(colour, level=level)}"
+    clean_level = _normalise_impact_level(level)
+    return f"{clean_level.upper()} · {impact_direction_label(colour, level=clean_level)}"
+
+
+def public_rns_type(value: object) -> str:
+    """Hide fallback taxonomy labels that add no investor information."""
+
+    clean = " ".join(str(value or "").strip().split())
+    return "" if clean.lower() in _HIDDEN_PUBLIC_TYPES else clean
+
+
+def fact_is_numeric(fact: dict[str, Any]) -> bool:
+    """Choose numerical typography only when the fact is genuinely compact data."""
+
+    for key in ("value_numeric", "value_low", "value_high"):
+        value = fact.get(key)
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            return True
+
+    text = " ".join(str(fact.get("value") or "").strip().split())
+    if not text or len(text) > 48 or len(text.split()) > 7:
+        return False
+    return bool(
+        re.search(
+            r"(?:[£$€]\s*\d|\b\d[\d,.]*\s*(?:%|pp|x|p|m|bn|shares?)?\b)",
+            text,
+            flags=re.IGNORECASE,
+        )
+    )
 
 
 def format_price_change(price: dict[str, Any] | None) -> str:
