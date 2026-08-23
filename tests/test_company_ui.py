@@ -4,13 +4,13 @@ from ui.company import (
     _claims_markup,
     _gaps_markup,
     _guidance_markup,
-    _metric_markup,
-    _source_link,
+    _metric_cards_markup,
+    _source_anchor,
 )
 
 
-def test_company_intelligence_metric_table_labels_calculated_change() -> None:
-    markup = _metric_markup(
+def test_company_intelligence_metric_cards_keep_comparison_and_provenance() -> None:
+    markup = _metric_cards_markup(
         [
             {
                 "label": "Net debt",
@@ -37,10 +37,9 @@ def test_company_intelligence_metric_table_labels_calculated_change() -> None:
     assert "£18.2m" in markup
     assert "£24.0m" in markup
     assert "Down 24.2%" in markup
-    assert "Smallcaps.ai calculation" in markup
     assert "Reported" in markup
-    assert "Trading Update" in markup
-    assert 'class="sca-table-wrap"' in markup
+    assert "Latest RNS ↗" in markup
+    assert 'class="sca-company-metric"' in markup
 
 
 def test_company_intelligence_guidance_and_claims_retain_source_links() -> None:
@@ -74,12 +73,12 @@ def test_company_intelligence_guidance_and_claims_retain_source_links() -> None:
     assert "Reiterated" in guidance
     assert "https://example.invalid/guidance" in guidance
     assert "Complete the land sale" in claims
-    assert "Status: Open" in claims
+    assert "Target: June 2026" in claims
     assert "https://example.invalid/claim" in claims
 
 
 def test_company_intelligence_escapes_untrusted_database_text() -> None:
-    markup = _gaps_markup(
+    gaps = _gaps_markup(
         [
             {
                 "item": '<script>alert("x")</script>',
@@ -89,22 +88,32 @@ def test_company_intelligence_escapes_untrusted_database_text() -> None:
             }
         ]
     )
+    claims = _claims_markup(
+        [
+            {
+                "claim": '<script>alert("claim")</script>',
+                "target_date": '<img src=x onerror=alert("target")>',
+                "source_url": "https://example.invalid/claim",
+            }
+        ]
+    )
 
-    assert "<script>" not in markup
-    assert "<img" not in markup
-    assert "&lt;script&gt;" in markup
-    assert "&lt;img" in markup
+    assert "<script>" not in gaps
+    assert "&lt;script&gt;" in gaps
+    assert "<script>" not in claims
+    assert "&lt;script&gt;" in claims
+    assert "<img" not in claims
+    assert "&lt;img" in claims
 
 
 def test_company_intelligence_rejects_non_http_source_links() -> None:
-    markup = _source_link(
+    markup = _source_anchor(
         {
             "published_at": "2026-08-21T07:00:00+01:00",
             "title": "Source RNS",
             "source_url": "javascript:alert(1)",
-        }
+        },
+        "Source RNS",
     )
 
-    assert "javascript:" not in markup
-    assert "href=" not in markup
-    assert "Source RNS" in markup
+    assert markup == ""
