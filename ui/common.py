@@ -11,14 +11,13 @@ from zoneinfo import ZoneInfo
 import streamlit as st
 import streamlit.components.v1 as components
 
-from product.formatting import format_price_change, impact_hex
+from product.formatting import format_price_change, impact_hex, impact_signal_label
 
 LONDON = ZoneInfo("Europe/London")
 _SCROLL_FLAG = "_smallcaps_scroll_to_top"
 
 APP_CSS = """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@500;600;700&display=swap');
 :root {
   --sca-bg:#F7F7F5;
   --sca-surface:#FCFCFA;
@@ -30,7 +29,7 @@ APP_CSS = """
 }
 html { color-scheme:light; }
 html, body, [class*="css"] {
-  font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
 }
 .stApp { background:var(--sca-bg); color:var(--sca-text); }
 header[data-testid="stHeader"] { background:transparent; }
@@ -48,8 +47,8 @@ header[data-testid="stHeader"] { background:transparent; }
 .sca-brand-name { color:var(--sca-text); font-size:1.25rem; font-weight:700; letter-spacing:-.035em; }
 .sca-brand-product { color:var(--sca-muted); font-size:.78rem; font-weight:600; letter-spacing:.08em; text-transform:uppercase; }
 .sca-eyebrow,.sca-section-title { color:var(--sca-muted); font-size:.7rem; font-weight:700; letter-spacing:.09em; text-transform:uppercase; }
-.sca-ticker,.sca-price,.sca-fact-value,.sca-table .num,.sca-intel-value {
-  font-family:"Roboto Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+.sca-ticker,.sca-price,.sca-table .num,.sca-intel-value {
+  font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace;
   font-weight:600;
 }
 .sca-ticker { font-weight:700; letter-spacing:-.02em; }
@@ -200,12 +199,21 @@ def render_service_error(*, reference: str = "") -> None:
 
 
 def log_public_exception(exc: BaseException) -> str:
+    """Best-effort logging that always returns a safe customer reference."""
+
     reference = f"WEB-{secrets.token_hex(4).upper()}"
-    print(
-        f"[web][{reference}] {type(exc).__name__}: {exc}",
-        flush=True,
-    )
-    traceback.print_exception(type(exc), exc, exc.__traceback__)
+    summary = " ".join(str(exc).split())[:500]
+    try:
+        print(
+            f"[web][{reference}] {type(exc).__name__}: {summary}",
+            flush=True,
+        )
+    except Exception:
+        pass
+    try:
+        traceback.print_exception(type(exc), exc, exc.__traceback__)
+    except Exception:
+        pass
     return reference
 
 
@@ -248,14 +256,17 @@ def safe_http_url(value: object) -> str:
 
 
 def impact_badge(colour: str, level: str) -> str:
-    clean_colour = colour.lower() if colour.lower() in {"green", "amber", "red", "grey"} else "grey"
+    clean_colour = str(colour or "").strip().lower()
+    if clean_colour not in {"green", "amber", "red", "grey"}:
+        clean_colour = "grey"
+    signal = impact_signal_label(clean_colour, level)
+    accessible = html.escape(signal.title(), quote=True)
     return (
-        '<span class="sca-impact"><span class="sca-impact-dot" style="background:'
+        f'<span class="sca-impact" aria-label="{accessible}">'
+        '<span class="sca-impact-dot" aria-hidden="true" style="background:'
         + impact_hex(clean_colour)
-        + '"></span>IMPACT '
-        + html.escape(level.upper())
-        + " · "
-        + html.escape(clean_colour.upper())
+        + '"></span>'
+        + html.escape(signal)
         + "</span>"
     )
 
