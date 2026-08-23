@@ -2,6 +2,13 @@ from __future__ import annotations
 
 COMPANY_CSS = """
 <style>
+/* Streamlit may retain Feed controls briefly during an internal rerun. Once
+   Company navigation exists, hide stale Feed chrome so the destination reads
+   as one atomic surface rather than two page states at once. */
+.stApp:has(.st-key-company-nav) .st-key-feed-controls,
+.stApp:has(.st-key-company-nav) .st-key-feed-filter-panel {
+  display:none !important;
+}
 .st-key-company-nav {
   margin:.1rem 0 .7rem;
 }
