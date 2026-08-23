@@ -98,7 +98,7 @@ class ProductRepository:
             for announcement, company, run in filtered:
                 facts = [_fact_dict(row) for row in facts_by_run.get(run.id, []) if row.basis not in {"not-disclosed", "source-warning"}][:3]
                 source_urls = dedupe_source_urls(announcement.source_urls, announcement.source_url, run.source_references)
-                output.append({"source_id": announcement.source_id, "ticker": company.ticker, "company": company.company_name, "published_at": _as_london(announcement.published_at).isoformat(), "rns_type": announcement.announcement_type, "impact_colour": run.impact_colour, "impact_score": run.impact_score, "impact_level": run.impact_level, "impact_rationale": run.impact_rationale, "headline": run.headline, "takeaway": run.takeaway, "key_facts": facts, "source_url": source_urls[0] if source_urls else "", "price": _price_dict(prices.get(announcement.id))})
+                output.append({"source_id": announcement.source_id, "ticker": company.ticker, "company": company.company_name, "published_at": _as_london(announcement.published_at).isoformat(), "rns_type": announcement.announcement_type, "impact_colour": run.impact_colour, "impact_score": run.impact_score, "impact_level": run.impact_level, "impact_rationale": run.impact_rationale, "analyst_view": run.analyst_view, "headline": run.headline, "takeaway": run.takeaway, "key_facts": facts, "source_url": source_urls[0] if source_urls else "", "price": _price_dict(prices.get(announcement.id))})
             return output
 
     def get_note(self, source_id: str, *, public_only: bool = True) -> dict[str, Any] | None:
