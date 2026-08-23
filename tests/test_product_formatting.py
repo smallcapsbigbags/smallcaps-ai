@@ -1,8 +1,10 @@
 from product.formatting import (
     attention_count,
+    fact_is_numeric,
     format_price_change,
     impact_direction_label,
     impact_signal_label,
+    public_rns_type,
     select_feed_facts,
 )
 
@@ -36,3 +38,21 @@ def test_semantic_impact_labels_do_not_expose_colour_tokens() -> None:
     assert impact_signal_label("grey", "low") == "LOW · ROUTINE"
     assert impact_signal_label("grey", "high") == "HIGH · NEUTRAL"
     assert impact_direction_label("unknown", level="high") == "NEUTRAL"
+    assert impact_signal_label("<script>", "<script>") == "LOW · ROUTINE"
+
+
+def test_feed_hides_fallback_types_and_preserves_real_categories() -> None:
+    assert public_rns_type("Other") == ""
+    assert public_rns_type(" unclassified ") == ""
+    assert public_rns_type("Results & trading") == "Results & trading"
+
+
+def test_feed_numeric_typography_is_reserved_for_compact_data() -> None:
+    assert fact_is_numeric({"value": "£18.2m", "value_numeric": 18.2})
+    assert fact_is_numeric({"value": "18 Sep 2026 · 17:00"})
+    assert not fact_is_numeric(
+        {"value": "Insufficient to continue as a going concern"}
+    )
+    assert not fact_is_numeric(
+        {"value": "No return expected from any successful asset sale"}
+    )
