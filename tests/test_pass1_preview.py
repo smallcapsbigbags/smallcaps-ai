@@ -23,8 +23,10 @@ def test_pass1_preview_covers_critical_mixed_favourable_and_routine_states(
     assert by_ticker["TRLS"]["impact_score"] == 5
     assert by_ticker["TRLS"]["impact_colour"] == "red"
     assert by_ticker["TRLS"]["rns_type"] == "Other"
+    assert by_ticker["TRLS"]["analyst_view"].startswith("Thesis broken.")
     assert by_ticker["GAMA"]["impact_score"] == 4
     assert by_ticker["GAMA"]["impact_colour"] == "amber"
+    assert "not yet a bid" in by_ticker["GAMA"]["analyst_view"]
     assert by_ticker["SPR"]["impact_colour"] == "green"
     assert by_ticker["ROUT"]["impact_score"] == 1
     assert by_ticker["ROUT"]["impact_colour"] == "grey"
