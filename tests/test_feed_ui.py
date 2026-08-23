@@ -20,6 +20,10 @@ def _item(**overrides):
         "impact_rationale": (
             "The company cannot fund continued trading and expects no shareholder recovery."
         ),
+        "analyst_view": (
+            "Thesis broken. This is now an insolvency and asset-recovery situation, "
+            "not an operating investment case."
+        ),
         "headline": "Administration imminent; no shareholder return expected",
         "takeaway": (
             "Trellus has insufficient funds to continue as a going concern and has filed "
@@ -59,6 +63,19 @@ def test_material_feed_markup_leads_with_verdict_and_semantic_signal() -> None:
     assert ">Other<" not in markup
     assert markup.index("sca-feed-verdict") < markup.index("sca-evidence")
     assert markup.index("sca-evidence") < markup.index("sca-feed-view")
+
+
+def test_feed_view_prefers_analyst_judgement_over_impact_rationale() -> None:
+    markup = _material_markup(_item())
+
+    assert "Thesis broken." in markup
+    assert "The company cannot fund continued trading" not in markup
+
+
+def test_feed_view_falls_back_to_impact_rationale_for_legacy_rows() -> None:
+    markup = _material_markup(_item(analyst_view=""))
+
+    assert "The company cannot fund continued trading" in markup
 
 
 def test_feed_evidence_labels_reported_section_once_and_marks_calculations() -> None:
