@@ -1,7 +1,13 @@
 import inspect
 from pathlib import Path
 
-from ui.note import _change_markup, _evidence_markup, _list_markup, _render_executive_layer
+from ui.note import (
+    _change_markup,
+    _evidence_markup,
+    _full_fact_rows,
+    _list_markup,
+    _render_executive_layer,
+)
 from ui.note_styles import NOTE_CSS
 
 
@@ -62,6 +68,26 @@ def test_note_executive_evidence_marks_calculations_without_repeating_reported()
     assert "Previous: £24.0m" in markup
     assert markup.count("Smallcaps.ai calculation") == 1
     assert markup.count("sca-note-evidence-value-num") == 2
+
+
+def test_note_supporting_evidence_rows_keep_real_content() -> None:
+    rows, calculations = _full_fact_rows(_facts())
+    assert calculations == []
+    assert rows == [
+        ["Administration", "Notice of intention filed", "", "Reported"],
+        [
+            "Funding position",
+            "Insufficient funds to continue as a going concern",
+            "",
+            "Reported",
+        ],
+        [
+            "Shareholder recovery",
+            "No return expected from any asset sale",
+            "",
+            "Reported",
+        ],
+    ]
 
 
 def test_note_empty_sections_render_nothing() -> None:
@@ -129,3 +155,4 @@ def test_note_mobile_design_collapses_evidence_and_detail_to_one_column() -> Non
     assert ".sca-note-evidence-grid{grid-template-columns:1fr" in NOTE_CSS
     assert ".sca-note-detail-grid{grid-template-columns:1fr" in NOTE_CSS
     assert "min-height:2.55rem" in NOTE_CSS
+    assert ".st-key-analyst-note" in NOTE_CSS
