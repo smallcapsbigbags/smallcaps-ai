@@ -124,7 +124,9 @@ def _material_markup(item: dict[str, Any]) -> str:
 
     headline = html.escape(str(item.get("headline") or ""))
     takeaway = html.escape(str(item.get("takeaway") or ""))
-    analyst_view = html.escape(str(item.get("impact_rationale") or ""))
+    analyst_view = html.escape(
+        str(item.get("analyst_view") or item.get("impact_rationale") or "")
+    )
     view_markup = ""
     if analyst_view:
         view_markup = (
