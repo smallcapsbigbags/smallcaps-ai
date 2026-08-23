@@ -79,6 +79,14 @@ SOLVENCY_PATTERNS = [
     r"\brefinanc\w*\b.{0,100}\b(?:deadline|maturity|matures|before|by)\b",
 ]
 
+TAKEOVER_PATTERNS = [
+    r"\bpossible offer\b",
+    r"\bfirm offer\b",
+    r"\btakeover\b",
+    r"\bscheme of arrangement\b",
+    r"\brule 2\.[467]\b",
+]
+
 MATERIAL_PATTERNS = [
     *SOLVENCY_PATTERNS,
     r"\btrading update\b",
@@ -128,18 +136,24 @@ def _matches(patterns: Iterable[str], text: str) -> bool:
     return any(re.search(pattern, text, flags=re.IGNORECASE | re.DOTALL) for pattern in patterns)
 
 
+def _metadata_text(announcement: AnnouncementLike) -> str:
+    return " ".join([announcement.title, *announcement.categories])
+
+
 def _announcement_text(announcement: AnnouncementLike) -> str:
     # Catalogue rows have title/categories only. Fully retrieved AnnouncementInput
-    # objects also expose text, which lets the canonical taxonomy use the actual
-    # RNS evidence without requiring another model call.
+    # objects also expose text, which is used only for high-signal event classes
+    # such as solvency distress and explicit takeover processes. Broad categories
+    # still classify from metadata so incidental words in a long RNS cannot hijack
+    # the primary event type.
     evidence = str(getattr(announcement, "text", "") or "")
-    return " ".join([announcement.title, *announcement.categories, evidence])
+    return " ".join([_metadata_text(announcement), evidence])
 
 
 def is_administrative_routine(announcement: AnnouncementLike) -> bool:
     """Match current RNS-Xray behaviour: ownership notices are not auto-routine."""
 
-    text = _announcement_text(announcement)
+    text = _metadata_text(announcement)
     if _matches(MATERIAL_PATTERNS, text) or _matches(OWNERSHIP_PATTERNS, text):
         return False
     if _matches(ADMINISTRATIVE_PATTERNS, text):
@@ -158,7 +172,7 @@ def is_administrative_routine(announcement: AnnouncementLike) -> bool:
 
 
 def material_priority(announcement: AnnouncementLike) -> int:
-    text = _announcement_text(announcement)
+    text = _metadata_text(announcement)
     if _matches(SOLVENCY_PATTERNS, text):
         return 100
     if _matches(MATERIAL_PATTERNS, text):
@@ -171,28 +185,26 @@ def material_priority(announcement: AnnouncementLike) -> int:
 
 
 def classify_metadata_type(announcement: AnnouncementLike) -> str:
-    """Return the canonical public taxonomy from title/categories/evidence.
+    """Return the canonical public taxonomy without guessing from incidental prose.
 
-    The ordering is intentional. Solvency distress dominates fundraising language,
-    and takeover/acquisition/disposal events are separated before generic corporate
-    labels. The function remains conservative: if no rule is supported it returns
-    ``Other`` rather than guessing.
+    Title/categories drive broad event classification. Full evidence is consulted
+    only for high-signal solvency/takeover patterns that can legitimately override
+    a generic catalogue title such as `Funding Update` or `Press speculation`.
     """
 
-    text = _announcement_text(announcement)
-    if _matches(SOLVENCY_PATTERNS, text):
+    full_text = _announcement_text(announcement)
+    if _matches(SOLVENCY_PATTERNS, full_text):
         return "Funding & solvency"
+    if _matches(TAKEOVER_PATTERNS, full_text):
+        return "Takeover"
 
+    text = _metadata_text(announcement)
     rules: list[tuple[str, tuple[str, ...]]] = [
         (
             "Takeover",
             (
-                r"\bpossible offer\b",
-                r"\bfirm offer\b",
-                r"\btakeover\b",
+                *TAKEOVER_PATTERNS,
                 r"\bmerger\b",
-                r"\bscheme of arrangement\b",
-                r"\brule 2\.[467]\b",
             ),
         ),
         (
