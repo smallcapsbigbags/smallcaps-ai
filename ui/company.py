@@ -8,6 +8,7 @@ import streamlit as st
 from database.company_intelligence import CompanyIntelligenceRepository
 from database.product import ProductRepository
 from product.formatting import (
+    fact_is_numeric,
     feed_verdict,
     format_day,
     format_price_change,
@@ -172,6 +173,28 @@ def _change_text(series: dict[str, Any]) -> str:
     if direction in {"up", "down"}:
         return direction.title()
     return ""
+
+
+def _metric_series_is_displayable(item: dict[str, Any]) -> bool:
+    """Keep the public KPI area for comparable series or genuinely numeric facts.
+
+    Company Memory intentionally stores more than numerical KPIs so the analyst has
+    useful prior context. The public 'Metrics that matter' surface is narrower: a
+    one-off narrative fact belongs in Current position or the timeline, not a KPI card.
+    """
+
+    points = list(item.get("points") or [])
+    if len(points) > 1:
+        return True
+    latest = dict(points[-1]) if points else {}
+    return fact_is_numeric(
+        {
+            "value": latest.get("value") or item.get("latest_value"),
+            "value_numeric": latest.get("value_numeric"),
+            "value_low": latest.get("value_low"),
+            "value_high": latest.get("value_high"),
+        }
+    )
 
 
 def _metric_cards_markup(items: list[dict[str, Any]]) -> str:
@@ -348,7 +371,6 @@ def render_company(
             if st.button(
                 "★ Watching" if starred else "☆ Watch",
                 use_container_width=True,
-                help="Remove from watchlist" if starred else "Add to watchlist",
             ):
                 toggle_watchlist(str(history["ticker"]))
 
@@ -394,7 +416,11 @@ def render_company(
         st.markdown(_section_intro("guidance", "Guidance"), unsafe_allow_html=True)
         st.markdown(_guidance_markup(guidance), unsafe_allow_html=True)
 
-    metrics = list(memory.get("metric_series") or [])
+    metrics = [
+        item
+        for item in list(memory.get("metric_series") or [])
+        if _metric_series_is_displayable(item)
+    ]
     if metrics:
         st.markdown(
             _section_intro(
