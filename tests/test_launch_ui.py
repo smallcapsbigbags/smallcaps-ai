@@ -19,6 +19,7 @@ from database.models import (
 )
 from database.publication_safety import reconcile_publication_safety
 from ui.common import APP_CSS, impact_badge, price_markup, safe_http_url
+from ui.feed_styles import FEED_CSS
 
 
 def _add_analysis(
@@ -169,7 +170,9 @@ def test_publication_safety_leaves_valid_record_public() -> None:
 
 def test_customer_ui_exposes_direction_and_rejects_unsafe_links() -> None:
     badge = impact_badge("green", "high")
-    assert "IMPACT HIGH · GREEN" in badge
+    assert "HIGH · FAVOURABLE" in badge
+    assert "· GREEN" not in badge
+    assert 'aria-label="High · Favourable"' in badge
     assert safe_http_url("https://example.com/rns") == "https://example.com/rns"
     assert safe_http_url("javascript:alert(1)") == ""
     assert safe_http_url("not-a-url") == ""
@@ -182,3 +185,5 @@ def test_mobile_and_beta_launch_styles_are_present() -> None:
     assert "data-label" in APP_CSS
     assert "sca-beta-points" in APP_CSS
     assert "sca-footer" in APP_CSS
+    assert "sca-feed-verdict" in FEED_CSS
+    assert "sca-evidence-grid" in FEED_CSS
