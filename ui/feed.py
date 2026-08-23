@@ -251,48 +251,49 @@ def render_feed(repository: ProductRepository, settings: Settings) -> None:
         latest_day = today
     if "feed_date" not in st.session_state:
         st.session_state["feed_date"] = latest_day
+    if "feed_scope" not in st.session_state:
+        st.session_state["feed_scope"] = "All AIM"
+    if "feed_sort" not in st.session_state:
+        st.session_state["feed_sort"] = "Most Impactful"
 
-    heading_cols = st.columns([3.2, 1])
-    with heading_cols[0]:
-        st.markdown(
-            '<div class="sca-feed-hero">'
-            '<h1 class="sca-feed-title">AIM Intelligence</h1>'
-            '<p class="sca-feed-deck">Every AIM announcement. The change, the evidence and the Smallcaps.ai view.</p>'
-            "</div>",
-            unsafe_allow_html=True,
-        )
-    with heading_cols[1]:
-        with st.container(key="feed-date-control"):
-            selected_day = st.date_input(
-                "Feed date",
-                max_value=today,
-                key="feed_date",
-                label_visibility="collapsed",
-            )
+    st.markdown(
+        '<div class="sca-feed-hero">'
+        '<h1 class="sca-feed-title">AIM Intelligence</h1>'
+        '<p class="sca-feed-deck">Every AIM announcement. The change, the evidence and the Smallcaps.ai view.</p>'
+        "</div>",
+        unsafe_allow_html=True,
+    )
 
     with st.container(key="feed-controls"):
-        control_cols = st.columns([2.4, 1, 1.1])
-        with control_cols[0]:
-            search = st.text_input(
-                "Search",
-                placeholder="Ticker, company or announcement",
-                key="feed_search",
-                label_visibility="collapsed",
-            )
-        with control_cols[1]:
-            scope = st.selectbox(
-                "Scope",
-                ["All AIM", "Watchlist"],
-                key="feed_scope",
-                label_visibility="collapsed",
-            )
-        with control_cols[2]:
-            sort_label = st.selectbox(
-                "Sort",
-                ["Most Impactful", "Latest"],
-                key="feed_sort",
-                label_visibility="collapsed",
-            )
+        search = st.text_input(
+            "Search",
+            placeholder="Ticker, company or announcement",
+            key="feed_search",
+            label_visibility="collapsed",
+        )
+
+    current_day = format_day(str(st.session_state["feed_date"]))
+    with st.container(key="feed-filter-panel"):
+        with st.expander(f"Date & filters · {current_day}", expanded=False):
+            control_cols = st.columns(3)
+            with control_cols[0]:
+                selected_day = st.date_input(
+                    "Feed date",
+                    max_value=today,
+                    key="feed_date",
+                )
+            with control_cols[1]:
+                scope = st.selectbox(
+                    "Scope",
+                    ["All AIM", "Watchlist"],
+                    key="feed_scope",
+                )
+            with control_cols[2]:
+                sort_label = st.selectbox(
+                    "Sort",
+                    ["Most Impactful", "Latest"],
+                    key="feed_sort",
+                )
 
     ticker_filter = watchlist if scope == "Watchlist" else None
     items = repository.list_feed(
