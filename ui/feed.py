@@ -9,7 +9,13 @@ from database.feed_navigation import latest_publishable_day
 from database.product import ProductRepository
 from product.formatting import (
     attention_count,
+    attention_summary_label,
+    compact_feed_fact_label,
+    compact_feed_fact_value,
     fact_is_numeric,
+    feed_comparator_text,
+    feed_verdict,
+    feed_view,
     format_day,
     format_time,
     public_rns_type,
@@ -73,21 +79,17 @@ def _fact_markup(facts: list[dict[str, Any]]) -> str:
     )
     cells: list[str] = []
     for fact in selected:
-        label = html.escape(
-            str(fact.get("label") or fact.get("metric") or "Reported fact")
-        )
-        value = html.escape(str(fact.get("value") or ""))
+        label = html.escape(compact_feed_fact_label(fact))
+        value = html.escape(compact_feed_fact_value(fact))
         value_class = "sca-evidence-value"
         if fact_is_numeric(fact):
             value_class += " sca-evidence-value-numeric"
 
-        previous = str(
-            fact.get("previous_value") or fact.get("comparator") or ""
-        ).strip()
+        previous = feed_comparator_text(fact)
         comparator_markup = ""
-        if previous and previous != str(fact.get("value") or "").strip():
+        if previous:
             comparator_markup = (
-                '<div class="sca-evidence-comparator">Previous / comparator: '
+                '<div class="sca-evidence-comparator">Previously: '
                 + html.escape(previous)
                 + "</div>"
             )
@@ -109,7 +111,7 @@ def _fact_markup(facts: list[dict[str, Any]]) -> str:
 
     return (
         '<div class="sca-evidence">'
-        '<div class="sca-evidence-heading">Evidence</div>'
+        '<div class="sca-evidence-heading">Evidence from the RNS</div>'
         f'<div class="{grid_class}">'
         + "".join(cells)
         + "</div></div>"
@@ -122,11 +124,9 @@ def _material_markup(item: dict[str, Any]) -> str:
     if score == 5:
         record_class += " sca-feed-record-critical"
 
-    headline = html.escape(str(item.get("headline") or ""))
+    headline = html.escape(feed_verdict(item))
     takeaway = html.escape(str(item.get("takeaway") or ""))
-    analyst_view = html.escape(
-        str(item.get("analyst_view") or item.get("impact_rationale") or "")
-    )
+    analyst_view = html.escape(feed_view(item))
     view_markup = ""
     if analyst_view:
         view_markup = (
@@ -148,7 +148,7 @@ def _material_markup(item: dict[str, Any]) -> str:
 
 
 def _routine_markup(item: dict[str, Any]) -> str:
-    headline = html.escape(str(item.get("headline") or ""))
+    headline = html.escape(feed_verdict(item))
     return (
         '<article class="sca-routine-record" data-feed-kind="routine">'
         + _meta_markup(item)
@@ -341,7 +341,7 @@ def render_feed(repository: ProductRepository, settings: Settings) -> None:
     attention = attention_count(items)
     st.markdown(
         '<div class="sca-feed-summary">'
-        f'<strong>{attention} need attention</strong>'
+        f'<strong>{html.escape(attention_summary_label(attention))}</strong>'
         '<span class="sca-feed-summary-separator">·</span>'
         f'<span>{len(items)} analysed announcement{"s" if len(items) != 1 else ""}</span>'
         "</div>",
