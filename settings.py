@@ -66,8 +66,8 @@ class Settings:
         configured_prompt_version = os.getenv("PROMPT_VERSION", "").strip()
 
         # Production deployments must record the prompt version shipped with the
-        # code. A stale Railway variable must not silently label Analyst 3.1 output
-        # as an older engine. Local/one-off benchmark runs may still override it.
+        # code. A stale Railway variable must not silently label current analyst
+        # output as an older engine. Local/one-off benchmark runs may still override it.
         prompt_version = (
             DEFAULT_PROMPT_VERSION
             if railway

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from analyst.analyzer import AnalystEngine
+from analyst.classification import canonical_rns_type
 from analyst.company_context import build_company_analysis_context
 from analyst.evidence import validate_announcement_evidence
 from analyst.guardrails import apply_analysis_guardrails
@@ -61,6 +62,14 @@ class FoundationPipeline:
                     )
                 }
             )
+
+        # Taxonomy is a deterministic product contract. The model may identify a
+        # useful event label, but unsupported/arbitrary labels and distress hidden
+        # behind Other are normalised before quality checks and persistence.
+        canonical_type = canonical_rns_type(announcement, note.rns_type)
+        if canonical_type != note.rns_type:
+            note = note.model_copy(update={"rns_type": canonical_type})
+
         guarded_note = apply_analysis_guardrails(
             announcement,
             note,

@@ -56,6 +56,150 @@ def _public_prose(note: AnalystNote) -> list[tuple[str, str]]:
     ]
 
 
+def _word_count(text: str) -> int:
+    return len(re.findall(r"\b[\w£$€%.-]+\b", text))
+
+
+def _sentence_count(text: str) -> int:
+    return len(
+        [part for part in _SENTENCE_SPLIT_RE.split(text.strip()) if part.strip()]
+    )
+
+
+def _editorial_contract_flags(note: AnalystNote) -> list[QualityFlag]:
+    """Flag output that still needs editorial rescue after the model review.
+
+    The hard prompt targets are intentionally backed by slightly wider deterministic
+    thresholds. Small harmless variation remains publishable, while material drift
+    is routed to owner review rather than silently weakening the product hierarchy.
+    """
+
+    flags: list[QualityFlag] = []
+
+    headline_words = _word_count(note.headline)
+    if headline_words > 16:
+        flags.append(
+            QualityFlag(
+                code="EDITORIAL_HEADLINE_LENGTH",
+                severity="review",
+                message=(
+                    f"Headline is {headline_words} words; the editorial contract targets "
+                    "an outcome-led 6–12 word verdict."
+                ),
+            )
+        )
+    elif headline_words > 12:
+        flags.append(
+            QualityFlag(
+                code="EDITORIAL_HEADLINE_LENGTH",
+                severity="info",
+                message=(
+                    f"Headline is {headline_words} words; consider tightening it toward "
+                    "the 6–12 word verdict target."
+                ),
+            )
+        )
+
+    takeaway_words = _word_count(note.takeaway)
+    takeaway_sentences = _sentence_count(note.takeaway)
+    if takeaway_words > 70 or takeaway_sentences > 3:
+        flags.append(
+            QualityFlag(
+                code="EDITORIAL_TAKEAWAY_LENGTH",
+                severity="review",
+                message=(
+                    "Takeaway materially exceeds the two-short-sentence / roughly "
+                    "45-word editorial target."
+                ),
+            )
+        )
+    elif takeaway_words > 50 or takeaway_sentences > 2:
+        flags.append(
+            QualityFlag(
+                code="EDITORIAL_TAKEAWAY_LENGTH",
+                severity="info",
+                message="Takeaway is above the preferred two-sentence / ~45-word target.",
+            )
+        )
+
+    rationale_words = _word_count(note.impact_rationale)
+    rationale_sentences = _sentence_count(note.impact_rationale)
+    if rationale_words > 55 or rationale_sentences > 2:
+        flags.append(
+            QualityFlag(
+                code="EDITORIAL_IMPACT_RATIONALE",
+                severity="review",
+                message="Impact rationale should be one concise sentence focused on the main reason.",
+            )
+        )
+    elif rationale_words > 35 or rationale_sentences > 1:
+        flags.append(
+            QualityFlag(
+                code="EDITORIAL_IMPACT_RATIONALE",
+                severity="info",
+                message="Impact rationale is above the preferred one-sentence / ~35-word target.",
+            )
+        )
+
+    view_words = _word_count(note.analyst_view)
+    if view_words > 120:
+        flags.append(
+            QualityFlag(
+                code="EDITORIAL_ANALYST_VIEW_LENGTH",
+                severity="review",
+                message="Smallcaps.ai view is over 120 words; compress it to consequence, why and what remains to prove.",
+            )
+        )
+    elif view_words > 90:
+        flags.append(
+            QualityFlag(
+                code="EDITORIAL_ANALYST_VIEW_LENGTH",
+                severity="info",
+                message="Smallcaps.ai view is above the preferred ~90-word target.",
+            )
+        )
+
+    for fact in note.key_facts[:3]:
+        label_words = _word_count(fact.label)
+        if label_words > 10:
+            flags.append(
+                QualityFlag(
+                    code="EDITORIAL_FACT_LABEL",
+                    severity="review",
+                    message=(
+                        f"Key fact label '{fact.label}' is too long for the Feed-ready "
+                        "1–4 word target."
+                    ),
+                )
+            )
+        elif label_words > 6:
+            flags.append(
+                QualityFlag(
+                    code="EDITORIAL_FACT_LABEL",
+                    severity="info",
+                    message=(
+                        f"Key fact label '{fact.label}' is longer than the preferred "
+                        "Feed-ready label target."
+                    ),
+                )
+            )
+
+        value = " ".join(fact.value.strip().split()).lower()
+        if value in {"filed", "maintained", "completed", "approved", "reported"}:
+            flags.append(
+                QualityFlag(
+                    code="EDITORIAL_AMBIGUOUS_FACT_VALUE",
+                    severity="info",
+                    message=(
+                        f"Key fact '{fact.label}' uses the ambiguous standalone value "
+                        f"'{fact.value}'; make the value self-contained where evidence allows."
+                    ),
+                )
+            )
+
+    return flags
+
+
 def _plain_english_flags(
     announcement: AnnouncementInput,
     note: AnalystNote,
@@ -101,6 +245,8 @@ def _plain_english_flags(
             )
         )
 
+    # Retain the previous broad safety ceilings as a backstop. The tighter Pass 4
+    # editorial checks above normally fire first.
     if len(note.headline.split()) > 20:
         flags.append(
             QualityFlag(
@@ -315,6 +461,7 @@ def assess_analysis_quality(
 
     flags.extend(_intelligence_flags(announcement, note, prior_context))
     flags.extend(_plain_english_flags(announcement, note))
+    flags.extend(_editorial_contract_flags(note))
 
     deduped: list[QualityFlag] = []
     seen: set[tuple[str, str]] = set()
