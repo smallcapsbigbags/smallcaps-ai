@@ -70,6 +70,7 @@ jobs:
           out = Path('/tmp/launch-screenshots')
           base = 'http://127.0.0.1:8501'
           feed_search_placeholder = 'Ticker, company or announcement'
+          feed_filter_label = 'Date & filters · 21 Aug 2026'
 
           def wait_for_feed(page):
               page.get_by_role('heading', name='AIM Intelligence', exact=True).wait_for(
@@ -80,9 +81,7 @@ jobs:
                   'Administration imminent; no shareholder return expected',
                   exact=True,
               ).wait_for(timeout=30000)
-              page.get_by_text('Date & filters · 21 Aug 2026', exact=True).wait_for(
-                  timeout=30000
-              )
+              page.get_by_text(feed_filter_label, exact=True).wait_for(timeout=30000)
               page.get_by_role('button', name='Read analysis →').first.wait_for(
                   timeout=30000
               )
@@ -90,6 +89,9 @@ jobs:
 
           def wait_for_feed_shell_gone(page):
               page.get_by_placeholder(feed_search_placeholder).wait_for(
+                  state='detached', timeout=30000
+              )
+              page.get_by_text(feed_filter_label, exact=True).wait_for(
                   state='detached', timeout=30000
               )
 
@@ -211,8 +213,9 @@ jobs:
               note_top = page.get_by_role('button', name='← Feed', exact=True)
               note_top.wait_for(timeout=30000)
               assert_page_at_top(page, note_top)
-              page.mouse.move(10, 10)
-              page.wait_for_timeout(250)
+              page.mouse.move(1400, 950)
+              page.keyboard.press('Escape')
+              page.wait_for_timeout(900)
               page.screenshot(path=out / '03-note-desktop.png', full_page=True)
               page.get_by_role('button', name='Company', exact=True).click()
               company_heading = page.get_by_text('Company Intelligence', exact=True)
@@ -221,8 +224,9 @@ jobs:
               company_top = page.get_by_role('button', name='← Feed', exact=True)
               company_top.wait_for(timeout=30000)
               assert_page_at_top(page, company_top)
-              page.mouse.move(10, 10)
-              page.wait_for_timeout(250)
+              page.mouse.move(1400, 950)
+              page.keyboard.press('Escape')
+              page.wait_for_timeout(900)
               page.screenshot(path=out / '04-company-desktop.png', full_page=True)
               desktop.close()
 
@@ -246,12 +250,18 @@ jobs:
               page.screenshot(path=out / '05-feed-mobile.png', full_page=True)
 
               primary = page.get_by_role('button', name='Read analysis →').first
-              primary.scroll_into_view_if_needed()
-              page.wait_for_timeout(200)
+              page.wait_for_timeout(900)
+              primary.evaluate('(el) => el.scrollIntoView({block: "center"})')
+              page.wait_for_timeout(250)
               primary_box = primary.bounding_box()
-              if primary_box is None or primary_box['height'] < 43.5:
+              if (
+                  primary_box is None
+                  or primary_box['height'] < 43.5
+                  or primary_box['y'] < 0
+                  or primary_box['y'] + primary_box['height'] > 844
+              ):
                   raise AssertionError(
-                      f'Primary mobile action is smaller than 44px: {primary_box}'
+                      f'Primary mobile action is not a visible 44px target: {primary_box}'
                   )
               evidence_grid = page.locator('.sca-evidence-grid').first
               columns = evidence_grid.evaluate(
@@ -270,8 +280,9 @@ jobs:
               note_top = page.get_by_role('button', name='← Feed', exact=True)
               note_top.wait_for(timeout=30000)
               assert_page_at_top(page, note_top, max_y=220)
-              page.mouse.move(10, 10)
-              page.wait_for_timeout(250)
+              page.mouse.move(380, 830)
+              page.keyboard.press('Escape')
+              page.wait_for_timeout(900)
               page.screenshot(path=out / '06-note-mobile.png', full_page=True)
 
               responsive_table = page.locator('table.sca-table-responsive').first
