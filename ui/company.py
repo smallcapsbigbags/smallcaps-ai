@@ -66,7 +66,6 @@ def _section_intro(key: str, title: str, description: str = "") -> str:
     )
     return (
         f'<section class="sca-company-section" data-company-section="{_escape(key)}">'
-        '<div class="sca-company-section-label">Company memory</div>'
         f'<div class="sca-company-section-title">{_escape(title)}</div>'
         f"{description_markup}</section>"
     )
@@ -148,7 +147,7 @@ def _guidance_markup(items: list[dict[str, Any]]) -> str:
         rows.append(
             '<div class="sca-company-guidance-row">'
             '<div class="sca-company-guidance-grid">'
-            '<div><div class="sca-company-cell-label">Guidance</div>'
+            '<div><div class="sca-company-cell-label">Metric</div>'
             f'<div class="sca-company-cell-value sca-company-cell-value-strong">{_escape(metric)}</div>'
             f"{source_markup}</div>"
             '<div><div class="sca-company-cell-label">Period</div>'
