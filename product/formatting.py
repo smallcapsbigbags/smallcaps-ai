@@ -169,8 +169,22 @@ def _feed_context(item: dict[str, Any]) -> str:
 
 
 def _has_offer_terms(context: str) -> bool:
+    """Detect disclosed takeover terms without mistaking an explicit absence for terms."""
+
+    scrubbed = context
+    absence_patterns = (
+        r"\bno\s+(?:disclosed\s+)?offer price\b",
+        r"\bno\s+price\s+(?:or\s+firm\s+offer\s+)?(?:has\s+been\s+)?disclosed\b",
+        r"\boffer price\s+(?:is|was|has been)?\s*not disclosed\b",
+        r"\bprice per share\s+(?:is|was|has been)?\s*not disclosed\b",
+        r"\bpence per share\s+(?:is|was|has been)?\s*not disclosed\b",
+        r"\bcash per share\s+(?:is|was|has been)?\s*not disclosed\b",
+    )
+    for pattern in absence_patterns:
+        scrubbed = re.sub(pattern, " ", scrubbed)
+
     if any(
-        phrase in context
+        phrase in scrubbed
         for phrase in (
             "offer price",
             "price per share",
@@ -182,7 +196,7 @@ def _has_offer_terms(context: str) -> bool:
     return bool(
         re.search(
             r"(?:£\s*\d[\d,.]*|\b\d+(?:\.\d+)?p)\s+(?:per share|a share)\b",
-            context,
+            scrubbed,
         )
     )
 
@@ -207,9 +221,27 @@ def feed_verdict(item: dict[str, Any]) -> str:
         or "going concern" in context
         or "funding shortfall" in context
     )
-    if has_administration and has_no_shareholder_return:
+    administration_appointed = bool(
+        re.search(
+            r"(?:administrators? (?:have been |has been )?appointed|"
+            r"appointed administrators?|appointment of administrators? (?:has )?(?:completed|taken effect))",
+            context,
+        )
+    )
+    administration_imminent = any(
+        phrase in context
+        for phrase in (
+            "notice of intention to appoint",
+            "intends to appoint administrators",
+            "intend to appoint administrators",
+            "will be appointed",
+        )
+    )
+    if administration_appointed and has_no_shareholder_return:
+        return "Administration underway; no shareholder return expected"
+    if administration_imminent and has_no_shareholder_return:
         return "Administration imminent; no shareholder return expected"
-    if has_administration and has_funding_shortfall:
+    if administration_imminent and has_funding_shortfall:
         return "Administration imminent after funding shortfall"
 
     possible_offer = (
