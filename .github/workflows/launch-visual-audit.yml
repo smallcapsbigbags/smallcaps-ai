@@ -81,18 +81,30 @@ jobs:
                   'Administration imminent; no shareholder return expected',
                   exact=True,
               ).wait_for(timeout=30000)
-              page.get_by_text(feed_filter_label, exact=True).wait_for(timeout=30000)
+              page.get_by_text(feed_filter_label, exact=True).first.wait_for(timeout=30000)
               page.get_by_role('button', name='Read analysis →').first.wait_for(
                   timeout=30000
               )
               page.wait_for_timeout(250)
 
           def wait_for_feed_shell_gone(page):
-              page.get_by_placeholder(feed_search_placeholder).wait_for(
-                  state='detached', timeout=30000
-              )
-              page.get_by_text(feed_filter_label, exact=True).wait_for(
-                  state='detached', timeout=30000
+              page.wait_for_function(
+                  """
+                  ([placeholder, label]) => {
+                    const visible = (el) => Boolean(
+                      el && (el.offsetWidth || el.offsetHeight || el.getClientRects().length)
+                    );
+                    const hasSearch = Array.from(document.querySelectorAll('input')).some(
+                      (el) => el.placeholder === placeholder && visible(el)
+                    );
+                    const hasFilter = Array.from(document.querySelectorAll('p')).some(
+                      (el) => (el.textContent || '').trim() === label && visible(el)
+                    );
+                    return !hasSearch && !hasFilter;
+                  }
+                  """,
+                  arg=[feed_search_placeholder, feed_filter_label],
+                  timeout=30000,
               )
 
           def unlock(page):
@@ -296,6 +308,13 @@ jobs:
               mobile.close()
               browser.close()
           PY
+
+      - name: Reject deprecated Streamlit component calls
+        run: |
+          if grep -Fq 'st.components.v1.html' /tmp/launch-screenshots/streamlit.log; then
+            cat /tmp/launch-screenshots/streamlit.log
+            exit 1
+          fi
 
       - name: Upload visual audit
         if: always()
