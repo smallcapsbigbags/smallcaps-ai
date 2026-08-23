@@ -4,7 +4,7 @@ FEED_CSS = """
 <style>
 .sca-feed-hero {
   max-width:760px;
-  margin:.15rem 0 1.15rem;
+  margin:.15rem 0 1rem;
 }
 .sca-feed-title {
   color:var(--sca-text);
@@ -21,19 +21,39 @@ FEED_CSS = """
   margin:0;
   max-width:650px;
 }
-.st-key-feed-date-control {
-  padding-top:.35rem;
-}
 .st-key-feed-controls {
-  margin-bottom:.6rem;
+  margin-bottom:.45rem;
 }
-.st-key-feed-controls [data-testid="stHorizontalBlock"] {
+.st-key-feed-controls input {
+  min-height:2.65rem;
+  border-radius:6px;
+}
+.st-key-feed-filter-panel {
+  margin:0 0 .15rem;
+}
+.st-key-feed-filter-panel details {
+  background:transparent;
+  border:1px solid var(--sca-border);
+  border-radius:6px;
+}
+.st-key-feed-filter-panel details > summary {
+  min-height:2.55rem;
+  padding:.55rem .75rem;
+}
+.st-key-feed-filter-panel details > summary p {
+  color:#4C565D;
+  font-size:.78rem;
+  font-weight:650;
+}
+.st-key-feed-filter-panel details > div {
+  padding:.15rem .75rem .75rem;
+}
+.st-key-feed-filter-panel [data-testid="stHorizontalBlock"] {
   gap:.65rem;
 }
-.st-key-feed-controls input,
-.st-key-feed-controls [data-baseweb="select"] > div,
-.st-key-feed-date-control input {
-  min-height:2.65rem;
+.st-key-feed-filter-panel input,
+.st-key-feed-filter-panel [data-baseweb="select"] > div {
+  min-height:2.55rem;
   border-radius:6px;
 }
 .sca-feed-summary {
@@ -44,7 +64,7 @@ FEED_CSS = """
   color:var(--sca-muted);
   font-size:.78rem;
   line-height:1.45;
-  padding:.85rem 0 1rem;
+  padding:.75rem 0 1rem;
 }
 .sca-feed-summary strong {
   color:var(--sca-text);
@@ -126,7 +146,7 @@ FEED_CSS = """
 .sca-evidence-value {
   color:var(--sca-text);
   font-size:.94rem;
-  font-weight:650;
+  font-weight:620;
   line-height:1.38;
   overflow-wrap:anywhere;
 }
@@ -249,13 +269,14 @@ FEED_CSS = """
   margin-top:.45rem;
 }
 @media(max-width:760px){
-  .sca-feed-hero{margin-top:.35rem;margin-bottom:1rem}
+  .sca-feed-hero{margin-top:.35rem;margin-bottom:.85rem}
   .sca-feed-title{font-size:2rem}
   .sca-feed-deck{font-size:.92rem}
-  .st-key-feed-date-control{padding-top:0}
-  .st-key-feed-controls [data-testid="stHorizontalBlock"]{display:block}
-  .st-key-feed-controls [data-testid="stColumn"]{width:100% !important;margin-bottom:.55rem}
-  .sca-feed-summary{padding:.4rem 0 .9rem}
+  .st-key-feed-controls{margin-bottom:.4rem}
+  .st-key-feed-filter-panel details > summary{min-height:2.65rem}
+  .st-key-feed-filter-panel [data-testid="stHorizontalBlock"]{display:block}
+  .st-key-feed-filter-panel [data-testid="stColumn"]{width:100% !important;margin-bottom:.55rem}
+  .sca-feed-summary{padding:.55rem 0 .85rem}
   .sca-feed-record{padding-top:1.2rem}
   .sca-feed-record-critical{padding-top:1.35rem}
   .sca-feed-record .sca-meta{align-items:flex-start}
