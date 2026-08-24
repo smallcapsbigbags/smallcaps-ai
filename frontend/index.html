@@ -11,7 +11,6 @@
   <link rel="stylesheet" href="/assets/company.css">
   <link rel="stylesheet" href="/assets/company-polish.css">
   <script src="/assets/research.js" defer></script>
-  <script src="/assets/feed-company.js" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#monitoring-sheet">Skip to the monitoring sheet</a>
@@ -21,7 +20,11 @@
       <span>smallcaps</span><strong>.ai</strong>
     </a>
     <div class="header-meta">
-      <span class="live-status"><i aria-hidden="true"></i>AIM MONITORING</span>
+      <span class="live-status">
+        <i aria-hidden="true"></i>
+        <span class="status-full">AIM MONITORING</span>
+        <span class="status-compact">LIVE</span>
+      </span>
       <form action="/logout" method="post">
         <button class="text-action" type="submit">Sign out</button>
       </form>
@@ -45,7 +48,7 @@
           <input id="search-filter" type="search" autocomplete="off" placeholder="Ticker, company or announcement">
         </label>
         <div class="market-day" aria-live="polite">
-          <span>LATEST MARKET DAY</span>
+          <span>MARKET DAY</span>
           <strong id="active-day">—</strong>
         </div>
       </div>
@@ -150,7 +153,7 @@
   <footer class="site-footer">
     <span>SMALLCAPS.AI</span>
     <p>Machine-scale monitoring. Human-style investment judgement.</p>
-    <a href="/legacy">Legacy research view ↗</a>
+    <span class="footer-status">PRIVATE BETA</span>
   </footer>
 </body>
 </html>
