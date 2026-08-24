@@ -1,0 +1,195 @@
+name: scbb-pass4-company-audit
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: scbb-pass4-company-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  company-research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DATABASE_URL: sqlite+pysqlite:///data/scbb-pass4-preview.db
+      PRIVATE_BETA_MODE: "false"
+      APP_BETA_PASSWORD: preview-access
+      APP_ADMIN_PASSWORD: preview-admin
+      MARKET_DATA_ENABLED: "true"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install application and browser dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install playwright==1.55.0
+          python -m playwright install --with-deps chromium
+
+      - name: Seed deterministic company research
+        run: |
+          rm -f data/scbb-pass4-preview.db
+          python -m jobs.seed_launch_preview
+          python -m jobs.seed_pass1_preview
+
+      - name: Start combined product
+        shell: bash
+        run: |
+          mkdir -p /tmp/scbb-pass4-audit
+          python -m uvicorn web_app:app --host 127.0.0.1 --port 8501 \
+            > /tmp/scbb-pass4-audit/web.log 2>&1 &
+          echo $! > /tmp/scbb-pass4-web.pid
+          for attempt in $(seq 1 90); do
+            if curl --fail --silent http://127.0.0.1:8501/api/v1/health >/dev/null \
+              && curl --fail --silent http://127.0.0.1:8501/api/v1/company/SPR >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/scbb-pass4-audit/web.log
+          exit 1
+
+      - name: Capture and validate company research journey
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from playwright.sync_api import sync_playwright
+
+          out = Path('/tmp/scbb-pass4-audit')
+          base = 'http://127.0.0.1:8501'
+
+          def no_overflow(page):
+              dims = page.evaluate(
+                  """
+                  () => ({
+                    client: document.documentElement.clientWidth,
+                    scroll: document.documentElement.scrollWidth,
+                    body: document.body.scrollWidth,
+                  })
+                  """
+              )
+              if dims['scroll'] > dims['client'] + 2 or dims['body'] > dims['client'] + 2:
+                  raise AssertionError(f'Document clips horizontally: {dims}')
+
+          def wait_company(page, ticker):
+              page.get_by_role('heading', name=f'{ticker}.').wait_for(timeout=30000)
+              page.locator('[data-company-section="current-view"]').wait_for(timeout=30000)
+              page.wait_for_timeout(400)
+
+          def assert_springfield(page):
+              wait_company(page, 'SPR')
+              page.get_by_text('Springfield Properties plc', exact=True).wait_for(timeout=30000)
+              page.get_by_text('Meaningful buyback authority could retire about 10% of shares', exact=True).wait_for(timeout=30000)
+              for section in ('GUIDANCE', 'METRICS THAT MATTER', 'MANAGEMENT PROMISES', 'WHAT REMAINS UNCLEAR', 'RNS HISTORY'):
+                  page.get_by_text(section, exact=True).first.wait_for(timeout=30000)
+              if page.locator('[data-company-section="metrics"] .company-data-row').count() < 3:
+                  raise AssertionError('Springfield should expose at least three decision-useful metrics')
+              if page.locator('.company-history-row').count() != 2:
+                  raise AssertionError('Springfield should show both preview announcements')
+              page.get_by_text('VIEW FULL ANALYST NOTE', exact=True).click()
+              page.get_by_text('RNS SUMMARY', exact=True).first.wait_for(timeout=30000)
+              page.get_by_text('KEY NUMBERS', exact=True).first.wait_for(timeout=30000)
+              first_history = page.locator('.company-history-row').first
+              first_history.get_by_role('button', name='READ ANALYSIS →', exact=True).click()
+              first_history.get_by_text('WHAT CHANGED', exact=True).first.wait_for(timeout=30000)
+              page.get_by_role('link', name='ORIGINAL RNS ↗', exact=True).first.wait_for(timeout=30000)
+
+          def assert_trellus(page):
+              wait_company(page, 'TRLS')
+              page.get_by_text('Administration imminent; no shareholder return expected', exact=True).wait_for(timeout=30000)
+              page.get_by_text('RED', exact=True).first.wait_for(timeout=30000)
+              page.get_by_text('5/5 · CRITICAL', exact=True).first.wait_for(timeout=30000)
+              for key in ('guidance', 'metrics', 'promises'):
+                  if page.locator(f'[data-company-section="{key}"]').count():
+                      raise AssertionError(f'Sparse Trellus research invented a {key} section')
+              if page.locator('.company-history-row').count() != 1:
+                  raise AssertionError('Trellus should have one preview history row')
+
+          with sync_playwright() as p:
+              browser = p.chromium.launch()
+
+              desktop = browser.new_context(viewport={'width': 1440, 'height': 1000})
+              page = desktop.new_page()
+              page.goto(base, wait_until='domcontentloaded')
+              page.get_by_role('heading', name='AIM RNS feed.').wait_for(timeout=30000)
+              company_link = page.locator('a.company-research-link[href="/company/SPR"]').first
+              company_link.wait_for(timeout=30000)
+              company_link.click()
+              assert_springfield(page)
+              no_overflow(page)
+              computed = page.evaluate(
+                  """
+                  () => ({
+                    background: getComputedStyle(document.body).backgroundColor,
+                    headingSize: parseFloat(getComputedStyle(document.querySelector('.company-hero h1')).fontSize),
+                    accent: getComputedStyle(document.querySelector('.company-hero h1 em')).color,
+                  })
+                  """
+              )
+              if computed['background'] != 'rgb(3, 8, 13)':
+                  raise AssertionError(f'Company page lost SCBB background: {computed}')
+              if computed['headingSize'] < 80:
+                  raise AssertionError(f'Company ticker hierarchy is too small: {computed}')
+              if computed['accent'] != 'rgb(70, 215, 255)':
+                  raise AssertionError(f'Company page lost cyan accent: {computed}')
+              page.screenshot(path=out / '01-company-springfield-desktop.png', full_page=True)
+              desktop.close()
+
+              sparse = browser.new_context(viewport={'width': 1280, 'height': 900})
+              page = sparse.new_page()
+              page.goto(f'{base}/company/TRLS', wait_until='domcontentloaded')
+              assert_trellus(page)
+              no_overflow(page)
+              page.screenshot(path=out / '02-company-trellus-laptop.png', full_page=True)
+              sparse.close()
+
+              mobile = browser.new_context(
+                  viewport={'width': 390, 'height': 844},
+                  device_scale_factor=1,
+                  is_mobile=True,
+              )
+              page = mobile.new_page()
+              page.goto(f'{base}/company/SPR', wait_until='domcontentloaded')
+              assert_springfield(page)
+              no_overflow(page)
+              row = page.locator('.company-data-row').first
+              columns = row.evaluate('(el) => getComputedStyle(el).gridTemplateColumns')
+              if ' ' in columns.strip():
+                  raise AssertionError(f'Mobile company table did not collapse to one column: {columns}')
+              action = page.get_by_role('button', name='READ ANALYSIS →', exact=True).first
+              box = action.bounding_box()
+              if box is None or box['height'] < 35.5:
+                  raise AssertionError(f'Mobile research action is too small: {box}')
+              page.screenshot(path=out / '03-company-springfield-mobile.png', full_page=True)
+              mobile.close()
+
+              browser.close()
+          PY
+
+      - name: Reject runtime and frontend failures
+        run: |
+          if grep -En 'Traceback \(most recent call last\)|Uncaught app exception|company-api-error|monitoring-api-error' /tmp/scbb-pass4-audit/web.log; then
+            cat /tmp/scbb-pass4-audit/web.log
+            exit 1
+          fi
+
+      - name: Upload Pass 4 company audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smallcaps-scbb-pass4-company-audit
+          path: /tmp/scbb-pass4-audit
+          if-no-files-found: error
+          retention-days: 90
