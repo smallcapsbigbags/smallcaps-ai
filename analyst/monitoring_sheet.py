@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 from typing import Literal
 
 from analyst.models import AnalystNote, KeyFact, QualityFlag, QualityReport
@@ -69,18 +70,26 @@ def _word_count(text: str) -> int:
     return len(re.findall(r"\b[\w£$€%.-]+\b", text))
 
 
+def monitoring_signal_from_colour(colour: str) -> MonitoringSignal:
+    """Translate a stored impact colour into the monitoring-sheet signal."""
+
+    return _SIGNAL_LABELS.get(str(colour or "").strip().lower(), "NO COLOUR")
+
+
 def monitoring_signal(note: AnalystNote) -> MonitoringSignal:
     """Translate the internal direction token into the monitoring-sheet label."""
 
-    return _SIGNAL_LABELS.get(note.impact_colour, "NO COLOUR")
+    return monitoring_signal_from_colour(note.impact_colour)
 
 
-def monitoring_outlook(note: AnalystNote) -> MonitoringOutlook:
-    """Derive the compact public outlook state from genuine guidance events."""
+def monitoring_outlook_from_statuses(
+    statuses: Iterable[str],
+) -> MonitoringOutlook:
+    """Derive Outlook from genuine structured guidance states only."""
 
-    statuses = {event.status for event in note.guidance_events}
-    favourable = bool(statuses & {"upgraded"})
-    adverse = bool(statuses & {"downgraded", "withdrawn", "missed"})
+    normalised = {str(status or "").strip().lower() for status in statuses}
+    favourable = bool(normalised & {"upgraded"})
+    adverse = bool(normalised & {"downgraded", "withdrawn", "missed"})
 
     if favourable and adverse:
         return "MIXED"
@@ -88,14 +97,22 @@ def monitoring_outlook(note: AnalystNote) -> MonitoringOutlook:
         return "DOWNGRADED"
     if favourable:
         return "UPGRADED"
-    if statuses & {"issued"}:
+    if normalised & {"issued"}:
         return "NEW GUIDANCE"
-    if statuses & {"maintained", "reiterated"}:
+    if normalised & {"maintained", "reiterated"}:
         return "MAINTAINED"
     return "N/A"
 
 
-def _balance_sheet_rank(fact: KeyFact) -> tuple[int, int, int]:
+def monitoring_outlook(note: AnalystNote) -> MonitoringOutlook:
+    """Derive the compact public outlook state from genuine guidance events."""
+
+    return monitoring_outlook_from_statuses(event.status for event in note.guidance_events)
+
+
+def balance_sheet_fact_sort_key(fact: KeyFact) -> tuple[int, int, int]:
+    """Rank current and carried balance-sheet facts consistently across products."""
+
     text = f"{fact.metric} {fact.label}".strip().lower()
     priority = min(
         (
@@ -120,6 +137,12 @@ def _balance_sheet_rank(fact: KeyFact) -> tuple[int, int, int]:
     return (information_rank, priority, basis_rank)
 
 
+def _balance_sheet_rank(fact: KeyFact) -> tuple[int, int, int]:
+    """Backward-compatible private alias retained for existing imports/tests."""
+
+    return balance_sheet_fact_sort_key(fact)
+
+
 def is_balance_sheet_fact(fact: KeyFact) -> bool:
     text = f"{fact.metric} {fact.label}".strip().lower()
     return any(term in text for term in _BALANCE_SHEET_TERMS)
@@ -129,7 +152,7 @@ def monitoring_balance_sheet_fact(note: AnalystNote) -> KeyFact | None:
     """Return the most useful balance-sheet fact disclosed in this Analyst Note."""
 
     candidates = [fact for fact in note.key_facts if is_balance_sheet_fact(fact)]
-    return min(candidates, key=_balance_sheet_rank) if candidates else None
+    return min(candidates, key=balance_sheet_fact_sort_key) if candidates else None
 
 
 def balance_sheet_is_carried(fact: KeyFact) -> bool:
