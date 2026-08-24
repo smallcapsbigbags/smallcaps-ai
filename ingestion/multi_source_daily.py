@@ -50,15 +50,19 @@ def _announcement_key(*, ticker: str, published_at: datetime, headline: str) -> 
 
 
 class MultiSourceDailyAIMSource(InvestegateDailyAIMSource):
-    """AIM discovery from Investegate + LSE.co.uk, then authoritative evidence search.
+    """AIM discovery from Investegate with LSE.co.uk cross-check/fallback.
 
-    Investegate remains the preferred catalogue because it supplies company names.
-    LSE.co.uk is independently parsed and merged as a completeness cross-check and
-    automatic fallback. Exact announcements are then researched with source priority
-    given to issuer IR, FCA NSM and official LSE/RNS material.
+    Investegate remains the normal discovery authority because it supplies the
+    established AIM catalogue used by Smallcaps.ai. LSE.co.uk is independently
+    parsed to corroborate matching rows and becomes the automatic catalogue
+    fallback only when Investegate is unavailable or empty. Unmatched LSE rows
+    are deliberately held out while Investegate is healthy because the live LSE
+    page can contain a broader instrument universe than the desired AIM-company
+    feed. Exact announcements are then researched with source priority given to
+    issuer IR, FCA NSM and official LSE/RNS material.
     """
 
-    name = "Investegate + LSE.co.uk AIM catalogues · authoritative evidence retrieval"
+    name = "Investegate AIM catalogue · LSE.co.uk cross-check/fallback · authoritative evidence retrieval"
     lse_base_url = "https://www.lse.co.uk"
     lse_aim_url = "https://www.lse.co.uk/rns/aim.html"
     fca_nsm_url = "https://data.fca.org.uk/#/nsm/nationalstoragemechanism"
@@ -287,7 +291,6 @@ class MultiSourceDailyAIMSource(InvestegateDailyAIMSource):
             )
         except Exception as exc:
             investegate_error = f"{type(exc).__name__}: {exc}"
-            # The base source resets its evidence caches before discovery.
             self._evidence, self._urls, self._notes = {}, {}, {}
 
         lse_items: list[CatalogueAnnouncement] = []
@@ -302,57 +305,73 @@ class MultiSourceDailyAIMSource(InvestegateDailyAIMSource):
                 "All AIM catalogue sources failed. "
                 f"Investegate={investegate_error}; LSE.co.uk={lse_error}"
             )
-        if investegate_error:
-            warnings.append(
-                "Investegate AIM discovery unavailable; LSE.co.uk RNS catalogue "
-                "is being used as the fallback. " + investegate_error[:350]
-            )
         if lse_error:
             warnings.append(
                 "LSE.co.uk AIM cross-check unavailable; Investegate discovery "
                 "remains active. " + lse_error[:350]
             )
 
-        merged: dict[str, CatalogueAnnouncement] = {
-            self._catalogue_key(item): item for item in investegate_items
-        }
-        investegate_keys = set(merged)
-        lse_keys: set[str] = set()
+        # Normal path: Investegate is the discovery authority. LSE augments matching
+        # rows with a second catalogue URL, but unmatched LSE rows are held out rather
+        # than automatically widening the AIM universe.
+        if investegate_items:
+            merged: dict[str, CatalogueAnnouncement] = {
+                self._catalogue_key(item): item for item in investegate_items
+            }
+            investegate_keys = set(merged)
+            lse_keys = {self._catalogue_key(item) for item in lse_items}
+            lse_by_key = {self._catalogue_key(item): item for item in lse_items}
 
-        for item in lse_items:
-            key = self._catalogue_key(item)
-            lse_keys.add(key)
-            if key in merged:
+            for key in investegate_keys & lse_keys:
                 primary = merged[key]
+                lse_item = lse_by_key[key]
                 existing_urls = self._urls.get(primary.source_id, [])
                 self._urls[primary.source_id] = list(
-                    dict.fromkeys([*existing_urls, item.source_url])
+                    dict.fromkeys([*existing_urls, lse_item.source_url])
                 )
-                continue
-            merged[key] = item
-            self._urls[item.source_id] = [item.source_url] if item.source_url else []
 
-        lse_only = len(lse_keys - investegate_keys)
-        investegate_only = len(investegate_keys - lse_keys)
-        if investegate_items and lse_items and (lse_only or investegate_only):
-            warnings.append(
-                "AIM catalogue cross-check differs: "
-                f"Investegate={len(investegate_items)}, "
-                f"LSE.co.uk RNS={len(lse_items)}, merged={len(merged)}, "
-                f"LSE-only={lse_only}, Investegate-only={investegate_only}. "
-                "The union is retained so a single catalogue omission does not drop an RNS."
-            )
-        if not investegate_items and not investegate_error and lse_items:
-            warnings.append(
-                "Investegate returned no rows for the target day; using LSE.co.uk RNS rows."
-            )
-        if not lse_items and not lse_error and investegate_items:
-            warnings.append(
-                "LSE.co.uk returned no RNS rows for the target day; using Investegate rows."
-            )
+            lse_only = len(lse_keys - investegate_keys)
+            investegate_only = len(investegate_keys - lse_keys)
+            if lse_items and (lse_only or investegate_only):
+                warnings.append(
+                    "AIM catalogue cross-check differs: "
+                    f"Investegate={len(investegate_items)}, "
+                    f"LSE.co.uk RNS={len(lse_items)}, "
+                    f"LSE-only held out={lse_only}, "
+                    f"Investegate-only={investegate_only}. "
+                    "Investegate remains the discovery authority while healthy."
+                )
+            elif not lse_items and not lse_error:
+                warnings.append(
+                    "LSE.co.uk returned no RNS rows for the target day; "
+                    "Investegate discovery remains active."
+                )
 
-        items = sorted(merged.values(), key=lambda item: item.published_at)
-        return self._reuse_existing_source_ids(items), warnings
+            items = sorted(merged.values(), key=lambda item: item.published_at)
+            return self._reuse_existing_source_ids(items), warnings
+
+        # Fallback path: Investegate either failed or returned no rows. In that case
+        # LSE.co.uk is allowed to supply the catalogue rather than leaving the feed
+        # blind. The subsequent evidence stage still verifies exact company/date/title.
+        if lse_items:
+            if investegate_error:
+                warnings.append(
+                    "Investegate AIM discovery unavailable; LSE.co.uk RNS catalogue "
+                    "is being used as the fallback. " + investegate_error[:350]
+                )
+            else:
+                warnings.append(
+                    "Investegate returned no rows for the target day; "
+                    "LSE.co.uk RNS catalogue is being used as the fallback."
+                )
+            for item in lse_items:
+                self._urls[item.source_id] = [item.source_url] if item.source_url else []
+            return self._reuse_existing_source_ids(lse_items), warnings
+
+        # Neither catalogue yielded rows, but at least one source returned normally.
+        if investegate_error:
+            warnings.append("Investegate discovery failed and LSE.co.uk returned no target-day RNS rows.")
+        return [], warnings
 
     def prepare_documents(
         self, announcements: list[CatalogueAnnouncement]
