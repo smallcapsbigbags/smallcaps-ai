@@ -90,7 +90,7 @@ jobs:
           )
 
           def wait_sheet(page):
-              page.get_by_role('heading', name='AIM RNS feed.').wait_for(timeout=30000)
+              page.get_by_role('heading', name='AIM RNS feed', exact=True).wait_for(timeout=30000)
               page.locator('article.monitor-row').first.wait_for(timeout=30000)
               page.wait_for_function(
                   "document.getElementById('feed-count').textContent.includes('announcements')",

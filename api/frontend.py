@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import html
 from functools import lru_cache
 from pathlib import Path
 from typing import Final
@@ -62,42 +63,69 @@ def _file(path: Path, *, media_type: str = "text/html") -> FileResponse:
     return FileResponse(path, media_type=media_type, headers=_security_headers())
 
 
-def _access_html(*, failed: bool = False) -> str:
+def _safe_next(value: object) -> str:
+    path = str(value or "/").strip()
+    if not path.startswith("/") or path.startswith("//"):
+        return "/"
+    return path
+
+
+def _access_html(*, failed: bool = False, next_path: str = "/") -> str:
     source = (_FRONTEND_ROOT / "access.html").read_text(encoding="utf-8")
     message = (
         '<p class="access-error" role="alert">That access code was not recognised.</p>'
         if failed
         else ""
     )
-    return source.replace("{{ACCESS_ERROR}}", message)
+    return (
+        source.replace("{{ACCESS_ERROR}}", message)
+        .replace("{{ACCESS_NEXT}}", html.escape(_safe_next(next_path), quote=True))
+    )
+
+
+def _authorised(request: Request, settings: Settings) -> bool:
+    return not settings.private_beta_mode or _valid_token(
+        request.cookies.get(_COOKIE_NAME, ""), settings.app_beta_password
+    )
 
 
 def create_frontend_routes() -> list[Route]:
-    """Serve the monitoring sheet and a server-validated private-beta entrance."""
+    """Serve the monitoring sheet, company research and private-beta entrance."""
 
     async def home(request: Request) -> Response:
         settings = Settings.from_env()
-        if settings.private_beta_mode and not _valid_token(
-            request.cookies.get(_COOKIE_NAME, ""), settings.app_beta_password
-        ):
-            return HTMLResponse(_access_html(), headers=_security_headers())
+        if not _authorised(request, settings):
+            return HTMLResponse(
+                _access_html(next_path=request.url.path),
+                headers=_security_headers(),
+            )
         return _file(_FRONTEND_ROOT / "index.html")
+
+    async def company(request: Request) -> Response:
+        settings = Settings.from_env()
+        if not _authorised(request, settings):
+            return HTMLResponse(
+                _access_html(next_path=request.url.path),
+                headers=_security_headers(),
+            )
+        return _file(_FRONTEND_ROOT / "company.html")
 
     async def access(request: Request) -> Response:
         settings = Settings.from_env()
-        if not settings.private_beta_mode:
-            return RedirectResponse("/", status_code=303)
         form = await request.form()
+        next_path = _safe_next(form.get("next"))
+        if not settings.private_beta_mode:
+            return RedirectResponse(next_path, status_code=303)
         supplied = str(form.get("access_code") or "")
         expected = settings.app_beta_password
         if not expected or not hmac.compare_digest(supplied, expected):
             return HTMLResponse(
-                _access_html(failed=True),
+                _access_html(failed=True, next_path=next_path),
                 status_code=401,
                 headers=_security_headers(),
             )
 
-        response = RedirectResponse("/", status_code=303)
+        response = RedirectResponse(next_path, status_code=303)
         response.set_cookie(
             _COOKIE_NAME,
             _token(expected),
@@ -126,6 +154,7 @@ def create_frontend_routes() -> list[Route]:
 
     return [
         Route("/", home, methods=["GET"]),
+        Route("/company/{ticker}", company, methods=["GET"]),
         Route("/access", access, methods=["POST"]),
         Route("/logout", logout, methods=["POST"]),
         Route("/favicon.svg", favicon, methods=["GET"]),

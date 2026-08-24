@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Company Intelligence from Smallcaps.ai.">
+  <meta name="theme-color" content="#03080d">
+  <title>Smallcaps.ai · Company research</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/research.css">
+  <link rel="stylesheet" href="/assets/company.css">
+  <link rel="stylesheet" href="/assets/company-polish.css">
+  <script src="/assets/company.js" defer></script>
+</head>
+<body class="company-body">
+  <a class="skip-link" href="#company-research">Skip to company research</a>
+
+  <header class="site-header">
+    <a class="wordmark" href="/" aria-label="Smallcaps.ai AIM RNS feed">
+      <span>smallcaps</span><strong>.ai</strong>
+    </a>
+    <div class="header-meta">
+      <span class="live-status"><i aria-hidden="true"></i>COMPANY RESEARCH</span>
+      <form action="/logout" method="post">
+        <button class="text-action" type="submit">Sign out</button>
+      </form>
+    </div>
+  </header>
+
+  <main class="company-main" id="company-research">
+    <nav class="company-back" aria-label="Company research navigation">
+      <a href="/">← AIM RNS FEED</a>
+    </nav>
+
+    <section class="company-hero" aria-labelledby="company-title">
+      <p class="eyebrow">COMPANY MONITORING SHEET</p>
+      <h1 id="company-title"><span id="company-ticker">—</span><em aria-hidden="true">.</em></h1>
+      <div class="company-identity">
+        <strong id="company-name">Loading company research…</strong>
+        <span id="company-market">AIM</span>
+      </div>
+      <p id="company-coverage" class="company-coverage" aria-live="polite">Preparing Company Intelligence…</p>
+    </section>
+
+    <div id="company-content" class="company-content" aria-live="polite">
+      <div class="company-loading" role="status">
+        <span></span><span></span><span></span>
+      </div>
+    </div>
+
+    <noscript>
+      <p class="noscript-message">JavaScript is required to load live Company Intelligence.</p>
+    </noscript>
+  </main>
+
+  <footer class="site-footer">
+    <span>SMALLCAPS.AI</span>
+    <p>Machine-scale monitoring. Human-style investment judgement.</p>
+    <a href="/">AIM RNS feed ↗</a>
+  </footer>
+</body>
+</html>

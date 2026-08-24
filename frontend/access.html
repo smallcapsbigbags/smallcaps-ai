@@ -27,6 +27,7 @@
       <div class="access-rule"></div>
       <p class="access-label">PRIVATE BETA ACCESS</p>
       <form action="/access" method="post">
+        <input type="hidden" name="next" value="{{ACCESS_NEXT}}">
         <label for="access-code">ACCESS CODE</label>
         <input id="access-code" name="access_code" type="password" autocomplete="current-password" required autofocus>
         {{ACCESS_ERROR}}

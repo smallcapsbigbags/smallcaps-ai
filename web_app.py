@@ -9,19 +9,21 @@ from starlette.routing import Mount
 from starlette.staticfiles import StaticFiles
 from streamlit.web.server.starlette import App as StreamlitApp
 
+from api.company import create_company_routes
 from api.frontend import create_frontend_routes
 from api.monitoring import create_monitoring_routes
 
 ROOT = Path(__file__).resolve().parent
 
-# The exact SmallcapsBigBags-style monitoring sheet is now the public root. The
-# existing Streamlit product remains available under /legacy during migration, while
-# both surfaces and the versioned API continue to use the same PostgreSQL database.
+# The SmallcapsBigBags-style monitoring sheet and Company Intelligence are the
+# public product. The existing Streamlit implementation remains available under
+# /legacy during migration, while every surface uses the same PostgreSQL records.
 legacy_app = StreamlitApp("streamlit_app.py")
 app = Starlette(
     routes=[
         *create_frontend_routes(),
         *create_monitoring_routes(),
+        *create_company_routes(),
         Mount(
             "/assets",
             app=StaticFiles(directory=ROOT / "frontend" / "assets"),

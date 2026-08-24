@@ -1,0 +1,13 @@
+.skip-link {
+  position: absolute;
+}
+
+.company-history-grid > div > strong,
+.company-history-grid > div > small {
+  display: block;
+}
+
+.company-history-grid > div > strong + small,
+.company-history-grid .company-impact-dots + small {
+  margin-top: 6px;
+}

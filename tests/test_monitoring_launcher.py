@@ -9,6 +9,7 @@ def test_production_launcher_serves_frontend_api_and_legacy_without_a_fourth_ser
     assert "Starlette(" in source
     assert "create_frontend_routes()" in source
     assert "create_monitoring_routes()" in source
+    assert "create_company_routes()" in source
     assert 'Mount("/legacy"' in source
     assert 'StreamlitApp("streamlit_app.py")' in source
     assert 'Mount(\n            "/assets"' in source
@@ -35,6 +36,10 @@ def test_asgi_dependencies_are_directly_locked() -> None:
 
 def test_public_frontend_assets_exist_as_normal_html_css_and_javascript() -> None:
     assert Path("frontend/index.html").is_file()
+    assert Path("frontend/company.html").is_file()
     assert Path("frontend/access.html").is_file()
     assert Path("frontend/assets/research.css").is_file()
     assert Path("frontend/assets/research.js").is_file()
+    assert Path("frontend/assets/company.css").is_file()
+    assert Path("frontend/assets/company.js").is_file()
+    assert Path("frontend/assets/feed-company.js").is_file()
