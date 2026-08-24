@@ -69,9 +69,9 @@ def note(**updates) -> AnalystNote:
     return AnalystNote(**values)
 
 
-def test_pass4_version_is_code_locked() -> None:
-    assert ANALYSIS_VERSION == "aim-intelligence-analyst-3.2"
-    assert DEFAULT_PROMPT_VERSION == "analyst-engine-3.2-editorial-contract"
+def test_current_analyst_version_is_code_locked() -> None:
+    assert ANALYSIS_VERSION == "aim-intelligence-analyst-3.3"
+    assert DEFAULT_PROMPT_VERSION == "analyst-engine-3.3-scbb-monitoring-sheet"
 
 
 def test_editorial_contract_is_loaded_into_initial_and_review_prompts() -> None:
@@ -92,7 +92,7 @@ def test_editorial_contract_locks_required_public_outputs() -> None:
         "first three key facts",
         "normally 1–4 words",
         "one concise sentence, normally no more than about 35 words",
-        "first sentence must state the investment-case consequence plainly",
+        "Maximum 50 words",
         "Administration imminent; no shareholder return expected",
         "Formal takeover interest emerges; terms remain unknown",
     ):
@@ -104,7 +104,8 @@ def test_pipeline_applies_canonical_taxonomy_before_quality() -> None:
     taxonomy_pos = source.index("canonical_rns_type")
     guardrail_pos = source.index("guarded_note = apply_analysis_guardrails")
     quality_pos = source.index("quality = assess_analysis_quality")
-    assert taxonomy_pos < guardrail_pos < quality_pos
+    monitoring_pos = source.index("quality = merge_monitoring_quality")
+    assert taxonomy_pos < guardrail_pos < quality_pos < monitoring_pos
 
 
 def test_good_pass4_note_remains_publishable() -> None:
