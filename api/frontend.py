@@ -53,6 +53,8 @@ def _security_headers(*, cache: str = "no-store") -> dict[str, str]:
             "form-action 'self'; "
             "frame-ancestors 'none'"
         ),
+        "Cross-Origin-Opener-Policy": "same-origin",
+        "Permissions-Policy": "camera=(), geolocation=(), microphone=()",
         "Referrer-Policy": "strict-origin-when-cross-origin",
         "X-Content-Type-Options": "nosniff",
         "X-Frame-Options": "DENY",
@@ -65,9 +67,18 @@ def _file(path: Path, *, media_type: str = "text/html") -> FileResponse:
 
 def _safe_next(value: object) -> str:
     path = str(value or "/").strip()
-    if not path.startswith("/") or path.startswith("//"):
+    if (
+        not path.startswith("/")
+        or path.startswith("//")
+        or any(character in path for character in ("\r", "\n", "\x00"))
+    ):
         return "/"
     return path
+
+
+def _request_target(request: Request) -> str:
+    query = request.url.query
+    return _safe_next(f"{request.url.path}?{query}" if query else request.url.path)
 
 
 def _access_html(*, failed: bool = False, next_path: str = "/") -> str:
@@ -96,7 +107,7 @@ def create_frontend_routes() -> list[Route]:
         settings = Settings.from_env()
         if not _authorised(request, settings):
             return HTMLResponse(
-                _access_html(next_path=request.url.path),
+                _access_html(next_path=_request_target(request)),
                 headers=_security_headers(),
             )
         return _file(_FRONTEND_ROOT / "index.html")
@@ -105,7 +116,7 @@ def create_frontend_routes() -> list[Route]:
         settings = Settings.from_env()
         if not _authorised(request, settings):
             return HTMLResponse(
-                _access_html(next_path=request.url.path),
+                _access_html(next_path=_request_target(request)),
                 headers=_security_headers(),
             )
         return _file(_FRONTEND_ROOT / "company.html")
