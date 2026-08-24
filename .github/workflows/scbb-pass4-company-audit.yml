@@ -84,14 +84,14 @@ jobs:
                   raise AssertionError(f'Document clips horizontally: {dims}')
 
           def wait_company(page, ticker):
-              page.get_by_role('heading', name=f'{ticker}.').wait_for(timeout=30000)
+              page.get_by_role('heading', name=ticker, exact=True).wait_for(timeout=30000)
               page.locator('[data-company-section="current-view"]').wait_for(timeout=30000)
               page.wait_for_timeout(400)
 
           def assert_springfield(page):
               wait_company(page, 'SPR')
-              page.get_by_text('Springfield Properties plc', exact=True).wait_for(timeout=30000)
-              page.get_by_text('Meaningful buyback authority could retire about 10% of shares', exact=True).wait_for(timeout=30000)
+              page.get_by_text('Springfield Properties plc', exact=True).first.wait_for(timeout=30000)
+              page.get_by_text('Meaningful buyback authority could retire about 10% of shares', exact=True).first.wait_for(timeout=30000)
               for section in ('GUIDANCE', 'METRICS THAT MATTER', 'MANAGEMENT PROMISES', 'WHAT REMAINS UNCLEAR', 'RNS HISTORY'):
                   page.get_by_text(section, exact=True).first.wait_for(timeout=30000)
               if page.locator('[data-company-section="metrics"] .company-data-row').count() < 3:
@@ -108,7 +108,7 @@ jobs:
 
           def assert_trellus(page):
               wait_company(page, 'TRLS')
-              page.get_by_text('Administration imminent; no shareholder return expected', exact=True).wait_for(timeout=30000)
+              page.get_by_text('Administration imminent; no shareholder return expected', exact=True).first.wait_for(timeout=30000)
               page.get_by_text('RED', exact=True).first.wait_for(timeout=30000)
               page.get_by_text('5/5 · CRITICAL', exact=True).first.wait_for(timeout=30000)
               for key in ('guidance', 'metrics', 'promises'):
@@ -123,7 +123,7 @@ jobs:
               desktop = browser.new_context(viewport={'width': 1440, 'height': 1000})
               page = desktop.new_page()
               page.goto(base, wait_until='domcontentloaded')
-              page.get_by_role('heading', name='AIM RNS feed.').wait_for(timeout=30000)
+              page.get_by_role('heading', name='AIM RNS feed', exact=True).wait_for(timeout=30000)
               company_link = page.locator('a.company-research-link[href="/company/SPR"]').first
               company_link.wait_for(timeout=30000)
               company_link.click()
