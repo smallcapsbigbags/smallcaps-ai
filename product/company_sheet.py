@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from analyst.monitoring_sheet import MonitoringSignal
 from product.monitoring import (
@@ -131,3 +131,27 @@ class CompanySheet(CompanySheetModel):
     disclosure_gaps: list[CompanyDisclosureGap] = Field(default_factory=list)
     history: list[CompanyTimelineItem] = Field(default_factory=list)
     has_more_history: bool = False
+
+    @model_validator(mode="after")
+    def prefer_dated_carried_balance_context(self) -> "CompanySheet":
+        """Avoid presenting a generic accounting period as a disclosure date.
+
+        Some historic facts use ``Point in time`` as their period family.  On the
+        company page a carried balance-sheet figure is clearer when it falls back
+        to the source RNS publication date instead of displaying that generic label.
+        The underlying monitoring record and fact provenance remain unchanged.
+        """
+
+        current = self.current_position
+        if current is None:
+            return self
+        balance = current.balance_sheet
+        generic_periods = {"point in time", "instant", "as at"}
+        if (
+            balance.status == "carried"
+            and not balance.as_of_date.strip()
+            and balance.period.strip().lower() in generic_periods
+            and balance.source_published_at.strip()
+        ):
+            balance.period = ""
+        return self
