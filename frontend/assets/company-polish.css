@@ -2,6 +2,65 @@
   position: absolute;
 }
 
+.status-compact {
+  display: none;
+}
+
+.footer-status {
+  justify-self: end;
+  color: var(--muted-strong);
+}
+
+.expanded-top-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 18px;
+  margin-left: auto;
+}
+
+.company-inline-link {
+  margin-left: 0;
+}
+
+.monitor-row.journey-target {
+  box-shadow: inset 0 0 0 1px var(--cyan);
+}
+
+.monitor-row.journey-target::before {
+  background: var(--cyan);
+}
+
+.empty-state-action {
+  display: inline-flex;
+  align-items: center;
+  min-height: 42px;
+  margin-top: 20px;
+  border: 1px solid var(--line-strong);
+  padding: 0 14px;
+  color: var(--text-soft);
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: .1em;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.empty-state-action:hover,
+.empty-state-action:focus-visible {
+  border-color: var(--cyan);
+  color: var(--cyan);
+}
+
+body[data-market-day-mode="requested"] .market-day {
+  box-shadow: inset 0 2px 0 rgba(70, 215, 255, .62);
+}
+
+.company-feed-link {
+  border-color: rgba(70, 215, 255, .55);
+  color: var(--cyan-soft);
+}
+
 .company-history-grid > div > strong,
 .company-history-grid > div > small {
   display: block;
@@ -10,4 +69,77 @@
 .company-history-grid > div > strong + small,
 .company-history-grid .company-impact-dots + small {
   margin-top: 6px;
+}
+
+.text-action {
+  min-height: 38px;
+}
+
+@media (max-width: 900px) {
+  .text-action {
+    display: inline-flex;
+    min-height: 40px;
+    padding: 0 2px;
+    font-size: 8px;
+  }
+
+  .expanded-top-actions {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 560px) {
+  .site-header {
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+
+  .header-meta {
+    gap: 10px;
+  }
+
+  .status-full {
+    display: none;
+  }
+
+  .status-compact {
+    display: inline;
+  }
+
+  .live-status,
+  .text-action {
+    font-size: 8px;
+    letter-spacing: .1em;
+  }
+
+  .live-status {
+    gap: 6px;
+  }
+
+  .live-status i {
+    width: 6px;
+    height: 6px;
+  }
+
+  .expanded-top-actions {
+    gap: 14px;
+  }
+
+  .company-inline-link,
+  .source-link {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .company-feed-link {
+    min-height: 44px;
+  }
+
+  .footer-status {
+    justify-self: start;
+  }
 }
