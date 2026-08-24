@@ -4,6 +4,7 @@
   const PAGE_SIZE = 50;
   const API_LIMIT = 250;
   const LONDON = "Europe/London";
+  const MONITORING_SCHEMA = "scbb-monitoring-v1";
   const IMPACT_NAMES = {
     1: "ROUTINE",
     2: "MINOR",
@@ -19,6 +20,9 @@
     materialOnly: false,
     groupByCompany: false,
     activeDate: "",
+    requestedDate: "",
+    journeyOpen: "",
+    pendingReveal: false,
     detailCache: new Map(),
     expanded: new Set(),
   };
@@ -30,10 +34,24 @@
   async function initialise() {
     cacheControls();
     bindControls();
+
     try {
-      const result = await loadLatestMarketDay();
+      const request = readJourneyRequest();
+      state.requestedDate = request.date;
+      state.journeyOpen = request.open;
+      state.pendingReveal = Boolean(request.open);
+
+      const result = request.date
+        ? await loadMarketDay(request.date)
+        : await loadLatestMarketDay();
       state.rows = result.items;
       state.activeDate = result.date;
+      document.body.dataset.marketDayMode = request.date ? "requested" : "latest";
+
+      if (state.journeyOpen && state.rows.some((row) => row.source_id === state.journeyOpen)) {
+        state.expanded.add(state.journeyOpen);
+      }
+
       populateFilterOptions();
       applyFilters();
       controls.activeDay.textContent = formatLongDate(result.date);
@@ -64,8 +82,10 @@
   function bindControls() {
     const reapply = () => {
       state.page = 0;
+      clearJourneyOpen();
       applyFilters();
     };
+
     controls.search.addEventListener("input", reapply);
     controls.company.addEventListener("change", reapply);
     controls.type.addEventListener("change", reapply);
@@ -81,6 +101,7 @@
       state.materialOnly = !state.materialOnly;
       controls.material.setAttribute("aria-pressed", String(state.materialOnly));
       state.page = 0;
+      clearJourneyOpen();
       applyFilters();
     });
 
@@ -88,6 +109,7 @@
       state.groupByCompany = !state.groupByCompany;
       controls.group.setAttribute("aria-pressed", String(state.groupByCompany));
       state.page = 0;
+      clearJourneyOpen();
       applyFilters();
     });
 
@@ -103,6 +125,7 @@
       controls.material.setAttribute("aria-pressed", "false");
       controls.group.setAttribute("aria-pressed", "false");
       state.page = 0;
+      clearJourneyOpen();
       applyFilters();
     });
 
@@ -124,6 +147,24 @@
     });
   }
 
+  function readJourneyRequest() {
+    const params = new URLSearchParams(window.location.search);
+    const requestedDate = clean(params.get("date"));
+    const requestedOpen = clean(params.get("open")).slice(0, 180);
+    if (requestedDate && !validIsoDate(requestedDate)) {
+      throw new Error("The requested market day must use YYYY-MM-DD.");
+    }
+    return { date: requestedDate, open: requestedOpen };
+  }
+
+  async function loadMarketDay(date) {
+    const payload = await fetchPage({ date });
+    return {
+      date,
+      items: Array.isArray(payload.items) ? payload.items : [],
+    };
+  }
+
   async function loadLatestMarketDay() {
     const today = londonDateKey(new Date());
     const todayPayload = await fetchPage({ date: today });
@@ -131,7 +172,7 @@
       return { date: today, items: todayPayload.items };
     }
 
-    const from = addDays(today, -14);
+    const from = addDays(today, -31);
     const recent = await fetchPage({ date_from: from, date_to: today });
     const items = Array.isArray(recent.items) ? recent.items : [];
     if (!items.length) {
@@ -162,7 +203,7 @@
       const message = payload?.error?.message || "Monitoring data is unavailable.";
       throw new Error(message);
     }
-    if (payload.schema_version !== "scbb-monitoring-v1") {
+    if (payload.schema_version !== MONITORING_SCHEMA) {
       throw new Error("The monitoring-sheet data contract is incompatible.");
     }
     return payload;
@@ -225,10 +266,22 @@
     const sort = state.groupByCompany ? "company" : controls.sort.value;
     rows = [...rows].sort((a, b) => compareRows(a, b, sort));
     state.filtered = rows;
+
+    if (state.journeyOpen) {
+      const requestedIndex = rows.findIndex((row) => row.source_id === state.journeyOpen);
+      if (requestedIndex >= 0) {
+        state.page = Math.floor(requestedIndex / PAGE_SIZE);
+      }
+    }
+
     const maxPage = Math.max(0, Math.ceil(rows.length / PAGE_SIZE) - 1);
     state.page = Math.min(state.page, maxPage);
     renderRows();
     updateSummary();
+
+    if (state.pendingReveal) {
+      window.requestAnimationFrame(revealJourneyRow);
+    }
   }
 
   function compareRows(a, b, sort) {
@@ -253,6 +306,11 @@
   function updateSummary() {
     const companyCount = new Set(state.rows.map((row) => row.ticker)).size;
     controls.feedCount.textContent = `${state.rows.length} announcements · ${companyCount} companies`;
+
+    if (state.journeyOpen && !state.rows.some((row) => row.source_id === state.journeyOpen)) {
+      controls.resultStatus.textContent = "The requested announcement is not available on this market day";
+      return;
+    }
     controls.resultStatus.textContent = `${state.filtered.length} of ${state.rows.length} announcements shown`;
   }
 
@@ -304,15 +362,23 @@
     toggle.type = "button";
     toggle.setAttribute("aria-expanded", String(state.expanded.has(row.source_id)));
     toggle.setAttribute("aria-controls", detailId(row.source_id));
-    toggle.setAttribute("aria-label", `${state.expanded.has(row.source_id) ? "Collapse" : "Expand"} ${row.ticker} ${row.rns_title}`);
+    toggle.setAttribute(
+      "aria-label",
+      `${state.expanded.has(row.source_id) ? "Collapse" : "Expand"} ${row.ticker} ${row.rns_title}`,
+    );
     toggle.append(chevron());
     toggle.addEventListener("click", () => toggleRow(row, cell.closest("article")));
 
     const tickerLine = element("div", "ticker-line");
-    tickerLine.append(
+    const companyLink = element("a", "company-research-link");
+    companyLink.href = `/company/${encodeURIComponent(row.ticker)}`;
+    companyLink.setAttribute("aria-label", `Open ${row.ticker} Company Intelligence`);
+    companyLink.append(
       element("span", "ticker", row.ticker),
       element("span", "company-name", row.company),
     );
+    tickerLine.append(companyLink);
+
     const title = element("p", "rns-title", row.rns_title);
     const meta = element(
       "p",
@@ -369,7 +435,7 @@
     cell.append(element("span", "balance-value", balance.value || "Not disclosed"));
 
     let context = "Not disclosed";
-    const dated = balance.as_of_date || balance.period || balance.source_published_at;
+    const dated = balance.as_of_date || balance.source_published_at || balance.period;
     if (status === "current") {
       context = dated ? `Reported ${formatContextDate(dated)}` : "Reported in this RNS";
     } else if (status === "carried") {
@@ -400,10 +466,12 @@
     const expanding = !state.expanded.has(row.source_id);
     if (expanding) {
       state.expanded.add(row.source_id);
+      state.journeyOpen = row.source_id;
       article.dataset.expanded = "true";
       detail.hidden = false;
       button.setAttribute("aria-expanded", "true");
       button.setAttribute("aria-label", `Collapse ${row.ticker} ${row.rns_title}`);
+      writeJourneyUrl(row.source_id);
       void ensureDetail(row, detail);
     } else {
       state.expanded.delete(row.source_id);
@@ -411,6 +479,10 @@
       detail.hidden = true;
       button.setAttribute("aria-expanded", "false");
       button.setAttribute("aria-label", `Expand ${row.ticker} ${row.rns_title}`);
+      if (state.journeyOpen === row.source_id) {
+        state.journeyOpen = "";
+        writeJourneyUrl("");
+      }
     }
   }
 
@@ -429,6 +501,9 @@
       if (!response.ok) {
         throw new Error(detail?.error?.message || "Full research is unavailable.");
       }
+      if (detail.schema_version !== MONITORING_SCHEMA) {
+        throw new Error("The Analyst Note data contract is incompatible.");
+      }
       state.detailCache.set(row.source_id, detail);
       renderDetail(detail, container);
     } catch (error) {
@@ -443,11 +518,22 @@
     const inner = element("div", "expanded-inner");
     const top = element("div", "expanded-topline");
     top.append(element("p", "", "FULL ANALYST NOTE"));
-    const source = element("a", "source-link", "ORIGINAL RNS ↗");
-    source.href = detail.original_source_url || research.provenance?.source_urls?.[0] || "#";
-    source.target = "_blank";
-    source.rel = "noopener noreferrer";
-    top.append(source);
+
+    const actions = element("div", "expanded-top-actions");
+    const ticker = clean(detail.ticker);
+    if (ticker) {
+      const company = element("a", "company-inline-link", "COMPANY RESEARCH →");
+      company.href = `/company/${encodeURIComponent(ticker)}`;
+      company.setAttribute("aria-label", `Open ${ticker} Company Intelligence`);
+      actions.append(company);
+    }
+    const source = safeExternalLink(
+      detail.original_source_url || research.provenance?.source_urls?.[0],
+      "ORIGINAL RNS ↗",
+      "source-link",
+    );
+    if (source) actions.append(source);
+    if (actions.children.length) top.append(actions);
 
     const grid = element("div", "expanded-grid");
     const first = element("div", "expanded-column");
@@ -572,10 +658,21 @@
   function emptyState() {
     const block = element("div", "empty-state");
     const wrap = element("div");
-    wrap.append(
-      element("h2", "", "No announcements match these filters."),
-      element("p", "", "Reset the monitoring controls or broaden the selected signal and impact range."),
-    );
+
+    if (!state.rows.length && state.requestedDate) {
+      wrap.append(
+        element("h2", "", `No publishable announcements on ${formatLongDate(state.requestedDate)}.`),
+        element("p", "", "This dated link does not currently resolve to a public monitoring record."),
+      );
+      const latest = element("a", "empty-state-action", "RETURN TO LATEST MARKET DAY →");
+      latest.href = "/";
+      wrap.append(latest);
+    } else {
+      wrap.append(
+        element("h2", "", "No announcements match these filters."),
+        element("p", "", "Reset the monitoring controls or broaden the selected signal and impact range."),
+      );
+    }
     block.append(wrap);
     return block;
   }
@@ -592,6 +689,56 @@
     controls.rows.append(block);
     controls.feedCount.textContent = "Live feed unavailable";
     controls.resultStatus.textContent = "The publication-safe API could not be loaded";
+  }
+
+  function revealJourneyRow() {
+    state.pendingReveal = false;
+    if (!state.journeyOpen) return;
+    const article = [...controls.rows.querySelectorAll("article.monitor-row")].find(
+      (row) => row.dataset.sourceId === state.journeyOpen,
+    );
+    if (!article) return;
+
+    article.classList.add("journey-target");
+    article.scrollIntoView({ block: "center" });
+    const toggle = article.querySelector(".row-toggle");
+    toggle?.focus({ preventScroll: true });
+    window.setTimeout(() => article.classList.remove("journey-target"), 2200);
+  }
+
+  function clearJourneyOpen() {
+    state.pendingReveal = false;
+    state.journeyOpen = "";
+    writeJourneyUrl("");
+  }
+
+  function writeJourneyUrl(sourceId) {
+    const url = new URL(window.location.href);
+    if (state.activeDate) url.searchParams.set("date", state.activeDate);
+    if (sourceId) url.searchParams.set("open", sourceId);
+    else url.searchParams.delete("open");
+    const query = url.searchParams.toString();
+    window.history.replaceState(
+      { marketDay: state.activeDate, open: sourceId || null },
+      "",
+      `${url.pathname}${query ? `?${query}` : ""}${url.hash}`,
+    );
+  }
+
+  function safeExternalLink(value, label, className) {
+    const cleanValue = clean(value);
+    if (!cleanValue) return null;
+    try {
+      const url = new URL(cleanValue, window.location.origin);
+      if (!["http:", "https:"].includes(url.protocol)) return null;
+      const link = element("a", className, label);
+      link.href = url.href;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      return link;
+    } catch (_error) {
+      return null;
+    }
   }
 
   function element(tag, className = "", text = "") {
@@ -634,6 +781,12 @@
 
   function slug(value) {
     return clean(value).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  }
+
+  function validIsoDate(value) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+    const parsed = new Date(`${value}T12:00:00Z`);
+    return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
   }
 
   function londonDateKey(value) {
