@@ -16,7 +16,6 @@
   const state = {
     company: null,
     detailCache: new Map(),
-    expandedHistory: new Set(),
     showAllHistory: false,
   };
 
@@ -28,6 +27,7 @@
       renderError(new Error("A company ticker is required."));
       return;
     }
+
     try {
       const response = await fetch(`/api/v1/company/${encodeURIComponent(ticker)}`, {
         headers: { Accept: "application/json" },
@@ -75,7 +75,10 @@
     if ((company.metrics || []).length) {
       root.append(renderMetrics(company.metrics));
     }
-    if ((company.open_management_claims || []).length || (company.resolved_management_claims || []).length) {
+    if (
+      (company.open_management_claims || []).length ||
+      (company.resolved_management_claims || []).length
+    ) {
       root.append(
         renderClaims(
           company.open_management_claims || [],
@@ -91,19 +94,28 @@
     }
 
     if (!root.children.length) {
-      root.append(emptyState("Company research is still building.", "The first publishable RNS analysis will establish this monitoring sheet."));
+      root.append(
+        emptyState(
+          "Company research is still building.",
+          "The first publishable RNS analysis will establish this monitoring sheet.",
+        ),
+      );
     }
   }
 
   function coverageText(coverage) {
     const count = Number(coverage.announcement_count || 0);
-    const noun = count === 1 ? "ANALYSED RNS" : "ANALYSED RNSS";
+    const noun = count === 1 ? "ANALYSED ANNOUNCEMENT" : "ANALYSED ANNOUNCEMENTS";
     const parts = [];
     if (coverage.coverage_since) {
       parts.push(`COVERAGE SINCE ${formatDate(coverage.coverage_since)}`);
     }
     parts.push(`${count} ${noun}`);
-    parts.push(coverage.status === "established" ? "ESTABLISHED HISTORY" : "HISTORY STILL BUILDING");
+    parts.push(
+      coverage.status === "established"
+        ? "ESTABLISHED HISTORY"
+        : "HISTORY STILL BUILDING",
+    );
     return parts.join(" · ");
   }
 
@@ -124,9 +136,12 @@
       element(
         "p",
         "company-current-change",
-        current.what_changed || current.research?.what_changed?.today || "No decision-useful change was identified.",
+        current.what_changed ||
+          current.research?.what_changed?.today ||
+          "No decision-useful change was identified.",
       ),
     );
+
     const ai = element("div", "company-ai-view");
     ai.append(
       element("span", "", "AI VIEW"),
@@ -141,18 +156,32 @@
       "company-action",
     );
     if (source) actions.append(source);
-    const feed = element("a", "company-action company-action-primary", "OPEN IN RNS FEED →");
-    feed.href = `/?date=${dateKey(current.published_at)}&open=${encodeURIComponent(current.source_id)}`;
+
+    const feed = element(
+      "a",
+      "company-action company-action-primary",
+      "OPEN IN RNS FEED →",
+    );
+    feed.href = `/?date=${dateKey(current.published_at)}&open=${encodeURIComponent(
+      current.source_id,
+    )}`;
     actions.append(feed);
     main.append(actions);
 
     const side = element("aside", "company-current-side");
     side.append(
-      stat("OUTLOOK", current.outlook || "N/A", current.outlook === "N/A" ? "No guidance event" : "Latest structured guidance status"),
+      stat(
+        "OUTLOOK",
+        current.outlook || "N/A",
+        current.outlook === "N/A"
+          ? "No guidance event"
+          : "Latest structured guidance status",
+      ),
       marketStat(current.market_reaction || {}),
       balanceStat(current.balance_sheet || {}),
       impactStat(current.impact || {}),
     );
+
     grid.append(main, side);
     body.append(grid);
 
@@ -161,7 +190,13 @@
     detail.append(element("summary", "", "VIEW FULL ANALYST NOTE"));
     detail.append(renderNote(current));
     body.append(detail);
-    return section("CURRENT VIEW", "Latest publication-safe Smallcaps.ai judgement.", body, "current-view");
+
+    return section(
+      "CURRENT VIEW",
+      "Latest publication-safe Smallcaps.ai judgement.",
+      body,
+      "current-view",
+    );
   }
 
   function stat(label, value, note) {
@@ -180,9 +215,13 @@
     const arrow = available ? (change > 0 ? "↑" : change < 0 ? "↓" : "→") : "—";
     const value = available ? `${arrow} ${signed(change)}%` : "—%";
     const close = reaction.close_price ?? reaction.latest_price;
-    const note = available && close != null
-      ? `${reaction.phase === "close" ? "RNS-day close" : "Latest"} ${formatPrice(close, reaction.currency)}`
-      : "Pricing pending";
+    const note =
+      available && close != null
+        ? `${reaction.phase === "close" ? "RNS-day close" : "Latest"} ${formatPrice(
+            close,
+            reaction.currency,
+          )}`
+        : "Pricing pending";
     return stat("MARKET REACTION", value, note);
   }
 
@@ -192,7 +231,9 @@
     if (balance.status === "current") {
       note = dated ? `Reported ${formatDate(dated)}` : "Reported in latest RNS";
     } else if (balance.status === "carried") {
-      note = dated ? `Last reported ${formatDate(dated)}` : "Carried from latest disclosure";
+      note = dated
+        ? `Last reported ${formatDate(dated)}`
+        : "Carried from latest disclosure";
     }
     return stat("BALANCE SHEET", balance.value || "Not disclosed", note);
   }
@@ -204,7 +245,11 @@
     block.append(impactDots(score));
     block.append(
       element("strong", "company-stat-value", `${score}/5 · ${IMPACT_NAMES[score]}`),
-      element("span", "company-stat-note", "Materiality is independent from signal direction"),
+      element(
+        "span",
+        "company-stat-note",
+        "Materiality is independent from signal direction",
+      ),
     );
     return block;
   }
@@ -212,46 +257,78 @@
   function renderGuidance(items) {
     const table = element("div", "company-data-table");
     table.append(
-      tableHead("company-guidance-grid", ["METRIC", "PERIOD", "CURRENT", "PREVIOUS", "STATUS", "SOURCE"]),
+      tableHead("company-guidance-grid", [
+        "METRIC",
+        "PERIOD",
+        "CURRENT",
+        "PREVIOUS",
+        "STATUS",
+        "SOURCE",
+      ]),
     );
     items.forEach((item) => {
       const previous = clean(item.previous_value || item.comparator) || "—";
-      const row = tableRow("company-guidance-grid", [
-        cell(item.metric, item.title),
-        cell(item.period || "—"),
-        cell(item.value || "Not quantified"),
-        cell(previous),
-        statusCell(item.status),
-        sourceCell(item.source_url),
-      ]);
-      table.append(row);
+      table.append(
+        tableRow("company-guidance-grid", [
+          cell(item.metric, item.title),
+          cell(item.period || "—"),
+          cell(item.value || "Not quantified"),
+          cell(previous),
+          statusCell(item.status),
+          sourceCell(item.source_url),
+        ]),
+      );
     });
-    return section("GUIDANCE", "Current forward-looking statements retained from Company Memory.", table, "guidance");
+    return section(
+      "GUIDANCE",
+      "Current forward-looking statements retained from Company Memory.",
+      table,
+      "guidance",
+    );
   }
 
   function renderMetrics(items) {
     const table = element("div", "company-data-table");
     table.append(
-      tableHead("company-metrics-grid", ["METRIC", "LATEST", "PREVIOUS", "CHANGE", "PERIOD", "SOURCE"]),
+      tableHead("company-metrics-grid", [
+        "METRIC",
+        "LATEST",
+        "PREVIOUS",
+        "CHANGE",
+        "PERIOD",
+        "SOURCE",
+      ]),
     );
     items.forEach((item) => {
       const latestPoint = (item.points || []).at(-1) || {};
-      const row = tableRow("company-metrics-grid", [
-        cell(item.label || item.metric, item.basis === "calculated" ? "Smallcaps.ai calculation" : "Reported"),
-        cell(item.latest_value || "—"),
-        cell(item.previous_value || "—"),
-        cell(metricChange(item)),
-        cell(item.period_family || latestPoint.period || latestPoint.as_of_date || "—"),
-        sourceCell(latestPoint.source_url),
-      ]);
-      table.append(row);
+      table.append(
+        tableRow("company-metrics-grid", [
+          cell(
+            item.label || item.metric,
+            item.basis === "calculated" ? "Smallcaps.ai calculation" : "Reported",
+          ),
+          cell(item.latest_value || "—"),
+          cell(item.previous_value || "—"),
+          cell(metricChange(item)),
+          cell(item.period_family || latestPoint.period || latestPoint.as_of_date || "—"),
+          sourceCell(latestPoint.source_url),
+        ]),
+      );
     });
-    return section("METRICS THAT MATTER", "The most decision-useful comparable or genuinely numerical series.", table, "metrics");
+    return section(
+      "METRICS THAT MATTER",
+      "The most decision-useful comparable or genuinely numerical series.",
+      table,
+      "metrics",
+    );
   }
 
   function metricChange(item) {
     if (item.change_direction === "flat") return "UNCHANGED";
-    if (["up", "down"].includes(item.change_direction) && Number.isFinite(Number(item.change_percent))) {
+    if (
+      ["up", "down"].includes(item.change_direction) &&
+      Number.isFinite(Number(item.change_percent))
+    ) {
       const value = Math.abs(Number(item.change_percent)).toFixed(1);
       return `${item.change_direction === "up" ? "↑" : "↓"} ${value}%`;
     }
@@ -279,13 +356,24 @@
       );
       body.append(details);
     }
-    return section("MANAGEMENT PROMISES", "Open commitments and their eventual outcomes.", body, "promises");
+    return section(
+      "MANAGEMENT PROMISES",
+      "Open commitments and their eventual outcomes.",
+      body,
+      "promises",
+    );
   }
 
   function claimTable(items) {
     const table = element("div", "company-data-table");
     table.append(
-      tableHead("company-claims-grid", ["PROMISE", "TARGET", "DATE", "STATUS", "SOURCE"]),
+      tableHead("company-claims-grid", [
+        "PROMISE",
+        "TARGET",
+        "DATE",
+        "STATUS",
+        "SOURCE",
+      ]),
     );
     items.forEach((item) => {
       table.append(
@@ -306,18 +394,35 @@
     items.forEach((item) => {
       const row = element("div", "company-gap-row");
       row.append(element("strong", "", item.item));
-      const source = safeLink(item.source_url, "LAST RELEVANT RNS ↗", "company-source-link");
+      const source = safeLink(
+        item.source_url,
+        "LAST RELEVANT RNS ↗",
+        "company-source-link",
+      );
       if (source) row.append(source);
       list.append(row);
     });
-    return section("WHAT REMAINS UNCLEAR", "Material information the company record still does not answer.", list, "gaps");
+    return section(
+      "WHAT REMAINS UNCLEAR",
+      "Material information the company record still does not answer.",
+      list,
+      "gaps",
+    );
   }
 
   function renderHistory(items) {
     const body = element("div", "company-history-table");
     body.append(
-      tableHead("company-history-head", ["DATE / RNS", "ANALYST VIEW", "SIGNAL", "MARKET", "IMPACT", "ACTIONS"]),
+      tableHead("company-history-head", [
+        "DATE / RNS",
+        "ANALYST VIEW",
+        "SIGNAL",
+        "MARKET",
+        "IMPACT",
+        "ACTIONS",
+      ]),
     );
+
     const visible = state.showAllHistory ? items : items.slice(0, VISIBLE_HISTORY);
     visible.forEach((item) => body.append(historyRow(item)));
 
@@ -335,7 +440,13 @@
       });
       body.append(more);
     }
-    return section("RNS HISTORY", "How the investment case has developed through published announcements.", body, "history");
+
+    return section(
+      "RNS HISTORY",
+      "How the investment case has developed through published announcements.",
+      body,
+      "history",
+    );
   }
 
   function historyRow(item) {
@@ -346,7 +457,11 @@
     const date = element("div", "company-history-date");
     date.append(
       element("strong", "", formatDate(item.published_at)),
-      element("small", "", `${formatTime(item.published_at)} · ${clean(item.rns_type) || "RNS"}`),
+      element(
+        "small",
+        "",
+        `${formatTime(item.published_at)} · ${clean(item.rns_type) || "RNS"}`,
+      ),
     );
 
     const copy = element("div", "company-history-copy");
@@ -363,16 +478,30 @@
     const change = Number(reaction.change_pct);
     if (reaction.status === "available" && Number.isFinite(change)) {
       market.append(
-        element("strong", "", `${change > 0 ? "↑" : change < 0 ? "↓" : "→"} ${signed(change)}%`),
-        element("small", "", reaction.phase === "close" ? "RNS-DAY CLOSE" : "LATEST"),
+        element(
+          "strong",
+          "",
+          `${change > 0 ? "↑" : change < 0 ? "↓" : "→"} ${signed(change)}%`,
+        ),
+        element(
+          "small",
+          "",
+          reaction.phase === "close" ? "RNS-DAY CLOSE" : "LATEST",
+        ),
       );
     } else {
-      market.append(element("strong", "", "—%"), element("small", "", "PRICING PENDING"));
+      market.append(
+        element("strong", "", "—%"),
+        element("small", "", "PRICING PENDING"),
+      );
     }
 
     const impact = element("div");
     const score = clampImpact(item.impact?.score);
-    impact.append(impactDots(score), element("small", "", `${score}/5 · ${IMPACT_NAMES[score]}`));
+    impact.append(
+      impactDots(score),
+      element("small", "", `${score}/5 · ${IMPACT_NAMES[score]}`),
+    );
 
     const actions = element("div", "company-history-actions");
     const read = element("button", "company-history-action", "READ ANALYSIS →");
@@ -380,11 +509,17 @@
     read.setAttribute("aria-expanded", "false");
     read.addEventListener("click", () => toggleHistory(item, article, read));
     actions.append(read);
-    const source = safeLink(item.original_source_url, "ORIGINAL RNS ↗", "company-history-action");
+
+    const source = safeLink(
+      item.original_source_url,
+      "ORIGINAL RNS ↗",
+      "company-history-action",
+    );
     if (source) actions.append(source);
 
     grid.append(date, copy, signal, market, impact, actions);
     article.append(grid);
+
     const detail = element("div", "company-history-detail");
     detail.hidden = true;
     article.append(detail);
@@ -403,7 +538,11 @@
       detail.replaceChildren(renderNote(state.detailCache.get(item.source_id)));
       return;
     }
-    detail.replaceChildren(element("div", "company-loading", "Loading full research…"));
+
+    const loading = element("div", "company-loading");
+    loading.append(element("span"), element("span"), element("span"));
+    detail.replaceChildren(loading);
+
     try {
       const response = await fetch(item.detail_url, {
         headers: { Accept: "application/json" },
@@ -420,7 +559,10 @@
       detail.replaceChildren(renderNote(payload));
     } catch (error) {
       detail.replaceChildren(
-        emptyState("Full research is temporarily unavailable.", error?.message || "Please try again shortly."),
+        emptyState(
+          "Full research is temporarily unavailable.",
+          error?.message || "Please try again shortly.",
+        ),
       );
     }
   }
@@ -428,6 +570,7 @@
   function renderNote(detail) {
     const research = detail.research || {};
     const grid = element("div", "company-note-grid");
+
     const first = element("div");
     first.append(
       noteBlock("RNS SUMMARY", [
@@ -436,12 +579,16 @@
       ]),
       factsBlock(research.evidence || []),
     );
+
     const second = element("div");
     second.append(
       changedBlock(research.what_changed || {}),
-      noteBlock("AI VIEW", [element("p", "", research.analyst_view || detail.ai_view || "")]),
+      noteBlock("AI VIEW", [
+        element("p", "", research.analyst_view || detail.ai_view || ""),
+      ]),
       listBlock("WHAT TO WATCH", research.watch_items || []),
     );
+
     const third = element("div");
     third.append(
       guidanceBlock(research.guidance_events || []),
@@ -449,24 +596,35 @@
       listBlock("CHALLENGES THE CASE", research.challenges_case || []),
       disclosureBlock(research.disclosure || {}, research.provenance || {}),
     );
+
     grid.append(first, second, third);
     return grid;
   }
 
   function noteBlock(title, children) {
+    const usable = children.filter((child) => child && clean(child.textContent));
+    if (!usable.length) return document.createDocumentFragment();
     const block = element("section", "company-note-block");
     block.append(element("h3", "", title));
-    children.filter((child) => child && clean(child.textContent)).forEach((child) => block.append(child));
+    usable.forEach((child) => block.append(child));
     return block;
   }
 
   function factsBlock(facts) {
     const usable = facts.filter((item) => clean(item.label) || clean(item.value));
-    if (!usable.length) return listBlock("KEY NUMBERS", ["No structured numbers disclosed."]);
+    if (!usable.length) {
+      return listBlock("KEY NUMBERS", ["No structured numbers disclosed."]);
+    }
     const list = element("ul");
     usable.forEach((fact) => {
       const comparison = fact.previous_value ? `; previous ${fact.previous_value}` : "";
-      list.append(element("li", "", `${fact.label || fact.metric}: ${fact.value || "Not disclosed"}${comparison}`));
+      list.append(
+        element(
+          "li",
+          "",
+          `${fact.label || fact.metric}: ${fact.value || "Not disclosed"}${comparison}`,
+        ),
+      );
     });
     return noteBlock("KEY NUMBERS", [list]);
   }
@@ -479,7 +637,9 @@
     ].filter(([, value]) => clean(value));
     if (!values.length) return document.createDocumentFragment();
     const list = element("ul");
-    values.forEach(([label, value]) => list.append(element("li", "", `${label}: ${value}`)));
+    values.forEach(([label, value]) => {
+      list.append(element("li", "", `${label}: ${value}`));
+    });
     return noteBlock("WHAT CHANGED", [list]);
   }
 
@@ -495,31 +655,46 @@
     if (!items.length) return document.createDocumentFragment();
     return listBlock(
       "OUTLOOK & GUIDANCE",
-      items.map((item) => `${item.metric}${item.period ? ` · ${item.period}` : ""}${item.value ? `: ${item.value}` : ""} (${clean(item.status).toUpperCase()})`),
+      items.map(
+        (item) =>
+          `${item.metric}${item.period ? ` · ${item.period}` : ""}${
+            item.value ? `: ${item.value}` : ""
+          } (${clean(item.status).toUpperCase()})`,
+      ),
     );
   }
 
   function disclosureBlock(disclosure, provenance) {
     const items = [];
-    (disclosure.missing_items || []).forEach((item) => items.push(`Not disclosed: ${item}`));
-    if (disclosure.management_language_mismatch) items.push(disclosure.management_language_mismatch);
-    (provenance.source_warnings || []).forEach((item) => items.push(`Source warning: ${item}`));
+    (disclosure.missing_items || []).forEach((item) => {
+      items.push(`Not disclosed: ${item}`);
+    });
+    if (disclosure.management_language_mismatch) {
+      items.push(disclosure.management_language_mismatch);
+    }
+    (provenance.source_warnings || []).forEach((item) => {
+      items.push(`Source warning: ${item}`);
+    });
     if (!items.length && disclosure.note) items.push(disclosure.note);
     return listBlock("DISCLOSURE GAPS / SOURCE WARNINGS", items);
   }
 
   function section(title, description, body, key) {
-    const section = element("section", "company-section");
-    section.dataset.companySection = key || slug(title);
+    const block = element("section", "company-section");
+    block.dataset.companySection = key || slug(title);
     const head = element("header", "company-section-head");
     head.append(element("h2", "", title));
     if (description) head.append(element("p", "", description));
-    section.append(head, body);
-    return section;
+    block.append(head, body);
+    return block;
   }
 
   function tableHead(className, labels) {
-    const head = element("div", className);
+    const classes =
+      className === "company-history-head"
+        ? className
+        : `company-data-head ${className}`;
+    const head = element("div", classes);
     labels.forEach((label) => head.append(element("span", "", label)));
     return head;
   }
@@ -539,7 +714,13 @@
 
   function statusCell(value, note = "") {
     const node = element("div");
-    node.append(element("span", "company-status", clean(value).replace(/-/g, " ") || "N/A"));
+    node.append(
+      element(
+        "span",
+        "company-status",
+        clean(value).replace(/-/g, " ") || "N/A",
+      ),
+    );
     if (clean(note)) node.append(element("small", "", note));
     return node;
   }
@@ -553,13 +734,19 @@
   }
 
   function signalBadge(value) {
-    return element("span", `signal signal-${slug(value)}`, clean(value) || "NO COLOUR");
+    return element(
+      "span",
+      `signal signal-${slug(value)}`,
+      clean(value) || "NO COLOUR",
+    );
   }
 
   function impactDots(score) {
     const dots = element("div", "company-impact-dots");
     for (let index = 1; index <= 5; index += 1) {
-      dots.append(element("i", `company-impact-dot${index <= score ? " filled" : ""}`));
+      dots.append(
+        element("i", `company-impact-dot${index <= score ? " filled" : ""}`),
+      );
     }
     return dots;
   }
@@ -590,13 +777,18 @@
     const ticker = pathTicker() || "—";
     document.getElementById("company-ticker").textContent = ticker;
     document.getElementById("company-name").textContent = "Company research unavailable";
-    document.getElementById("company-coverage").textContent = "NO PUBLICATION-SAFE COMPANY RECORD WAS RETURNED";
+    document.getElementById("company-coverage").textContent =
+      "NO PUBLICATION-SAFE COMPANY RECORD WAS RETURNED";
     const root = document.getElementById("company-content");
     root.replaceChildren();
     const block = element("div", "company-error");
     block.append(
       element("h2", "", "Company Intelligence is temporarily unavailable."),
-      element("p", "", error?.message || "Return to the AIM RNS feed and try again shortly."),
+      element(
+        "p",
+        "",
+        error?.message || "Return to the AIM RNS feed and try again shortly.",
+      ),
     );
     root.append(block);
   }
@@ -604,16 +796,23 @@
   function element(tag, className = "", text = "") {
     const node = document.createElement(tag);
     if (className) node.className = className;
-    if (text !== undefined && text !== null && text !== "") node.textContent = String(text);
+    if (text !== undefined && text !== null && text !== "") {
+      node.textContent = String(text);
+    }
     return node;
   }
 
   function clean(value) {
-    return String(value ?? "").trim().replace(/\s+/g, " ");
+    return String(value ?? "")
+      .trim()
+      .replace(/\s+/g, " ");
   }
 
   function slug(value) {
-    return clean(value).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    return clean(value)
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
   }
 
   function clampImpact(value) {
@@ -634,14 +833,19 @@
   }
 
   function formatDate(value) {
-    const date = new Date(clean(value).length === 10 ? `${value}T12:00:00Z` : value);
-    if (Number.isNaN(date.getTime())) return clean(value).toUpperCase();
+    const cleanValue = clean(value);
+    const date = new Date(
+      cleanValue.length === 10 ? `${cleanValue}T12:00:00Z` : cleanValue,
+    );
+    if (Number.isNaN(date.getTime())) return cleanValue.toUpperCase();
     return new Intl.DateTimeFormat("en-GB", {
       timeZone: LONDON,
       day: "numeric",
       month: "short",
       year: "numeric",
-    }).format(date).toUpperCase();
+    })
+      .format(date)
+      .toUpperCase();
   }
 
   function formatTime(value) {
