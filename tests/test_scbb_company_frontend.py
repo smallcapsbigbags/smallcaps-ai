@@ -12,10 +12,12 @@ def test_company_frontend_uses_the_scbb_visual_and_research_contract() -> None:
     html = Path("frontend/company.html").read_text(encoding="utf-8")
     javascript = Path("frontend/assets/company.js").read_text(encoding="utf-8")
     css = Path("frontend/assets/company.css").read_text(encoding="utf-8")
+    polish = Path("frontend/assets/company-polish.css").read_text(encoding="utf-8")
     feed_enhancer = Path("frontend/assets/feed-company.js").read_text(encoding="utf-8")
 
     assert "COMPANY MONITORING SHEET" in html
     assert "company.css" in html
+    assert "company-polish.css" in html
     assert "company.js" in html
     assert "scbb-company-v1" in javascript
     for section in (
@@ -30,6 +32,8 @@ def test_company_frontend_uses_the_scbb_visual_and_research_contract() -> None:
     assert "innerHTML" not in javascript
     assert "var(--cyan)" in css
     assert "var(--page-deep)" in css
+    assert "position: absolute" in polish
+    assert ".company-history-grid > div > strong" in polish
     assert "/company/" in feed_enhancer
 
 
@@ -57,4 +61,5 @@ def test_private_beta_preserves_the_requested_company_destination(monkeypatch) -
 def test_feed_loads_company_navigation_enhancement() -> None:
     html = Path("frontend/index.html").read_text(encoding="utf-8")
     assert "/assets/company.css" in html
+    assert "/assets/company-polish.css" in html
     assert "/assets/feed-company.js" in html
