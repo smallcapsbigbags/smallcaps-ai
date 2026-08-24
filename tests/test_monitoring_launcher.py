@@ -44,4 +44,5 @@ def test_public_frontend_assets_exist_as_normal_html_css_and_javascript() -> Non
     assert Path("frontend/assets/company.css").is_file()
     assert Path("frontend/assets/company-polish.css").is_file()
     assert Path("frontend/assets/company.js").is_file()
-    assert Path("frontend/assets/feed-company.js").is_file()
+    assert Path("frontend/assets/company-journey.js").is_file()
+    assert not Path("frontend/assets/feed-company.js").exists()
