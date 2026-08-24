@@ -117,7 +117,13 @@ class MultiSourceDailyAIMSource(InvestegateDailyAIMSource):
             except ValueError:
                 continue
 
-            ticker = cells[2].get_text(" ", strip=True).upper().replace(".L", "").rstrip(".-")
+            ticker = (
+                cells[2]
+                .get_text(" ", strip=True)
+                .upper()
+                .replace(".L", "")
+                .rstrip(".-")
+            )
             if not ticker:
                 continue
             anchor = cells[3].find("a", href=True)
@@ -127,8 +133,9 @@ class MultiSourceDailyAIMSource(InvestegateDailyAIMSource):
             if not headline:
                 continue
             source_url = urljoin(cls.lse_base_url, str(anchor.get("href")))
-            published = datetime.combine(page_date, parsed_time)
-            rows.append((published, ticker, headline, source_url))
+            rows.append(
+                (datetime.combine(page_date, parsed_time), ticker, headline, source_url)
+            )
 
         return page_date, rows
 
@@ -161,7 +168,7 @@ class MultiSourceDailyAIMSource(InvestegateDailyAIMSource):
                     headline=headline,
                 )
                 source_id = "aim-lse-" + hashlib.sha256(key.encode()).hexdigest()[:20]
-                item = CatalogueAnnouncement(
+                output[key] = CatalogueAnnouncement(
                     source_id=source_id,
                     ticker=ticker,
                     company=ticker,
@@ -169,14 +176,21 @@ class MultiSourceDailyAIMSource(InvestegateDailyAIMSource):
                     title=headline,
                     source_url=source_url,
                 )
-                output[key] = item
-            break
 
         return sorted(output.values(), key=lambda item: item.published_at)
 
     def _existing_ids_by_key(
         self, items: list[CatalogueAnnouncement]
     ) -> dict[str, str]:
+        """Find an already-stored identity for a catalogue alias.
+
+        PostgreSQL preserves timezone-aware timestamps while SQLite drops the
+        offset in tests. The candidate query is therefore deliberately wider
+        than the final match. The exact ticker + UTC minute + headline fingerprint
+        below remains the dedupe authority, so widening this window cannot merge
+        unrelated announcements.
+        """
+
         if self.repository is None or not items:
             return {}
 
@@ -187,8 +201,8 @@ class MultiSourceDailyAIMSource(InvestegateDailyAIMSource):
             else item.published_at.replace(tzinfo=LONDON).astimezone(timezone.utc)
             for item in items
         ]
-        start = min(utc_times) - timedelta(minutes=2)
-        end = max(utc_times) + timedelta(minutes=2)
+        start = min(utc_times) - timedelta(hours=2)
+        end = max(utc_times) + timedelta(hours=2)
         output: dict[str, str] = {}
 
         with session_scope(self.repository.session_factory) as session:
@@ -216,22 +230,42 @@ class MultiSourceDailyAIMSource(InvestegateDailyAIMSource):
             output.setdefault(key, str(source_id))
         return output
 
+    def _known_company_names(self, tickers: set[str]) -> dict[str, str]:
+        if self.repository is None or not tickers:
+            return {}
+        with session_scope(self.repository.session_factory) as session:
+            rows = session.execute(
+                select(CompanyRow.ticker, CompanyRow.company_name).where(
+                    CompanyRow.ticker.in_(sorted(tickers))
+                )
+            ).all()
+        return {str(ticker).upper(): _clean(company) for ticker, company in rows}
+
     def _reuse_existing_source_ids(
         self, items: list[CatalogueAnnouncement]
     ) -> list[CatalogueAnnouncement]:
         existing = self._existing_ids_by_key(items)
-        if not existing:
-            return items
+        known_companies = self._known_company_names(
+            {item.ticker.upper() for item in items if item.company == item.ticker}
+        )
 
         output: list[CatalogueAnnouncement] = []
         for item in items:
             key = self._catalogue_key(item)
             source_id = existing.get(key, item.source_id)
+            company = item.company
+            if company == item.ticker:
+                company = known_companies.get(item.ticker.upper(), company)
+
             if source_id != item.source_id:
                 urls = self._urls.pop(item.source_id, [])
                 current = self._urls.get(source_id, [])
                 self._urls[source_id] = list(dict.fromkeys([*current, *urls]))
-                item = item.model_copy(update={"source_id": source_id})
+
+            if source_id != item.source_id or company != item.company:
+                item = item.model_copy(
+                    update={"source_id": source_id, "company": company}
+                )
             output.append(item)
         return output
 
@@ -253,7 +287,7 @@ class MultiSourceDailyAIMSource(InvestegateDailyAIMSource):
             )
         except Exception as exc:
             investegate_error = f"{type(exc).__name__}: {exc}"
-            # super().list_announcements resets these before attempting discovery.
+            # The base source resets its evidence caches before discovery.
             self._evidence, self._urls, self._notes = {}, {}, {}
 
         lse_items: list[CatalogueAnnouncement] = []
@@ -270,13 +304,13 @@ class MultiSourceDailyAIMSource(InvestegateDailyAIMSource):
             )
         if investegate_error:
             warnings.append(
-                "Investegate AIM discovery unavailable; LSE.co.uk RNS catalogue is being used as the fallback. "
-                + investegate_error[:350]
+                "Investegate AIM discovery unavailable; LSE.co.uk RNS catalogue "
+                "is being used as the fallback. " + investegate_error[:350]
             )
         if lse_error:
             warnings.append(
-                "LSE.co.uk AIM cross-check unavailable; Investegate discovery remains active. "
-                + lse_error[:350]
+                "LSE.co.uk AIM cross-check unavailable; Investegate discovery "
+                "remains active. " + lse_error[:350]
             )
 
         merged: dict[str, CatalogueAnnouncement] = {
@@ -303,18 +337,22 @@ class MultiSourceDailyAIMSource(InvestegateDailyAIMSource):
         if investegate_items and lse_items and (lse_only or investegate_only):
             warnings.append(
                 "AIM catalogue cross-check differs: "
-                f"Investegate={len(investegate_items)}, LSE.co.uk RNS={len(lse_items)}, "
-                f"merged={len(merged)}, LSE-only={lse_only}, Investegate-only={investegate_only}. "
+                f"Investegate={len(investegate_items)}, "
+                f"LSE.co.uk RNS={len(lse_items)}, merged={len(merged)}, "
+                f"LSE-only={lse_only}, Investegate-only={investegate_only}. "
                 "The union is retained so a single catalogue omission does not drop an RNS."
             )
         if not investegate_items and not investegate_error and lse_items:
-            warnings.append("Investegate returned no rows for the target day; using LSE.co.uk RNS rows.")
+            warnings.append(
+                "Investegate returned no rows for the target day; using LSE.co.uk RNS rows."
+            )
         if not lse_items and not lse_error and investegate_items:
-            warnings.append("LSE.co.uk returned no RNS rows for the target day; using Investegate rows.")
+            warnings.append(
+                "LSE.co.uk returned no RNS rows for the target day; using Investegate rows."
+            )
 
         items = sorted(merged.values(), key=lambda item: item.published_at)
-        items = self._reuse_existing_source_ids(items)
-        return items, warnings
+        return self._reuse_existing_source_ids(items), warnings
 
     def prepare_documents(
         self, announcements: list[CatalogueAnnouncement]
@@ -406,11 +444,14 @@ ANNOUNCEMENTS:
         if not announcements:
             return []
         return [
-            f"Authoritative evidence retrieval ran for {len(announcements)} new AIM announcement(s), with issuer/FCA NSM/official RNS sources prioritised."
+            f"Authoritative evidence retrieval ran for {len(announcements)} new AIM "
+            "announcement(s), with issuer/FCA NSM/official RNS sources prioritised."
         ]
 
     def fetch_document(self, announcement: CatalogueAnnouncement):
         company = self._resolved_companies.get(announcement.source_id, "").strip()
-        if company and (announcement.company == announcement.ticker or not announcement.company.strip()):
+        if company and (
+            announcement.company == announcement.ticker or not announcement.company.strip()
+        ):
             announcement = announcement.model_copy(update={"company": company})
         return super().fetch_document(announcement)
