@@ -20,6 +20,7 @@ def test_production_launcher_serves_frontend_api_and_legacy_without_a_fourth_ser
     assert railway["deploy"]["healthcheckPath"] == "/api/v1/health"
     predeploy = " ".join(railway["deploy"]["preDeployCommand"])
     assert "jobs.monitoring_acceptance --require-public-data" in predeploy
+    assert "jobs.company_acceptance --require-public-data" in predeploy
 
 
 def test_ci_compiles_frontend_api_and_launcher_surfaces() -> None:
@@ -41,5 +42,6 @@ def test_public_frontend_assets_exist_as_normal_html_css_and_javascript() -> Non
     assert Path("frontend/assets/research.css").is_file()
     assert Path("frontend/assets/research.js").is_file()
     assert Path("frontend/assets/company.css").is_file()
+    assert Path("frontend/assets/company-polish.css").is_file()
     assert Path("frontend/assets/company.js").is_file()
     assert Path("frontend/assets/feed-company.js").is_file()
