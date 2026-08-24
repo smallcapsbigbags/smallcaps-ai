@@ -36,6 +36,10 @@ def test_company_sheet_composes_current_view_memory_and_history(tmp_path) -> Non
     assert company.current_position.impact.score == 4
     assert company.current_position.balance_sheet.status == "carried"
     assert company.current_position.balance_sheet.value == "£24.0m"
+    assert company.current_position.balance_sheet.period == ""
+    assert company.current_position.balance_sheet.source_published_at.startswith(
+        "2026-08-01"
+    )
 
     assert any(item.metric == "adjusted profit" for item in company.guidance)
     assert any(item.metric == "net debt" for item in company.metrics)
