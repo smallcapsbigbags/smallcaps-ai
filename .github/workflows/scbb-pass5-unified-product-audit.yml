@@ -80,6 +80,14 @@ jobs:
           out = Path('/tmp/scbb-pass5-audit')
           base = 'http://127.0.0.1:8501'
 
+          def expected_http_failure(response):
+              parsed = urlparse(response.url)
+              return (
+                  response.status == 401 and parsed.path == '/access'
+              ) or (
+                  response.status == 404 and parsed.path == '/api/v1/company/NOTREAL'
+              )
+
           def guard(page):
               failures = []
               page.on('pageerror', lambda error: failures.append(f'pageerror: {error}'))
@@ -87,6 +95,15 @@ jobs:
                   'console',
                   lambda message: failures.append(f'console error: {message.text}')
                   if message.type == 'error'
+                  and not message.text.startswith('Failed to load resource:')
+                  else None,
+              )
+              page.on(
+                  'response',
+                  lambda response: failures.append(
+                      f'http {response.status}: {response.url}'
+                  )
+                  if response.status >= 400 and not expected_http_failure(response)
                   else None,
               )
               return failures
