@@ -1,4 +1,6 @@
 streamlit==1.60.0
+starlette==1.6.0
+uvicorn==0.52.4
 openai==2.53.0
 pydantic==2.13.4
 SQLAlchemy>=2.0.50,<3
