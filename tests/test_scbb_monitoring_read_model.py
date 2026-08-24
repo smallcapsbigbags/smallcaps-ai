@@ -159,7 +159,8 @@ def seed_monitoring_history():
         "The value is real and the delivery timetable is stated. Margin is not "
         "disclosed, so investors still cannot judge the quality of the revenue. "
         "Cash conversion at the next results remains the key test for the "
-        "monitoring sheet."
+        "monitoring sheet. Contract margin and customer concentration still need "
+        "disclosure."
     )
     current = announcement(
         "spr-contract",
@@ -249,6 +250,7 @@ def test_monitoring_row_matches_the_existing_sheet_contract() -> None:
 def test_monitoring_detail_preserves_full_research_and_marks_legacy_compaction() -> None:
     _intelligence, _product, monitoring, long_view = seed_monitoring_history()
 
+    assert word_count(long_view) > 50
     detail = monitoring.get_detail("spr-contract")
 
     assert detail is not None
