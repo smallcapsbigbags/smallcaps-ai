@@ -6,6 +6,7 @@ from analyst.company_context import build_company_analysis_context
 from analyst.evidence import validate_announcement_evidence
 from analyst.guardrails import apply_analysis_guardrails
 from analyst.models import AnnouncementInput, PersistedAnalysis, QualityReport
+from analyst.monitoring_sheet import merge_monitoring_quality
 from analyst.quality import assess_analysis_quality
 from database.repository import IntelligenceRepository
 
@@ -80,6 +81,7 @@ class FoundationPipeline:
             guarded_note,
             prior_context=analysis_context,
         )
+        quality = merge_monitoring_quality(quality, guarded_note)
         if quality.status == "blocked":
             raise AnalysisBlockedError(quality)
         return self.repository.save_analysis(
