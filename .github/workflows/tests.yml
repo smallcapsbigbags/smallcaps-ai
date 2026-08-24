@@ -32,7 +32,7 @@ jobs:
           python-version: "3.12"
           cache: pip
       - run: pip install -r requirements.txt
-      - run: python -m compileall analyst database ingestion jobs market product ui pipeline.py settings.py streamlit_app.py
+      - run: python -m compileall analyst api database ingestion jobs market product ui pipeline.py settings.py streamlit_app.py web_app.py
       - run: python -m json.tool benchmarks/cases.json > /dev/null
       - run: python -m json.tool benchmarks/company_memory_cases.json > /dev/null
       - run: python -m json.tool benchmarks/analyst_intelligence_cases.json > /dev/null
