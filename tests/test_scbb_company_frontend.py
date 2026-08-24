@@ -29,7 +29,7 @@ def test_company_frontend_uses_the_scbb_visual_and_research_contract() -> None:
         assert section in javascript
     assert "innerHTML" not in javascript
     assert "var(--cyan)" in css
-    assert "var(--page)" in css
+    assert "var(--page-deep)" in css
     assert "/company/" in feed_enhancer
 
 
