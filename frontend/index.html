@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Every AIM announcement analysed in minutes by Smallcaps.ai.">
+  <meta name="theme-color" content="#03080d">
+  <title>Smallcaps.ai · AIM RNS feed</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/research.css">
+  <script src="/assets/research.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#monitoring-sheet">Skip to the monitoring sheet</a>
+
+  <header class="site-header">
+    <a class="wordmark" href="/" aria-label="Smallcaps.ai home">
+      <span>smallcaps</span><strong>.ai</strong>
+    </a>
+    <div class="header-meta">
+      <span class="live-status"><i aria-hidden="true"></i>AIM MONITORING</span>
+      <form action="/logout" method="post">
+        <button class="text-action" type="submit">Sign out</button>
+      </form>
+    </div>
+  </header>
+
+  <main>
+    <section class="feed-hero" aria-labelledby="page-title">
+      <p class="eyebrow">ANALYST MONITORING SHEET</p>
+      <h1 id="page-title">AIM RNS feed<span aria-hidden="true">.</span></h1>
+      <div class="feed-intro">
+        <p id="feed-count" aria-live="polite">Loading announcements…</p>
+        <p>Every AIM announcement · Analysed in minutes</p>
+      </div>
+    </section>
+
+    <section class="filter-shell" aria-label="RNS feed controls">
+      <div class="search-row">
+        <label class="search-control" for="search-filter">
+          <span>SEARCH</span>
+          <input id="search-filter" type="search" autocomplete="off" placeholder="Ticker, company or announcement">
+        </label>
+        <div class="market-day" aria-live="polite">
+          <span>LATEST MARKET DAY</span>
+          <strong id="active-day">—</strong>
+        </div>
+      </div>
+
+      <div class="filter-grid">
+        <label class="filter-control">
+          <span>UNIVERSE</span>
+          <select id="universe-filter" disabled>
+            <option>AIM · ALL COMPANIES</option>
+          </select>
+        </label>
+
+        <label class="filter-control">
+          <span>COMPANY</span>
+          <select id="company-filter">
+            <option value="">ALL COMPANIES</option>
+          </select>
+        </label>
+
+        <label class="filter-control">
+          <span>RNS TYPE</span>
+          <select id="type-filter">
+            <option value="">ALL TYPES</option>
+          </select>
+        </label>
+
+        <label class="filter-control">
+          <span>SIGNAL</span>
+          <select id="signal-filter">
+            <option value="">ALL SIGNALS</option>
+            <option value="GREEN">GREEN</option>
+            <option value="AMBER">AMBER</option>
+            <option value="RED">RED</option>
+            <option value="NO COLOUR">NO COLOUR</option>
+          </select>
+        </label>
+
+        <label class="filter-control">
+          <span>IMPACT</span>
+          <select id="impact-filter">
+            <option value="0">ALL IMPACT</option>
+            <option value="1">1+ · ROUTINE</option>
+            <option value="2">2+ · MINOR</option>
+            <option value="3">3+ · MATERIAL</option>
+            <option value="4">4+ · HIGH</option>
+            <option value="5">5 · CRITICAL</option>
+          </select>
+        </label>
+
+        <label class="filter-control">
+          <span>SORT</span>
+          <select id="sort-filter">
+            <option value="latest">NEWEST FIRST</option>
+            <option value="impact">HIGHEST IMPACT</option>
+            <option value="company">COMPANY A–Z</option>
+          </select>
+        </label>
+
+        <div class="filter-actions" aria-label="Quick filters">
+          <button id="material-toggle" class="filter-button" type="button" aria-pressed="false">IMPACT 3+</button>
+          <button id="group-toggle" class="filter-button" type="button" aria-pressed="false">GROUP BY COMPANY</button>
+          <button id="reset-filters" class="filter-button filter-button-muted" type="button">RESET</button>
+        </div>
+      </div>
+    </section>
+
+    <div class="sheet-status" aria-live="polite">
+      <span id="result-status">Preparing monitoring sheet…</span>
+      <span class="sheet-key"><i class="key-current"></i>Reported in this RNS <i class="key-carried"></i>Carried from latest disclosure</span>
+    </div>
+
+    <section class="monitoring-sheet" id="monitoring-sheet" aria-label="AIM RNS analyst monitoring sheet">
+      <div class="sheet-header" aria-hidden="true">
+        <span>COMPANY / RNS / SIGNAL</span>
+        <span>WHAT CHANGED</span>
+        <span>AI VIEW</span>
+        <span>OUTLOOK</span>
+        <span>MARKET REACTION</span>
+        <span>BALANCE SHEET</span>
+        <span>IMPACT</span>
+      </div>
+      <div id="sheet-rows" class="sheet-rows">
+        <div class="loading-state" role="status">
+          <span class="loading-line loading-line-wide"></span>
+          <span class="loading-line"></span>
+          <span class="loading-line"></span>
+        </div>
+      </div>
+    </section>
+
+    <nav class="pagination" aria-label="Monitoring sheet pages">
+      <button id="previous-page" type="button" disabled>← PREVIOUS</button>
+      <span id="page-status">PAGE 1</span>
+      <button id="next-page" type="button" disabled>NEXT →</button>
+    </nav>
+
+    <noscript>
+      <p class="noscript-message">JavaScript is required to load the live AIM monitoring sheet.</p>
+    </noscript>
+  </main>
+
+  <footer class="site-footer">
+    <span>SMALLCAPS.AI</span>
+    <p>Machine-scale monitoring. Human-style investment judgement.</p>
+    <a href="/legacy">Legacy research view ↗</a>
+  </footer>
+</body>
+</html>

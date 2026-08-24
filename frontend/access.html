@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#03080d">
+  <title>Smallcaps.ai · Private beta</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/research.css">
+</head>
+<body class="access-body">
+  <header class="site-header access-header">
+    <a class="wordmark" href="/" aria-label="Smallcaps.ai home">
+      <span>smallcaps</span><strong>.ai</strong>
+    </a>
+    <span class="live-status"><i aria-hidden="true"></i>PRIVATE BETA</span>
+  </header>
+
+  <main class="access-main">
+    <section class="access-copy" aria-labelledby="access-title">
+      <p class="eyebrow">AIM RNS INTELLIGENCE</p>
+      <h1 id="access-title">Know what changed<span aria-hidden="true">.</span><br>See the evidence<span aria-hidden="true">.</span></h1>
+      <p class="access-intro">Every AIM announcement analysed in minutes, with reported facts and Smallcaps.ai judgement kept separate.</p>
+    </section>
+
+    <section class="access-panel" aria-label="Private beta access">
+      <div class="access-rule"></div>
+      <p class="access-label">PRIVATE BETA ACCESS</p>
+      <form action="/access" method="post">
+        <label for="access-code">ACCESS CODE</label>
+        <input id="access-code" name="access_code" type="password" autocomplete="current-password" required autofocus>
+        {{ACCESS_ERROR}}
+        <button type="submit">ENTER SMALLCAPS.AI <span aria-hidden="true">→</span></button>
+      </form>
+      <p class="access-note">Smallcaps.ai is investment research, not personal investment advice.</p>
+    </section>
+  </main>
+</body>
+</html>
