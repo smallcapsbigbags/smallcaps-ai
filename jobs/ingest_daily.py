@@ -8,7 +8,7 @@ from database.db import create_database_engine, create_session_factory, init_dat
 from database.operations import OperationsRepository, advisory_job_lock
 from database.repository import IntelligenceRepository
 from ingestion.daily_service import DailyAIMIngestionService
-from ingestion.investegate_daily import InvestegateDailyAIMSource
+from ingestion.multi_source_daily import MultiSourceDailyAIMSource
 from jobs.update_prices import PriceJobOutcome, run_price_job
 from pipeline import FoundationPipeline
 from settings import Settings
@@ -126,7 +126,8 @@ def main() -> None:
                     prompt_version=settings.prompt_version,
                     min_evidence_chars=settings.min_evidence_chars,
                 )
-                source = InvestegateDailyAIMSource(
+                source = MultiSourceDailyAIMSource(
+                    repository=repository,
                     api_key=settings.openai_api_key,
                     deep_model=settings.openai_deep_model,
                     deep_batch_size=settings.deep_search_batch_size,
