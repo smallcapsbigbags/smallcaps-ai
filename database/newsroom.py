@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import re
 from collections import defaultdict
 from datetime import date, datetime, time, timezone
@@ -93,8 +92,8 @@ def _direction(values: list[float | None]) -> str:
 class NewsroomRepository:
     """Evidence-bound newsroom projection over the Pass 8 editor.
 
-    This layer does not call an LLM. It turns already publication-safe Analyst 3.3
-    work plus structured Company Memory rows into a journalistic article contract,
+    This layer does not call an LLM. It turns publication-safe Analyst 3.3 work
+    plus structured Company Memory rows into a journalistic article contract,
     then runs the deterministic copy desk in product.newsroom.
     """
 
@@ -149,7 +148,7 @@ class NewsroomRepository:
             primary = by_source.get(story.primary_source_id)
             if primary is None:
                 primary = max(records, key=lambda item: (_aware(item[0].published_at), item[0].source_id))
-            primary_announcement, primary_company, primary_run = primary
+            _primary_announcement, primary_company, primary_run = primary
             company_id = primary_company.id
             latest_at = max(_aware(announcement.published_at) for announcement, _company, _run in records)
 
@@ -161,8 +160,12 @@ class NewsroomRepository:
                 announcement.source_id: _iso(announcement.published_at)
                 for announcement, _company, _run in records
             }
+            source_by_announcement_id = {
+                announcement.id: announcement.source_id
+                for announcement, _company, _run in records
+            }
 
-            announcement_ids = [announcement.id for announcement, _company, _run in records]
+            announcement_ids = list(source_by_announcement_id)
             fact_rows = session.scalars(
                 select(FactRow)
                 .where(FactRow.announcement_id.in_(announcement_ids))
@@ -191,41 +194,46 @@ class NewsroomRepository:
                     source_urls.setdefault(announcement.source_id, _clean(announcement.source_url))
                     source_published.setdefault(announcement.source_id, _iso(announcement.published_at))
 
-            facts = [
-                NewsroomFact(
-                    source_id=self._source_id_for_announcement(session, item.announcement_id),
-                    source_url=source_urls.get(self._source_id_for_announcement(session, item.announcement_id), ""),
-                    published_at=source_published.get(self._source_id_for_announcement(session, item.announcement_id), ""),
-                    label=_clean(item.label),
-                    metric=_clean(item.metric),
-                    period=_clean(item.period),
-                    value=_clean(item.value),
-                    previous_value=_clean(item.previous_value),
-                    comparator=_clean(item.comparator),
-                    comparator_source_id=_clean(item.comparator_source_id),
-                    basis=_clean(item.basis) or "reported",
-                    unit=_clean(item.unit),
-                    currency=_clean(item.currency),
-                    information_status=_clean(item.information_status) or "new",
+            facts: list[NewsroomFact] = []
+            for item in fact_rows:
+                source_id = source_by_announcement_id.get(item.announcement_id, "")
+                facts.append(
+                    NewsroomFact(
+                        source_id=source_id,
+                        source_url=source_urls.get(source_id, ""),
+                        published_at=source_published.get(source_id, ""),
+                        label=_clean(item.label),
+                        metric=_clean(item.metric),
+                        period=_clean(item.period),
+                        value=_clean(item.value),
+                        previous_value=_clean(item.previous_value),
+                        comparator=_clean(item.comparator),
+                        comparator_source_id=_clean(item.comparator_source_id),
+                        basis=_clean(item.basis) or "reported",
+                        unit=_clean(item.unit),
+                        currency=_clean(item.currency),
+                        information_status=_clean(item.information_status) or "new",
+                    )
                 )
-                for item in fact_rows
-            ]
-            guidance = [
-                NewsroomGuidance(
-                    source_id=self._source_id_for_announcement(session, item.announcement_id),
-                    source_url=source_urls.get(self._source_id_for_announcement(session, item.announcement_id), ""),
-                    published_at=source_published.get(self._source_id_for_announcement(session, item.announcement_id), ""),
-                    metric=_clean(item.metric),
-                    period=_clean(item.period),
-                    value=_clean(item.value),
-                    status=_clean(item.status).lower(),
-                    comparator=_clean(item.comparator),
-                    previous_value=_clean(item.previous_value),
-                    previous_source_id=_clean(item.previous_source_id),
-                    note=_clean(item.note),
+
+            guidance: list[NewsroomGuidance] = []
+            for item in guidance_rows:
+                source_id = source_by_announcement_id.get(item.announcement_id, "")
+                guidance.append(
+                    NewsroomGuidance(
+                        source_id=source_id,
+                        source_url=source_urls.get(source_id, ""),
+                        published_at=source_published.get(source_id, ""),
+                        metric=_clean(item.metric),
+                        period=_clean(item.period),
+                        value=_clean(item.value),
+                        status=_clean(item.status).lower(),
+                        comparator=_clean(item.comparator),
+                        previous_value=_clean(item.previous_value),
+                        previous_source_id=_clean(item.previous_source_id),
+                        note=_clean(item.note),
+                    )
                 )
-                for item in guidance_rows
-            ]
 
             metric_history = self._metric_history(
                 session,
@@ -241,32 +249,42 @@ class NewsroomRepository:
 
             disclosure = dict(primary_run.disclosure_assessment or {})
             missing_items = [
-                _clean(item) for item in list(disclosure.get("missing_items") or []) if _clean(item)
+                _clean(item)
+                for item in list(disclosure.get("missing_items") or [])
+                if _clean(item)
             ]
-            challenges = [_clean(item) for item in list(primary_run.challenges_case or []) if _clean(item)]
-            watch_items = [_clean(item) for item in list(primary_run.watch_items or []) if _clean(item)]
+            challenges = [
+                _clean(item) for item in list(primary_run.challenges_case or []) if _clean(item)
+            ]
+            watch_items = [
+                _clean(item) for item in list(primary_run.watch_items or []) if _clean(item)
+            ]
 
-            evidence_texts: list[str] = []
-            for announcement, _company, run in records:
-                evidence_texts.extend(
-                    [
-                        _clean(announcement.raw_text),
-                        _clean(run.headline),
-                        _clean(run.takeaway),
-                        _clean(run.analyst_view),
-                        json.dumps(run.what_changed or {}, ensure_ascii=False),
-                        json.dumps(run.challenges_case or [], ensure_ascii=False),
-                        json.dumps(run.watch_items or [], ensure_ascii=False),
-                        json.dumps(run.disclosure_assessment or {}, ensure_ascii=False),
-                    ]
-                )
+            # The copy desk's numerical support set is built from source evidence
+            # and structured extracted facts only. It deliberately does not use
+            # the Analyst headline/view/what_changed as self-validating evidence.
+            evidence_texts: list[str] = [
+                _clean(announcement.raw_text)
+                for announcement, _company, _run in records
+                if _clean(announcement.raw_text)
+            ]
             for item in fact_rows:
                 evidence_texts.extend(
-                    [_clean(item.value), _clean(item.previous_value), _clean(item.comparator), _clean(item.note)]
+                    [
+                        _clean(item.value),
+                        _clean(item.previous_value),
+                        _clean(item.comparator),
+                        _clean(item.note),
+                    ]
                 )
             for item in guidance_rows:
                 evidence_texts.extend(
-                    [_clean(item.value), _clean(item.previous_value), _clean(item.comparator), _clean(item.note)]
+                    [
+                        _clean(item.value),
+                        _clean(item.previous_value),
+                        _clean(item.comparator),
+                        _clean(item.note),
+                    ]
                 )
             for history in metric_history:
                 evidence_texts.extend(point.value for point in history.points)
@@ -287,13 +305,6 @@ class NewsroomRepository:
             source_published_at=source_published,
             source_urls=source_urls,
         )
-
-    @staticmethod
-    def _source_id_for_announcement(session: Session, announcement_id: object) -> str:
-        value = session.scalar(
-            select(AnnouncementRow.source_id).where(AnnouncementRow.id == announcement_id)
-        )
-        return _clean(value)
 
     def _metric_history(
         self,
@@ -327,7 +338,9 @@ class NewsroomRepository:
             .order_by(AnnouncementRow.published_at, FactRow.ordinal, FactRow.created_at)
         ).all()
 
-        grouped: dict[tuple[str, str, str, str, str], list[tuple[FactRow, AnnouncementRow]]] = defaultdict(list)
+        grouped: dict[
+            tuple[str, str, str, str, str], list[tuple[FactRow, AnnouncementRow]]
+        ] = defaultdict(list)
         for fact, announcement in rows:
             key = _series_key(fact)
             if key not in current_keys or not _clean(fact.value):
@@ -335,7 +348,7 @@ class NewsroomRepository:
             grouped[key].append((fact, announcement))
 
         output: list[NewsroomMetricHistory] = []
-        for key, items in grouped.items():
+        for _key, items in grouped.items():
             deduped: list[tuple[FactRow, AnnouncementRow]] = []
             seen: set[tuple[str, str]] = set()
             for fact, announcement in items:
