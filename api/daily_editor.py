@@ -12,12 +12,13 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Route
 
-from database.daily_editor import DailyEditorRepository
+from database.daily_editor import DailyEditorRepository, canonical_cutoffs
 from database.db import create_database_engine, create_session_factory, init_database
 from product.daily_editor import (
     DAILY_EDITOR_SCHEMA_VERSION,
-    DEFAULT_EDITOR_CUTOFF,
     DailyEditorPage,
+    DailyEditorTimeline,
+    resolve_editor_cutoff,
 )
 from settings import Settings
 
@@ -49,20 +50,38 @@ def create_daily_editor_routes(
         return _json(
             {
                 "schema_version": DAILY_EDITOR_SCHEMA_VERSION,
+                "canonical_cutoffs": canonical_cutoffs(),
                 "edition": DailyEditorPage.model_json_schema(),
+                "timeline": DailyEditorTimeline.model_json_schema(),
             },
             cache_seconds=3600,
         )
 
     async def aim_daily(request: Request) -> Response:
         try:
-            day, cutoff = _parse_query(request)
-            edition = provider().get_edition(day, cutoff=cutoff)
+            day, edition_state, cutoff = _parse_query(request)
+            edition = provider().get_edition(
+                day,
+                edition_state=edition_state,
+                cutoff=cutoff,
+            )
         except ValueError as exc:
             return _client_error("INVALID_QUERY", str(exc), status_code=400)
         except Exception as exc:  # pragma: no cover - production logging path
             return _service_error(exc)
         return _json(edition.model_dump(mode="json"), cache_seconds=60)
+
+    async def timeline(request: Request) -> Response:
+        try:
+            day = _parse_day(request)
+            if request.query_params.get("state") or request.query_params.get("edition_state") or request.query_params.get("cutoff"):
+                raise ValueError("timeline accepts date only")
+            payload = provider().get_timeline(day)
+        except ValueError as exc:
+            return _client_error("INVALID_QUERY", str(exc), status_code=400)
+        except Exception as exc:  # pragma: no cover - production logging path
+            return _service_error(exc)
+        return _json(payload.model_dump(mode="json"), cache_seconds=60)
 
     return [
         Route(
@@ -70,35 +89,43 @@ def create_daily_editor_routes(
             schema,
             methods=["GET"],
         ),
+        Route("/api/v1/aim-daily/timeline", timeline, methods=["GET"]),
         Route("/api/v1/aim-daily", aim_daily, methods=["GET"]),
     ]
 
 
-def _parse_query(request: Request) -> tuple[date, time]:
+def _parse_query(request: Request) -> tuple[date, str | None, time | None]:
+    day = _parse_day(request)
     params = request.query_params
-    day_value = str(params.get("date") or "").strip()
-    if day_value:
-        try:
-            day = date.fromisoformat(day_value)
-        except ValueError as exc:
-            raise ValueError("date must use YYYY-MM-DD") from exc
-    else:
-        day = datetime.now(LONDON).date()
-
+    state_value = str(params.get("state") or params.get("edition_state") or "").strip().lower()
     cutoff_value = str(params.get("cutoff") or "").strip()
-    if not cutoff_value:
-        cutoff = DEFAULT_EDITOR_CUTOFF
-    else:
+    if state_value and cutoff_value:
+        raise ValueError("edition_state cannot be combined with cutoff")
+
+    cutoff: time | None = None
+    if cutoff_value:
         try:
             cutoff = time.fromisoformat(cutoff_value)
         except ValueError as exc:
             raise ValueError("cutoff must use HH:MM") from exc
         if cutoff.second or cutoff.microsecond:
             raise ValueError("cutoff must use HH:MM")
-        if cutoff == time.min:
-            raise ValueError("cutoff must be after 00:00 Europe/London")
 
-    return day, cutoff
+    resolve_editor_cutoff(
+        edition_state=state_value or None,
+        cutoff=cutoff,
+    )
+    return day, state_value or None, cutoff
+
+
+def _parse_day(request: Request) -> date:
+    day_value = str(request.query_params.get("date") or "").strip()
+    if not day_value:
+        return datetime.now(LONDON).date()
+    try:
+        return date.fromisoformat(day_value)
+    except ValueError as exc:
+        raise ValueError("date must use YYYY-MM-DD") from exc
 
 
 def _headers(*, cache_seconds: int) -> dict[str, str]:
@@ -158,7 +185,6 @@ def _service_error(exc: Exception) -> JSONResponse:
                 "message": "AIM Daily data is temporarily unavailable.",
                 "reference": reference,
             },
-        },
         cache_seconds=0,
         status_code=503,
     )
