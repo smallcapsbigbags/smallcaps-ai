@@ -114,7 +114,10 @@ def create_frontend_routes() -> list[Route]:
     """Serve The AIM Daily, RNS Monitor, Company Intelligence and beta entrance."""
 
     async def home(request: Request) -> Response:
-        return _protected_file(request, "daily.html")
+        # Pass 5 company links already deep-link to /?date=...&open=SOURCE_ID.
+        # Keep those stable while making the plain root URL The AIM Daily.
+        filename = "index.html" if request.query_params.get("open") else "daily.html"
+        return _protected_file(request, filename)
 
     async def rns(request: Request) -> Response:
         return _protected_file(request, "index.html")
