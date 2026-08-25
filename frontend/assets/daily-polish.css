@@ -1,0 +1,10 @@
+.story-meta-primary {
+  color: var(--text-soft);
+  font-weight: 760;
+}
+
+@media (max-width: 900px) {
+  .daily-site-header .text-action {
+    display: inline-flex;
+  }
+}
