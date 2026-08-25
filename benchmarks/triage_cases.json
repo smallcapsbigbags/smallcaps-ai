@@ -1,0 +1,110 @@
+{
+  "version": "newsroom-triage-1.0",
+  "metadata_cases": [
+    {"id":"archive-total-voting-rights","title":"Total Voting Rights","expected":"ARCHIVE"},
+    {"id":"archive-block-listing","title":"Block Listing Six Monthly Return","expected":"ARCHIVE"},
+    {"id":"archive-agm","title":"Notice of AGM","expected":"ARCHIVE"},
+    {"id":"archive-annual-report","title":"Publication of Annual Report","expected":"ARCHIVE"},
+    {"id":"light-director","title":"Director/PDMR Shareholding","expected":"LIGHT"},
+    {"id":"light-holdings","title":"Holding(s) in Company","expected":"LIGHT"},
+    {"id":"light-ltip","title":"Grant of awards under Long-Term Incentive Plan","expected":"LIGHT"},
+    {"id":"light-board","title":"Directorate Change","expected":"LIGHT"},
+    {"id":"light-contract","title":"Contract Award","expected":"LIGHT"},
+    {"id":"light-generic","title":"Corporate Update","expected":"LIGHT"},
+    {"id":"full-trading","title":"Trading Update","expected":"FULL"},
+    {"id":"full-results","title":"Final Results","expected":"FULL"},
+    {"id":"full-warning","title":"Profit Warning","expected":"FULL"},
+    {"id":"full-placing","title":"Proposed Placing and Retail Offer","expected":"FULL"},
+    {"id":"full-acquisition","title":"Acquisition of Example Limited","expected":"FULL"},
+    {"id":"full-strategic-review","title":"Strategic Review","expected":"FULL"},
+    {"id":"full-offer","title":"Possible Offer under Rule 2.4","expected":"FULL"},
+    {"id":"full-funding","title":"Funding Update","expected":"FULL"},
+    {"id":"full-clinical","title":"Clinical Trial Results","expected":"FULL"}
+  ],
+  "light_cases": [
+    {
+      "id":"director-small-ned-buy",
+      "title":"Director/PDMR Shareholding",
+      "text":"A non-executive director purchased 25,000 shares for an aggregate consideration of £20,000.",
+      "context":{},
+      "expected":"LIGHT"
+    },
+    {
+      "id":"director-ceo-buy",
+      "title":"Director/PDMR Shareholding",
+      "text":"The Chief Executive Officer purchased shares for an aggregate consideration of £150,000.",
+      "context":{},
+      "expected":"FULL"
+    },
+    {
+      "id":"director-after-warning",
+      "title":"Director/PDMR Shareholding",
+      "text":"A director purchased 50,000 ordinary shares for £35,000.",
+      "context":{"recent_adverse_trading":true},
+      "expected":"FULL"
+    },
+    {
+      "id":"repeated-director-dealings",
+      "title":"Director/PDMR Shareholding",
+      "text":"A director purchased 20,000 shares for £12,000.",
+      "context":{"recent_director_dealings":2},
+      "expected":"FULL"
+    },
+    {
+      "id":"contract-small-relative",
+      "title":"Contract Award",
+      "text":"The company has won a £500,000 contract for delivery over twelve months.",
+      "context":{"latest_revenue_value":"£100m"},
+      "expected":"LIGHT"
+    },
+    {
+      "id":"contract-material-relative",
+      "title":"Contract Award",
+      "text":"The company has won an £8m contract for delivery over two years.",
+      "context":{"latest_revenue_value":"£20m"},
+      "expected":"FULL"
+    },
+    {
+      "id":"contract-large-no-denominator",
+      "title":"Contract Award",
+      "text":"The company has signed a £6m order with a new customer.",
+      "context":{},
+      "expected":"FULL"
+    },
+    {
+      "id":"ltip-small",
+      "title":"Grant of awards under Long-Term Incentive Plan",
+      "text":"The company granted 500,000 nil-cost options under its LTIP.",
+      "context":{"latest_share_count_value":"100m"},
+      "expected":"LIGHT"
+    },
+    {
+      "id":"ltip-dilutive",
+      "title":"Grant of awards under Long-Term Incentive Plan",
+      "text":"The company granted 5m nil-cost options under its LTIP.",
+      "context":{"latest_share_count_value":"100m"},
+      "expected":"FULL"
+    },
+    {
+      "id":"cfo-resignation",
+      "title":"Directorate Change",
+      "text":"The Chief Financial Officer has resigned and will leave the company with immediate effect.",
+      "context":{},
+      "expected":"FULL"
+    },
+    {
+      "id":"board-appointment",
+      "title":"Directorate Change",
+      "text":"The company appoints an independent non-executive director to the board.",
+      "context":{},
+      "expected":"LIGHT"
+    },
+    {
+      "id":"generic-hidden-solvency",
+      "title":"Corporate Update",
+      "text":"The company has insufficient funds to continue as a going concern and has filed a notice of intention to appoint administrators.",
+      "context":{},
+      "expected":"FULL"
+    }
+  ]
+}
