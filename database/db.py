@@ -8,9 +8,10 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from database.models import Base
-# Import the additive triage model before create_all so existing databases gain
-# the new ledger table without altering any established public tables.
+# Import additive models before create_all so existing databases gain the
+# newsroom support tables without altering established public tables.
 from database import triage_store as _triage_store  # noqa: F401,E402
+from database import editorial_calibration as _editorial_calibration  # noqa: F401,E402
 
 
 def normalise_database_url(url: str) -> str:

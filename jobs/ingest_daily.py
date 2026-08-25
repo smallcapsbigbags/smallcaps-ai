@@ -5,6 +5,7 @@ from zoneinfo import ZoneInfo
 
 from analyst.analyzer import OpenAIAnalystEngine
 from database.db import create_database_engine, create_session_factory, init_database
+from database.editorial_calibration import EditorialCalibrationRepository
 from database.operations import OperationsRepository, advisory_job_lock
 from database.repository import IntelligenceRepository
 from ingestion.daily_service import DailyAIMIngestionService
@@ -55,6 +56,7 @@ def _empty_ingestion_summary(
         "deferred": 0,
         "blocked": 0,
         "failed": 0,
+        "story_links_created": 0,
         **_price_summary(price_outcome),
     }
 
@@ -70,6 +72,7 @@ def main() -> None:
         factory = create_session_factory(engine)
         repository = IntelligenceRepository(factory)
         operations = OperationsRepository(factory)
+        editorial = EditorialCalibrationRepository(factory)
         combined_warnings: list[str] = list(warnings)
         price_outcome: PriceJobOutcome | None = None
 
@@ -139,6 +142,19 @@ def main() -> None:
                     progress=_progress,
                 )
                 result = service.run()
+                story_links_created = 0
+                story_sync_failed = False
+                try:
+                    story_links_created = editorial.ensure_story_links(
+                        datetime.now(LONDON).date()
+                    )
+                except Exception as exc:
+                    story_sync_failed = True
+                    combined_warnings.append(
+                        "AIM Daily developing-story sync failed: "
+                        f"{type(exc).__name__}: {exc}"
+                    )
+
                 summary: dict[str, object] = {
                     "discovered": result.discovered,
                     "known": result.already_known,
@@ -152,6 +168,7 @@ def main() -> None:
                     "deferred": result.deferred,
                     "blocked": result.blocked,
                     "failed": result.failed,
+                    "story_links_created": story_links_created,
                     **_price_summary(price_outcome),
                 }
                 combined_warnings.extend(result.warnings)
@@ -161,6 +178,7 @@ def main() -> None:
                         result.deferred,
                         result.blocked,
                         result.failed,
+                        story_sync_failed,
                         price_outcome is not None
                         and price_outcome.status in {"degraded", "failed"},
                     )
