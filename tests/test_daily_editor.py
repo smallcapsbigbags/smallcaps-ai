@@ -173,6 +173,10 @@ def test_editor_does_not_invent_new_editorial_copy() -> None:
         ],
     )
 
-    assert page.lead is not None
-    assert page.lead.editorial_headline == verdict
-    assert page.lead.why_it_matters == view
+    # This candidate scores 57, deliberately one point below the lead threshold.
+    # The no-invention contract should not be weakened just to force a lead.
+    assert page.lead is None
+    assert len(page.also_matters) == 1
+    story = page.also_matters[0]
+    assert story.editorial_headline == verdict
+    assert story.why_it_matters == view
