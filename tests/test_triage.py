@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from analyst.models import AnnouncementInput
@@ -99,16 +100,16 @@ def test_director_event_escalates_for_senior_management_or_recent_warning() -> N
 
 def test_light_fact_extraction_is_deterministic_and_non_generative() -> None:
     facts = extract_light_facts(
-        "The company granted 5m shares representing 4.2% and a £6.5m maximum value."
+        "The company granted 5m options representing 4.2% and a £6.5m maximum value."
     )
     kinds = {fact["kind"] for fact in facts}
-    assert {"money", "percentage", "shares"}.issubset(kinds)
+    assert {"money", "percentage", "securities"}.issubset(kinds)
     assert parse_numeric_amount("£6.5m") == 6_500_000
     assert parse_numeric_amount("100m shares") == 100_000_000
 
 
 def test_newsroom_triage_benchmark_passes() -> None:
-    result = run(__import__("pathlib").Path("benchmarks/triage_cases.json"))
+    result = run(Path("benchmarks/triage_cases.json"))
     assert result["passed"] is True
     assert result["failure_count"] == 0
     assert result["metadata_cases"] >= 19
