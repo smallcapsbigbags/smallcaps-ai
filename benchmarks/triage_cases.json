@@ -1,0 +1,20 @@
+[
+  {"id":"archive-tvr","title":"Total Voting Rights","categories":[],"expected":"archive"},
+  {"id":"archive-block","title":"Block Listing Six Monthly Return","categories":[],"expected":"archive"},
+  {"id":"archive-agm","title":"Notice of AGM","categories":[],"expected":"archive"},
+  {"id":"archive-office","title":"Change of Registered Office","categories":[],"expected":"archive"},
+  {"id":"light-director","title":"Director/PDMR Shareholding","categories":[],"expected":"light"},
+  {"id":"light-ltip","title":"Grant of Awards under Long-Term Incentive Plan","categories":[],"expected":"light"},
+  {"id":"light-contract","title":"Contract Award","categories":[],"expected":"light"},
+  {"id":"light-holdings","title":"Holding(s) in Company","categories":[],"expected":"light"},
+  {"id":"light-board","title":"Directorate Change","categories":[],"expected":"light"},
+  {"id":"light-unknown","title":"Corporate Update","categories":[],"expected":"light"},
+  {"id":"full-trading","title":"Trading Update","categories":[],"expected":"full"},
+  {"id":"full-results","title":"Final Results","categories":[],"expected":"full"},
+  {"id":"full-warning","title":"Profit Warning","categories":[],"expected":"full"},
+  {"id":"full-placing","title":"Proposed Placing and Retail Offer","categories":[],"expected":"full"},
+  {"id":"full-acquisition","title":"Acquisition of Example Limited","categories":[],"expected":"full"},
+  {"id":"full-takeover","title":"Possible Offer under Rule 2.4","categories":[],"expected":"full"},
+  {"id":"full-solvency","title":"Notice of Intention to Appoint Administrators","categories":[],"expected":"full"},
+  {"id":"full-strategic","title":"Strategic Review and Formal Sale Process","categories":[],"expected":"full"}
+]
