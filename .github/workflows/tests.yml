@@ -37,6 +37,7 @@ jobs:
       - run: python -m json.tool benchmarks/company_memory_cases.json > /dev/null
       - run: python -m json.tool benchmarks/analyst_intelligence_cases.json > /dev/null
       - run: python -m json.tool benchmarks/analyst_intelligence_controls.json > /dev/null
+      - run: python -m json.tool benchmarks/triage_cases.json > /dev/null
       - run: python -m json.tool railway.json > /dev/null
       - run: python -m json.tool railway.ingest.json > /dev/null
       - run: python -m json.tool railway.prices.json > /dev/null
@@ -45,4 +46,5 @@ jobs:
       - run: python -m json.tool railway.analyst31-preflight.json > /dev/null
       - run: python -m jobs.run_intelligence_benchmark --cases benchmarks/analyst_intelligence_cases.json --output /tmp/analyst-intelligence-results.json
       - run: python -m jobs.run_intelligence_benchmark --cases benchmarks/analyst_intelligence_controls.json --output /tmp/analyst-intelligence-controls.json
+      - run: python -m jobs.run_triage_benchmark --cases benchmarks/triage_cases.json --output /tmp/triage-results.json
       - run: pytest -q
