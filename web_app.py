@@ -10,6 +10,7 @@ from starlette.staticfiles import StaticFiles
 from streamlit.web.server.starlette import App as StreamlitApp
 
 from api.company import create_company_routes
+from api.daily_editor import create_daily_editor_routes
 from api.frontend import create_frontend_routes
 from api.monitoring import create_monitoring_routes
 
@@ -22,6 +23,7 @@ legacy_app = StreamlitApp("streamlit_app.py")
 app = Starlette(
     routes=[
         *create_frontend_routes(),
+        *create_daily_editor_routes(),
         *create_monitoring_routes(),
         *create_company_routes(),
         Mount(
