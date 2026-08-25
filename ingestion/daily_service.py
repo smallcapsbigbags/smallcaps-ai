@@ -130,8 +130,8 @@ class DailyAIMIngestionService:
             return result
 
         # LIGHT screening still retrieves evidence, but deliberately avoids an
-        # Analyst 3.3 inference call unless deterministic evidence triggers an
-        # escalation. FULL metadata items are retrieved in the same batches.
+        # Analyst 3.3 inference call unless deterministic evidence/context triggers
+        # an escalation. FULL metadata items are retrieved in the same batches.
         batch_size = max(1, int(getattr(self.source, "deep_batch_size", 5)))
         batch_count = (len(evidence_screen) + batch_size - 1) // batch_size
         full_candidates: list[tuple[CatalogueAnnouncement, object, TriageDecision]] = []
@@ -145,7 +145,18 @@ class DailyAIMIngestionService:
                 f"Evidence screen {batch_index}/{batch_count} size={len(batch)} "
                 f"tickers={tickers}"
             )
-            result.warnings.extend(self.source.prepare_documents(batch))
+            try:
+                result.warnings.extend(self.source.prepare_documents(batch))
+            except Exception as exc:
+                for item in batch:
+                    self.triage.mark_status(item.source_id, "retryable")
+                    result.failed += 1
+                    result.failed_source_ids.append(item.source_id)
+                result.warnings.append(
+                    f"Evidence batch preparation failed; {len(batch)} item(s) left retryable: "
+                    f"{type(exc).__name__}: {exc}"[:700]
+                )
+                continue
 
             for item in batch:
                 initial = decisions[item.source_id]
@@ -170,7 +181,25 @@ class DailyAIMIngestionService:
                     continue
 
                 if initial.processing_level == "light":
-                    screened = triage_evidence(item, announcement.text)
+                    try:
+                        context = self.triage.company_context(
+                            item.ticker,
+                            before=item.published_at,
+                        )
+                        screened = triage_evidence(
+                            item,
+                            announcement.text,
+                            context=context,
+                        )
+                    except Exception as exc:
+                        self.triage.mark_status(item.source_id, "retryable")
+                        result.failed += 1
+                        result.failed_source_ids.append(item.source_id)
+                        result.warnings.append(
+                            f"{item.ticker} {item.source_id}: deterministic LIGHT screen failed and was left retryable: "
+                            f"{type(exc).__name__}: {exc}"[:700]
+                        )
+                        continue
                     if screened.processing_level == "light":
                         self.triage.record_evidence(
                             announcement,
