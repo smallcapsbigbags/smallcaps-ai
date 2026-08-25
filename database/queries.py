@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from sqlalchemy import exists, or_, select
+from sqlalchemy import and_, exists, or_, select
 
 from database.db import session_scope
 from database.models import AnalystRunRow, AnnouncementRow
@@ -18,8 +18,9 @@ def known_source_ids(
     Pass 6 records every discovered RNS before expensive work begins. A metadata
     shell whose triage level is FULL must therefore *not* count as known until a
     current AnalystRun exists, otherwise blocked/deferred material items could be
-    silently skipped forever. Final ARCHIVE/LIGHT rows are terminal without a full
-    analyst run and may be deduplicated immediately.
+    silently skipped forever. ARCHIVE is terminal immediately. LIGHT becomes
+    terminal only after exact evidence has been persisted (``evidence_hash``), so
+    source/batch/screening failures remain retryable on the next ingestion cycle.
     """
 
     ids = {value for value in source_ids if value}
@@ -35,8 +36,14 @@ def known_source_ids(
     terminal_triage_exists = exists(
         select(AnnouncementTriageRow.id).where(
             AnnouncementTriageRow.announcement_id == AnnouncementRow.id,
-            AnnouncementTriageRow.processing_level.in_(("ARCHIVE", "LIGHT")),
             AnnouncementTriageRow.escalated.is_(False),
+            or_(
+                AnnouncementTriageRow.processing_level == "ARCHIVE",
+                and_(
+                    AnnouncementTriageRow.processing_level == "LIGHT",
+                    AnnouncementTriageRow.evidence_hash != "",
+                ),
+            ),
         )
     )
 
