@@ -121,12 +121,14 @@ _HIGH_RISK_EVIDENCE_PATTERNS = (
 )
 
 _MONEY_RE = re.compile(
-    r"(?P<currency>£|GBP\s*)\s*(?P<number>\d+(?:[,.]\d+)*)\s*(?P<scale>bn|billion|m|million|k|thousand)?",
+    r"(?P<currency>£|GBP\s*)\s*(?P<number>\d+(?:[,.]\d+)*)\s*"
+    r"(?P<scale>bn|billion|m|million|k|thousand)?",
     re.IGNORECASE,
 )
 _PERCENT_RE = re.compile(r"\b(\d+(?:\.\d+)?)\s*%")
-_SHARE_RE = re.compile(
-    r"\b(\d+(?:[,.]\d+)*)\s*(bn|billion|m|million|k|thousand)?\s+(?:ordinary\s+)?shares?\b",
+_SECURITY_COUNT_RE = re.compile(
+    r"\b(\d+(?:[,.]\d+)*)\s*(bn|billion|m|million|k|thousand)?\s+"
+    r"(?:ordinary\s+)?(?:shares?|options?|awards?)\b",
     re.IGNORECASE,
 )
 
@@ -138,7 +140,10 @@ def _text(item: object) -> str:
 
 
 def _matches(patterns: tuple[str, ...], text: str) -> bool:
-    return any(re.search(pattern, text, flags=re.IGNORECASE | re.DOTALL) for pattern in patterns)
+    return any(
+        re.search(pattern, text, flags=re.IGNORECASE | re.DOTALL)
+        for pattern in patterns
+    )
 
 
 def initial_triage(item: CatalogueAnnouncement) -> TriageDecision:
@@ -151,12 +156,32 @@ def initial_triage(item: CatalogueAnnouncement) -> TriageDecision:
 
     text = _text(item)
     if _matches(_FULL_PATTERNS, text):
-        return TriageDecision("FULL", "FULL", "High-signal event class in catalogue metadata.", 90)
+        return TriageDecision(
+            "FULL",
+            "FULL",
+            "High-signal event class in catalogue metadata.",
+            90,
+        )
     if _matches(_ARCHIVE_PATTERNS, text):
-        return TriageDecision("ARCHIVE", "ARCHIVE", "Routine administrative disclosure identified deterministically.", 5)
+        return TriageDecision(
+            "ARCHIVE",
+            "ARCHIVE",
+            "Routine administrative disclosure identified deterministically.",
+            5,
+        )
     if _matches(_LIGHT_PATTERNS, text):
-        return TriageDecision("LIGHT", "LIGHT", "Potentially useful event requires a lightweight evidence screen.", 45)
-    return TriageDecision("LIGHT", "LIGHT", "Unclassified catalogue item fails safe to lightweight evidence screening.", 50)
+        return TriageDecision(
+            "LIGHT",
+            "LIGHT",
+            "Potentially useful event requires a lightweight evidence screen.",
+            45,
+        )
+    return TriageDecision(
+        "LIGHT",
+        "LIGHT",
+        "Unclassified catalogue item fails safe to lightweight evidence screening.",
+        50,
+    )
 
 
 def assess_light(
@@ -173,24 +198,34 @@ def assess_light(
     """
 
     context = context or TriageContext()
-    initial = initial or TriageDecision("LIGHT", "LIGHT", "Light evidence screen.", 45)
-    text = " ".join([announcement.title, announcement.text, *announcement.categories])
+    initial = initial or TriageDecision(
+        "LIGHT", "LIGHT", "Light evidence screen.", 45
+    )
+    text = " ".join(
+        [announcement.title, announcement.text, *announcement.categories]
+    )
     facts = extract_light_facts(announcement.text)
     reasons: list[str] = []
     score = initial.score
 
     if _matches(_HIGH_RISK_EVIDENCE_PATTERNS, text):
-        reasons.append("Retrieved evidence contains a high-risk investment-case trigger.")
+        reasons.append(
+            "Retrieved evidence contains a high-risk investment-case trigger."
+        )
         score = max(score, 95)
 
     lower = text.lower()
     is_director = bool(re.search(r"\b(?:director|pdmr)\b", lower))
     if is_director:
-        if re.search(r"\b(?:chief executive|chief financial officer|ceo|cfo)\b", lower):
+        if re.search(
+            r"\b(?:chief executive|chief financial officer|ceo|cfo)\b", lower
+        ):
             reasons.append("CEO/CFO dealing or change warrants full context.")
             score = max(score, 78)
         if context.recent_director_dealings >= 2:
-            reasons.append("Repeated director-dealing pattern detected in recent company history.")
+            reasons.append(
+                "Repeated director-dealing pattern detected in recent company history."
+            )
             score = max(score, 72)
         if context.recent_adverse_trading:
             reasons.append("Director event follows a recent adverse trading disclosure.")
@@ -204,27 +239,43 @@ def assess_light(
         contract_value = _largest_money(text)
         revenue = parse_numeric_amount(context.latest_revenue_value)
         if contract_value and revenue and contract_value / revenue >= 0.10:
-            reasons.append("Disclosed contract/order value is at least 10% of latest known revenue.")
+            reasons.append(
+                "Disclosed contract/order value is at least 10% of latest known revenue."
+            )
             score = max(score, 85)
         elif contract_value >= 5_000_000 and not revenue:
-            reasons.append("Contract/order value is at least £5m and no reliable revenue denominator is stored.")
+            reasons.append(
+                "Contract/order value is at least £5m and no reliable revenue denominator is stored."
+            )
             score = max(score, 78)
-        if re.search(r"\b(?:largest|transformational|material to the group)\b", lower):
-            reasons.append("Company describes the commercial event as unusually material.")
+        if re.search(
+            r"\b(?:largest|transformational|material to the group)\b", lower
+        ):
+            reasons.append(
+                "Company describes the commercial event as unusually material."
+            )
             score = max(score, 80)
 
-    is_ltip = bool(re.search(r"\b(?:ltip|incentive|options?|awards?)\b", lower))
+    is_ltip = bool(
+        re.search(r"\b(?:ltip|incentive|options?|awards?)\b", lower)
+    )
     if is_ltip:
-        award_shares = _largest_share_count(text)
+        award_shares = _largest_security_count(text)
         total_shares = parse_numeric_amount(context.latest_share_count_value)
         if award_shares and total_shares and award_shares / total_shares >= 0.03:
-            reasons.append("Award/options represent at least 3% of latest known share count.")
+            reasons.append(
+                "Award/options represent at least 3% of latest known share count."
+            )
             score = max(score, 82)
         elif award_shares >= 2_000_000 and not total_shares:
-            reasons.append("Large option/award count with no reliable share-count denominator stored.")
+            reasons.append(
+                "Large option/award count with no reliable share-count denominator stored."
+            )
             score = max(score, 70)
 
-    if re.search(r"\b(?:resign|resignation|steps? down|leaves? the company)\b", lower) and re.search(
+    if re.search(
+        r"\b(?:resign|resignation|steps? down|leaves? the company)\b", lower
+    ) and re.search(
         r"\b(?:chief executive|chief financial officer|ceo|cfo)\b", lower
     ):
         reasons.append("CEO/CFO departure is potentially investment-case relevant.")
@@ -254,18 +305,41 @@ def extract_light_facts(text: str) -> list[dict[str, object]]:
     facts: list[dict[str, object]] = []
     for match in _MONEY_RE.finditer(text):
         raw = match.group(0).strip()
-        facts.append({"kind": "money", "value": raw, "value_numeric": parse_numeric_amount(raw)})
+        facts.append(
+            {
+                "kind": "money",
+                "value": raw,
+                "value_numeric": parse_numeric_amount(raw),
+            }
+        )
     for match in _PERCENT_RE.finditer(text):
-        facts.append({"kind": "percentage", "value": match.group(0), "value_numeric": float(match.group(1))})
-    for match in _SHARE_RE.finditer(text):
+        facts.append(
+            {
+                "kind": "percentage",
+                "value": match.group(0),
+                "value_numeric": float(match.group(1)),
+            }
+        )
+    for match in _SECURITY_COUNT_RE.finditer(text):
         raw = match.group(0).strip()
-        facts.append({"kind": "shares", "value": raw, "value_numeric": parse_numeric_amount(raw)})
+        facts.append(
+            {
+                "kind": "securities",
+                "value": raw,
+                "value_numeric": parse_numeric_amount(raw),
+            }
+        )
     return facts[:12]
 
 
 def parse_numeric_amount(value: object) -> float:
     text = str(value or "").replace(",", "").strip()
-    match = re.search(r"(?:£|GBP\s*)?\s*(\d+(?:\.\d+)?)\s*(bn|billion|m|million|k|thousand)?", text, re.IGNORECASE)
+    match = re.search(
+        r"(?:£|GBP\s*)?\s*(\d+(?:\.\d+)?)\s*"
+        r"(bn|billion|m|million|k|thousand)?",
+        text,
+        re.IGNORECASE,
+    )
     if not match:
         return 0.0
     number = float(match.group(1))
@@ -282,8 +356,17 @@ def parse_numeric_amount(value: object) -> float:
 
 
 def _largest_money(text: str) -> float:
-    return max((parse_numeric_amount(match.group(0)) for match in _MONEY_RE.finditer(text)), default=0.0)
+    return max(
+        (parse_numeric_amount(match.group(0)) for match in _MONEY_RE.finditer(text)),
+        default=0.0,
+    )
 
 
-def _largest_share_count(text: str) -> float:
-    return max((parse_numeric_amount(match.group(0)) for match in _SHARE_RE.finditer(text)), default=0.0)
+def _largest_security_count(text: str) -> float:
+    return max(
+        (
+            parse_numeric_amount(match.group(0))
+            for match in _SECURITY_COUNT_RE.finditer(text)
+        ),
+        default=0.0,
+    )
