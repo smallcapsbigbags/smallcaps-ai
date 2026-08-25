@@ -217,13 +217,14 @@
 
   function storyMeta(article) {
     const meta = element("p", "story-meta");
-    meta.append(
-      strong(`IMPACT ${Number(article.impact_score || 0)}/5`),
-      document.createTextNode(clean(article.outlook) ? `OUTLOOK ${clean(article.outlook)}` : ""),
-      document.createTextNode(clean(article.story_family) ? `STORY ${clean(article.story_family).replaceAll("_", " ")}` : ""),
-    );
-    [...meta.childNodes].forEach((node) => {
-      if (node.nodeType === Node.TEXT_NODE && !clean(node.textContent)) node.remove();
+    const values = [
+      `IMPACT ${Number(article.impact_score || 0)}/5`,
+      clean(article.outlook) ? `OUTLOOK ${clean(article.outlook)}` : "",
+      clean(article.story_family) ? `STORY ${clean(article.story_family).replaceAll("_", " ")}` : "",
+    ].filter(clean);
+    values.forEach((value, index) => {
+      const node = element("span", index === 0 ? "story-meta-primary" : "", value);
+      meta.append(node);
     });
     return meta;
   }
