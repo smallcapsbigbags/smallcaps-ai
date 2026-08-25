@@ -1,0 +1,189 @@
+name: pass10-aim-daily-visual-audit
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pass10-aim-daily-visual-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  aim-daily:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DATABASE_URL: sqlite+pysqlite:///data/pass10-preview.db
+      PRIVATE_BETA_MODE: "false"
+      APP_BETA_PASSWORD: preview-access
+      APP_ADMIN_PASSWORD: preview-admin
+      MARKET_DATA_ENABLED: "true"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install application and browser dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install playwright==1.55.0
+          python -m playwright install --with-deps chromium
+          node --check frontend/assets/daily.js
+
+      - name: Seed deterministic publication data
+        run: |
+          rm -f data/pass10-preview.db
+          python -m jobs.seed_launch_preview
+          python -m jobs.seed_pass1_preview
+
+      - name: Start combined product
+        shell: bash
+        run: |
+          mkdir -p /tmp/pass10-audit
+          python -m uvicorn web_app:app --host 127.0.0.1 --port 8501 \
+            > /tmp/pass10-audit/web.log 2>&1 &
+          echo $! > /tmp/pass10-web.pid
+          for attempt in $(seq 1 90); do
+            if curl --fail --silent http://127.0.0.1:8501/api/v1/health >/dev/null \
+              && curl --fail --silent 'http://127.0.0.1:8501/api/v1/aim-daily/newsroom?date=2026-08-21&state=aim_close' >/tmp/pass10-audit/newsroom.json; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/pass10-audit/web.log
+          exit 1
+
+      - name: Validate publication contract and responsive newsroom
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from playwright.sync_api import expect, sync_playwright
+
+          out = Path('/tmp/pass10-audit')
+          base = 'http://127.0.0.1:8501'
+          payload = json.loads((out / 'newsroom.json').read_text())
+          if payload.get('schema_version') != 'aim-daily-newsroom-v1':
+              raise AssertionError(payload)
+          if payload.get('selected_story_count', 0) < 1:
+              raise AssertionError('Seeded newsroom did not select a story')
+          if payload.get('published_article_count', 0) < 1:
+              raise AssertionError('Seeded newsroom did not publish a copy-desk-passed article')
+
+          def no_overflow(page):
+              dims = page.evaluate(
+                  """
+                  () => ({
+                    client: document.documentElement.clientWidth,
+                    scroll: document.documentElement.scrollWidth,
+                    body: document.body.scrollWidth,
+                  })
+                  """
+              )
+              if dims['scroll'] > dims['client'] + 2 or dims['body'] > dims['client'] + 2:
+                  raise AssertionError(f'Document clips horizontally: {dims}')
+
+          def wait_daily(page):
+              page.get_by_role('heading', name='THE AIM DAILY', exact=True).wait_for(timeout=30000)
+              page.wait_for_function(
+                  "document.getElementById('edition-summary').textContent.includes('full analyses')",
+                  timeout=30000,
+              )
+              page.locator('article[data-story-key]').first.wait_for(timeout=30000)
+
+          def assert_daily(page, *, mobile=False):
+              wait_daily(page)
+              body = page.locator('body').inner_text()
+              for required in ('THE AIM DAILY', 'NEWS', 'THE VIEW', 'THE REST OF AIM', 'RNS MONITOR'):
+                  if required not in body:
+                      raise AssertionError(f'Missing publication element: {required}')
+              if 'AI VIEW' in body:
+                  raise AssertionError('Customer-facing AIM Daily still says AI VIEW')
+              if payload.get('lead') is not None:
+                  page.get_by_text('THE LEAD', exact=True).wait_for(timeout=30000)
+              if payload.get('also_matters'):
+                  page.get_by_text('ALSO THIS MORNING', exact=True).wait_for(timeout=30000)
+              if payload.get('quick_takes'):
+                  page.get_by_text('QUICK TAKES', exact=True).wait_for(timeout=30000)
+
+              articles = [payload.get('lead'), *payload.get('also_matters', []), *payload.get('quick_takes', [])]
+              has_number = any(item and item.get('the_number') for item in articles)
+              if has_number and page.locator('.evidence-graphic').count() < 1:
+                  raise AssertionError('Structured THE NUMBER evidence exists but no graphic rendered')
+
+              no_overflow(page)
+              if mobile:
+                  columns = page.locator('.lead-layout').first.evaluate(
+                      '(el) => getComputedStyle(el).gridTemplateColumns'
+                  ) if page.locator('.lead-layout').count() else 'none'
+                  if columns != 'none' and ' ' in columns.strip():
+                      raise AssertionError(f'Mobile lead did not collapse: {columns}')
+
+          with sync_playwright() as p:
+              browser = p.chromium.launch()
+              url = f'{base}/?date=2026-08-21&state=aim_close'
+
+              desktop = browser.new_context(viewport={'width': 1440, 'height': 1100})
+              page = desktop.new_page()
+              page.goto(url, wait_until='domcontentloaded')
+              assert_daily(page)
+              computed = page.evaluate(
+                  """
+                  () => ({
+                    background: getComputedStyle(document.body).backgroundColor,
+                    accent: getComputedStyle(document.querySelector('#daily-title span')).color,
+                    titleSize: parseFloat(getComputedStyle(document.querySelector('#daily-title')).fontSize),
+                    radius: getComputedStyle(document.querySelector('.daily-masthead')).borderRadius,
+                  })
+                  """
+              )
+              if computed['background'] != 'rgb(3, 8, 13)':
+                  raise AssertionError(f'Wrong publication background: {computed}')
+              if computed['accent'] != 'rgb(70, 215, 255)':
+                  raise AssertionError(f'Wrong Smallcaps.ai cyan: {computed}')
+              if computed['titleSize'] < 80:
+                  raise AssertionError(f'Masthead hierarchy is too weak: {computed}')
+              if computed['radius'] not in {'0px', '0'}:
+                  raise AssertionError(f'Publication should remain square-edged: {computed}')
+              page.screenshot(path=out / '01-aim-daily-desktop.png', full_page=True)
+              desktop.close()
+
+              mobile = browser.new_context(
+                  viewport={'width': 390, 'height': 844},
+                  device_scale_factor=1,
+                  is_mobile=True,
+              )
+              page = mobile.new_page()
+              page.goto(url, wait_until='domcontentloaded')
+              assert_daily(page, mobile=True)
+              expect(page.get_by_role('button', name='Sign out', exact=True)).to_be_visible()
+              page.screenshot(path=out / '02-aim-daily-mobile.png', full_page=True)
+              mobile.close()
+
+              browser.close()
+          PY
+
+      - name: Reject frontend and runtime failures
+        run: |
+          if grep -En 'Traceback \(most recent call last\)|Uncaught app exception|newsroom-api-error' /tmp/pass10-audit/web.log; then
+            cat /tmp/pass10-audit/web.log
+            exit 1
+          fi
+
+      - name: Upload Pass 10 publication audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smallcaps-pass10-aim-daily-visual-audit
+          path: /tmp/pass10-audit
+          if-no-files-found: error
+          retention-days: 90
