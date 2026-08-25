@@ -75,6 +75,29 @@ def test_archive_and_final_light_are_terminal_without_full_analyst_run() -> None
     }
 
 
+def test_light_catalogue_shell_is_retryable_until_evidence_is_persisted() -> None:
+    intelligence, triage = repositories()
+    light = catalogue("light-incomplete", "Director/PDMR Shareholding")
+    triage.record_catalogue(
+        light,
+        TriageDecision("LIGHT", "LIGHT", "Screen.", 45),
+    )
+
+    assert known_source_ids(intelligence, [light.source_id]) == set()
+
+    triage.record_document(
+        document(light, "A non-executive director purchased shares for £15,000."),
+        TriageDecision(
+            "LIGHT",
+            "LIGHT",
+            "Screen.",
+            45,
+            light_facts=[{"kind": "money", "value": "£15,000"}],
+        ),
+    )
+    assert known_source_ids(intelligence, [light.source_id]) == {light.source_id}
+
+
 def test_full_and_escalated_pending_rows_remain_retryable() -> None:
     intelligence, triage = repositories()
     full = catalogue("full-one", "Trading Update")
