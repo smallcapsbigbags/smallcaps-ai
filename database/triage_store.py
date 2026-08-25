@@ -1,18 +1,32 @@
 from __future__ import annotations
 
 import uuid
+from contextlib import contextmanager
 from datetime import datetime, timezone
+from typing import Iterator
 
 from sqlalchemy import JSON, Boolean, DateTime, Index, String, Text, Uuid, select
 from sqlalchemy.orm import Mapped, Session, mapped_column, sessionmaker
 
 from analyst.triage import TRIAGE_VERSION, TriageDecision, catalogue_hash, evidence_hash, triage_rns_type
-from database.db import session_scope
 from database.models import Base
 
 
 def utcnow() -> datetime:
     return datetime.now(timezone.utc)
+
+
+@contextmanager
+def _session_scope(factory: sessionmaker[Session]) -> Iterator[Session]:
+    session = factory()
+    try:
+        yield session
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
 
 
 class AnnouncementTriageRow(Base):
@@ -64,7 +78,7 @@ class TriageRepository:
         self.session_factory = session_factory
 
     def record_catalogue(self, item, decision: TriageDecision) -> None:
-        with session_scope(self.session_factory) as session:
+        with _session_scope(self.session_factory) as session:
             row = session.scalar(
                 select(AnnouncementTriageRow).where(AnnouncementTriageRow.source_id == item.source_id)
             )
@@ -92,7 +106,7 @@ class TriageRepository:
                     setattr(row, key, value)
 
     def record_evidence(self, announcement, decision: TriageDecision, *, status: str) -> None:
-        with session_scope(self.session_factory) as session:
+        with _session_scope(self.session_factory) as session:
             row = session.scalar(
                 select(AnnouncementTriageRow).where(
                     AnnouncementTriageRow.source_id == announcement.source_id
@@ -112,7 +126,7 @@ class TriageRepository:
             row.status = status
 
     def mark_status(self, source_id: str, status: str) -> None:
-        with session_scope(self.session_factory) as session:
+        with _session_scope(self.session_factory) as session:
             row = session.scalar(
                 select(AnnouncementTriageRow).where(AnnouncementTriageRow.source_id == source_id)
             )
@@ -122,7 +136,7 @@ class TriageRepository:
     def completed_source_ids(self, source_ids: list[str]) -> set[str]:
         if not source_ids:
             return set()
-        with session_scope(self.session_factory) as session:
+        with _session_scope(self.session_factory) as session:
             rows = session.execute(
                 select(AnnouncementTriageRow.source_id).where(
                     AnnouncementTriageRow.source_id.in_(source_ids),
@@ -132,7 +146,11 @@ class TriageRepository:
             return set(rows)
 
     def get(self, source_id: str) -> AnnouncementTriageRow | None:
-        with session_scope(self.session_factory) as session:
-            return session.scalar(
+        with _session_scope(self.session_factory) as session:
+            row = session.scalar(
                 select(AnnouncementTriageRow).where(AnnouncementTriageRow.source_id == source_id)
             )
+            if row is None:
+                return None
+            session.expunge(row)
+            return row
