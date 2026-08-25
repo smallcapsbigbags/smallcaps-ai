@@ -1,0 +1,134 @@
+{
+  "schema_version": "aim-daily-editor-evolution-v1",
+  "cases": [
+    {
+      "case_id": "takeover-develops-through-morning",
+      "date": "2026-08-21",
+      "candidates": [
+        {
+          "source_id": "gama-offer",
+          "ticker": "GAMA",
+          "company": "Gamma Communications plc",
+          "published_at": "2026-08-21T07:05:00+01:00",
+          "rns_title": "Possible Offer",
+          "rns_type": "Takeover",
+          "impact_score": 4,
+          "impact_level": "high",
+          "signal": "AMBER",
+          "outlook": "N/A",
+          "verdict": "Possible offer puts ownership in play",
+          "what_changed": "A possible offer has emerged.",
+          "analyst_view": "A live takeover process now matters more than near-term trading noise.",
+          "source_url": "https://example.invalid/gama-offer",
+          "analysis_version": "aim-intelligence-analyst-3.3",
+          "prompt_version": "analyst-engine-3.3-scbb-monitoring-sheet",
+          "model_version": "recorded",
+          "story_key": "GAMA:takeover:gama-offer",
+          "story_family": "takeover"
+        },
+        {
+          "source_id": "gama-rule26",
+          "ticker": "GAMA",
+          "company": "Gamma Communications plc",
+          "published_at": "2026-08-21T07:45:00+01:00",
+          "rns_title": "Rule 2.6 Deadline",
+          "rns_type": "Takeover",
+          "impact_score": 1,
+          "impact_level": "low",
+          "signal": "NO COLOUR",
+          "outlook": "N/A",
+          "verdict": "Offer timetable is now defined",
+          "what_changed": "The Rule 2.6 deadline is confirmed.",
+          "analyst_view": "The process is progressing but the possible offer remains the core story.",
+          "source_url": "https://example.invalid/gama-rule26",
+          "analysis_version": "aim-intelligence-analyst-3.3",
+          "prompt_version": "analyst-engine-3.3-scbb-monitoring-sheet",
+          "model_version": "recorded",
+          "story_key": "GAMA:takeover:gama-offer",
+          "story_family": "takeover"
+        },
+        {
+          "source_id": "gama-disclosure",
+          "ticker": "GAMA",
+          "company": "Gamma Communications plc",
+          "published_at": "2026-08-21T13:10:00+01:00",
+          "rns_title": "Offeror Disclosure",
+          "rns_type": "Takeover",
+          "impact_score": 1,
+          "impact_level": "low",
+          "signal": "NO COLOUR",
+          "outlook": "N/A",
+          "verdict": "Offer disclosure adds process detail",
+          "what_changed": "A further offer disclosure was filed.",
+          "analyst_view": "This develops the existing takeover story rather than creating a new one.",
+          "source_url": "https://example.invalid/gama-disclosure",
+          "analysis_version": "aim-intelligence-analyst-3.3",
+          "prompt_version": "analyst-engine-3.3-scbb-monitoring-sheet",
+          "model_version": "recorded",
+          "story_key": "GAMA:takeover:gama-offer",
+          "story_family": "takeover"
+        }
+      ],
+      "expected": {
+        "early_read": {"lead": "gama-offer", "source_count": 1},
+        "morning_note": {"lead": "gama-offer", "source_count": 2},
+        "aim_close": {"lead": "gama-offer", "source_count": 3},
+        "transition_statuses": ["unchanged", "unchanged"]
+      }
+    },
+    {
+      "case_id": "warning-promotes-story-at-close",
+      "date": "2026-08-20",
+      "candidates": [
+        {
+          "source_id": "abc-update",
+          "ticker": "ABC",
+          "company": "ABC plc",
+          "published_at": "2026-08-20T07:10:00+01:00",
+          "rns_title": "Trading Update",
+          "rns_type": "Results & trading",
+          "impact_score": 3,
+          "impact_level": "high",
+          "signal": "GREEN",
+          "outlook": "MAINTAINED",
+          "verdict": "Trading remains on plan",
+          "what_changed": "Guidance is maintained.",
+          "analyst_view": "Useful confirmation, but not enough to justify a lead story.",
+          "source_url": "https://example.invalid/abc-update",
+          "analysis_version": "aim-intelligence-analyst-3.3",
+          "prompt_version": "analyst-engine-3.3-scbb-monitoring-sheet",
+          "model_version": "recorded",
+          "story_key": "ABC:trading:abc-update",
+          "story_family": "trading"
+        },
+        {
+          "source_id": "abc-warning",
+          "ticker": "ABC",
+          "company": "ABC plc",
+          "published_at": "2026-08-20T12:30:00+01:00",
+          "rns_title": "Profit Warning",
+          "rns_type": "Results & trading",
+          "impact_score": 3,
+          "impact_level": "high",
+          "signal": "RED",
+          "outlook": "DOWNGRADED",
+          "verdict": "Profit warning breaks the morning read",
+          "what_changed": "Full-year expectations have been cut.",
+          "analyst_view": "The later warning materially changes the investment case and supersedes the benign morning update.",
+          "source_url": "https://example.invalid/abc-warning",
+          "analysis_version": "aim-intelligence-analyst-3.3",
+          "prompt_version": "analyst-engine-3.3-scbb-monitoring-sheet",
+          "model_version": "recorded",
+          "story_key": "ABC:trading:abc-update",
+          "story_family": "trading"
+        }
+      ],
+      "expected": {
+        "early_read": {"lead": null, "also": ["abc-update"]},
+        "morning_note": {"lead": null, "also": ["abc-update"]},
+        "aim_close": {"lead": "abc-warning", "source_count": 2},
+        "transition_statuses": ["unchanged", "promoted"]
+      }
+    }
+  ]
+}
