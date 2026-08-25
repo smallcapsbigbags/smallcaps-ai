@@ -48,6 +48,10 @@ def _empty_ingestion_summary(
         "analysed": 0,
         "review": 0,
         "routine": 0,
+        "archived": 0,
+        "light": 0,
+        "escalated": 0,
+        "analyst_calls_avoided": 0,
         "deferred": 0,
         "blocked": 0,
         "failed": 0,
@@ -69,10 +73,6 @@ def main() -> None:
         combined_warnings: list[str] = list(warnings)
         price_outcome: PriceJobOutcome | None = None
 
-        # Market reactions use a separate advisory lock. Run them before the
-        # potentially longer OpenAI ingestion cycle so existing event-day prices
-        # continue to refresh even when a large RNS batch takes time to analyse.
-        # A newly stored RNS is picked up by the next ten-minute cron cycle.
         if settings.market_data_enabled:
             _progress("Updating event-day market reactions")
             price_outcome = run_price_job(
@@ -105,9 +105,6 @@ def main() -> None:
                 )
                 return
 
-            # Acquiring the advisory lock proves there is no active ingestion
-            # process. Durable rows left running by an older crashed worker can now
-            # be closed without mislabelling a slow but still-live process.
             operations.reconcile_stale_running(job_name=JOB_NAME)
             run_id = operations.begin_job(
                 JOB_NAME,
@@ -148,6 +145,10 @@ def main() -> None:
                     "analysed": result.analysed,
                     "review": result.review_required,
                     "routine": result.routine_persisted,
+                    "archived": result.archived,
+                    "light": result.light_processed,
+                    "escalated": result.escalated_to_full,
+                    "analyst_calls_avoided": result.analyst_calls_avoided,
                     "deferred": result.deferred,
                     "blocked": result.blocked,
                     "failed": result.failed,
