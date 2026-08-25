@@ -13,6 +13,7 @@ from api.company import create_company_routes
 from api.daily_editor import create_daily_editor_routes
 from api.frontend import create_frontend_routes
 from api.monitoring import create_monitoring_routes
+from api.newsroom import create_newsroom_routes
 
 ROOT = Path(__file__).resolve().parent
 
@@ -24,6 +25,7 @@ app = Starlette(
     routes=[
         *create_frontend_routes(),
         *create_daily_editor_routes(),
+        *create_newsroom_routes(),
         *create_monitoring_routes(),
         *create_company_routes(),
         Mount(
