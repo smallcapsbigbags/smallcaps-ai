@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="The AIM Daily — the AIM market, edited for investors every morning by Smallcaps.ai.">
+  <meta name="theme-color" content="#03080d">
+  <title>The AIM Daily · Smallcaps.ai</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/research.css">
+  <link rel="stylesheet" href="/assets/daily.css">
+  <link rel="stylesheet" href="/assets/daily-polish.css">
+  <script src="/assets/daily.js" defer></script>
+</head>
+<body class="daily-body">
+  <a class="skip-link" href="#daily-edition">Skip to The AIM Daily</a>
+
+  <header class="site-header daily-site-header">
+    <a class="wordmark" href="/" aria-label="Smallcaps.ai home">
+      <span>smallcaps</span><strong>.ai</strong>
+    </a>
+    <nav class="daily-nav" aria-label="Primary navigation">
+      <a class="daily-nav-active" href="/">THE AIM DAILY</a>
+      <a href="/rns">RNS MONITOR</a>
+    </nav>
+    <div class="header-meta">
+      <span class="live-status">
+        <i aria-hidden="true"></i>
+        <span class="status-full">AIM NEWSROOM</span>
+        <span class="status-compact">LIVE</span>
+      </span>
+      <form action="/logout" method="post">
+        <button class="text-action" type="submit">Sign out</button>
+      </form>
+    </div>
+  </header>
+
+  <main class="daily-main" id="daily-edition">
+    <section class="daily-masthead" aria-labelledby="daily-title">
+      <div class="daily-kicker-row">
+        <p class="daily-kicker">THE AIM MARKET, EDITED FOR YOU</p>
+        <p id="daily-updated" class="daily-updated">Preparing edition…</p>
+      </div>
+      <div class="daily-title-row">
+        <h1 id="daily-title">THE AIM DAILY<span aria-hidden="true">.</span></h1>
+        <div class="daily-edition-meta">
+          <strong id="edition-date">—</strong>
+          <span id="edition-label">MORNING EDITION · 08:00</span>
+        </div>
+      </div>
+      <div class="daily-summary-strip">
+        <p id="edition-summary">Loading the newsroom…</p>
+        <div class="edition-switcher" aria-label="Edition">
+          <button type="button" data-edition-state="early_read">07:30 EARLY</button>
+          <button type="button" data-edition-state="morning_note" aria-pressed="true">08:00 MORNING</button>
+          <button type="button" data-edition-state="aim_close">16:35 CLOSE</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="lead-section" class="daily-lead" aria-labelledby="lead-label" hidden>
+      <div class="section-rule">
+        <h2 id="lead-label">THE LEAD</h2>
+        <span>THE STORY THAT MATTERS MOST</span>
+      </div>
+      <div id="lead-story"></div>
+    </section>
+
+    <section id="quiet-section" class="daily-quiet" hidden>
+      <p class="daily-kicker">QUIET MORNING</p>
+      <h2>No story clears the lead threshold.</h2>
+      <p>The newsroom has not manufactured a headline. The material developments that do matter are below.</p>
+    </section>
+
+    <section id="also-section" class="daily-section" aria-labelledby="also-label" hidden>
+      <div class="section-rule">
+        <h2 id="also-label">ALSO THIS MORNING</h2>
+        <span>DEVELOPMENTS WORTH YOUR ATTENTION</span>
+      </div>
+      <div id="also-stories" class="also-grid"></div>
+    </section>
+
+    <section id="quick-section" class="daily-section" aria-labelledby="quick-label" hidden>
+      <div class="section-rule">
+        <h2 id="quick-label">QUICK TAKES</h2>
+        <span>THE REST OF THE USEFUL SIGNAL</span>
+      </div>
+      <div id="quick-stories" class="quick-list"></div>
+    </section>
+
+    <section class="daily-rest" aria-labelledby="rest-label">
+      <div class="section-rule">
+        <h2 id="rest-label">THE REST OF AIM</h2>
+        <span>ANALYSED, THEN SUPPRESSED</span>
+      </div>
+      <div class="rest-grid">
+        <p id="rest-summary">Loading complete market coverage…</p>
+        <a class="daily-action" href="/rns">VIEW THE FULL RNS MONITOR →</a>
+      </div>
+    </section>
+
+    <section id="daily-error" class="daily-error" role="alert" hidden>
+      <p class="daily-kicker">NEWSROOM UNAVAILABLE</p>
+      <h2>The edition could not be loaded.</h2>
+      <p id="daily-error-message">Try the full RNS monitor while the newsroom reconnects.</p>
+      <a class="daily-action" href="/rns">OPEN RNS MONITOR →</a>
+    </section>
+
+    <noscript>
+      <p class="noscript-message">JavaScript is required to load The AIM Daily.</p>
+    </noscript>
+  </main>
+
+  <footer class="site-footer daily-footer">
+    <span>SMALLCAPS.AI</span>
+    <p>The AIM market, edited for you. Evidence first.</p>
+    <a href="/rns">RNS monitor ↗</a>
+  </footer>
+</body>
+</html>

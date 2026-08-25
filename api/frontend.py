@@ -100,26 +100,35 @@ def _authorised(request: Request, settings: Settings) -> bool:
     )
 
 
+def _protected_file(request: Request, filename: str) -> Response:
+    settings = Settings.from_env()
+    if not _authorised(request, settings):
+        return HTMLResponse(
+            _access_html(next_path=_request_target(request)),
+            headers=_security_headers(),
+        )
+    return _file(_FRONTEND_ROOT / filename)
+
+
 def create_frontend_routes() -> list[Route]:
-    """Serve the monitoring sheet, company research and private-beta entrance."""
+    """Serve The AIM Daily, RNS Monitor, Company Intelligence and beta entrance."""
 
     async def home(request: Request) -> Response:
-        settings = Settings.from_env()
-        if not _authorised(request, settings):
-            return HTMLResponse(
-                _access_html(next_path=_request_target(request)),
-                headers=_security_headers(),
-            )
-        return _file(_FRONTEND_ROOT / "index.html")
+        # Pass 5 company links already deep-link to /?date=...&open=SOURCE_ID.
+        # Keep those stable while making the plain root URL The AIM Daily.
+        filename = "index.html" if request.query_params.get("open") else "daily.html"
+        return _protected_file(request, filename)
+
+    async def rns(request: Request) -> Response:
+        return _protected_file(request, "index.html")
+
+    async def rns_slash(request: Request) -> Response:
+        query = request.url.query
+        target = f"/rns?{query}" if query else "/rns"
+        return RedirectResponse(target, status_code=308, headers=_security_headers())
 
     async def company(request: Request) -> Response:
-        settings = Settings.from_env()
-        if not _authorised(request, settings):
-            return HTMLResponse(
-                _access_html(next_path=_request_target(request)),
-                headers=_security_headers(),
-            )
-        return _file(_FRONTEND_ROOT / "company.html")
+        return _protected_file(request, "company.html")
 
     async def access(request: Request) -> Response:
         settings = Settings.from_env()
@@ -165,6 +174,8 @@ def create_frontend_routes() -> list[Route]:
 
     return [
         Route("/", home, methods=["GET"]),
+        Route("/rns", rns, methods=["GET"]),
+        Route("/rns/", rns_slash, methods=["GET"]),
         Route("/company/{ticker}", company, methods=["GET"]),
         Route("/access", access, methods=["POST"]),
         Route("/logout", logout, methods=["POST"]),

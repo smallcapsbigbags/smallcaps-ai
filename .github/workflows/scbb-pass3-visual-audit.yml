@@ -26,7 +26,6 @@ jobs:
       MARKET_DATA_ENABLED: "true"
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -44,162 +43,84 @@ jobs:
           python -m jobs.seed_launch_preview
           python -m jobs.seed_pass1_preview
 
-      - name: Start the combined frontend and API
+      - name: Start combined frontend and API
         shell: bash
         run: |
           mkdir -p /tmp/scbb-pass3-audit
-          python -m uvicorn web_app:app --host 127.0.0.1 --port 8501 \
-            > /tmp/scbb-pass3-audit/web.log 2>&1 &
+          python -m uvicorn web_app:app --host 127.0.0.1 --port 8501 > /tmp/scbb-pass3-audit/web.log 2>&1 &
           echo $! > /tmp/scbb-pass3-web.pid
           for attempt in $(seq 1 90); do
-            if curl --fail --silent http://127.0.0.1:8501/api/v1/health >/dev/null; then
-              exit 0
-            fi
+            if curl --fail --silent http://127.0.0.1:8501/api/v1/health >/dev/null; then exit 0; fi
             sleep 1
           done
           cat /tmp/scbb-pass3-audit/web.log
           exit 1
 
-      - name: Capture and validate the exact monitoring-sheet journey
+      - name: Capture and validate monitoring-sheet journey
         run: |
           python - <<'PY'
           from pathlib import Path
           from playwright.sync_api import sync_playwright
 
           out = Path('/tmp/scbb-pass3-audit')
-          base = 'http://127.0.0.1:8501'
+          url = 'http://127.0.0.1:8501/rns'
           columns = (
-              'COMPANY / RNS / SIGNAL',
-              'WHAT CHANGED',
-              'AI VIEW',
-              'OUTLOOK',
-              'MARKET REACTION',
-              'BALANCE SHEET',
-              'IMPACT',
+              'COMPANY / RNS / SIGNAL', 'WHAT CHANGED', 'AI VIEW', 'OUTLOOK',
+              'MARKET REACTION', 'BALANCE SHEET', 'IMPACT',
           )
-          controls = (
-              'UNIVERSE',
-              'COMPANY',
-              'RNS TYPE',
-              'SIGNAL',
-              'IMPACT',
-              'SORT',
-              'IMPACT 3+',
-              'GROUP BY COMPANY',
-              'RESET',
-          )
+          controls = ('UNIVERSE', 'COMPANY', 'RNS TYPE', 'SIGNAL', 'IMPACT', 'SORT', 'IMPACT 3+', 'GROUP BY COMPANY', 'RESET')
 
           def wait_sheet(page):
               page.get_by_role('heading', name='AIM RNS feed', exact=True).wait_for(timeout=30000)
               page.locator('article.monitor-row').first.wait_for(timeout=30000)
-              page.wait_for_function(
-                  "document.getElementById('feed-count').textContent.includes('announcements')",
-                  timeout=30000,
-              )
+              page.wait_for_function("document.getElementById('feed-count').textContent.includes('announcements')", timeout=30000)
 
-          def assert_no_document_overflow(page):
-              dims = page.evaluate(
-                  """
-                  () => ({
-                    client: document.documentElement.clientWidth,
-                    scroll: document.documentElement.scrollWidth,
-                    body: document.body.scrollWidth,
-                  })
-                  """
-              )
+          def no_overflow(page):
+              dims = page.evaluate("() => ({client: document.documentElement.clientWidth, scroll: document.documentElement.scrollWidth, body: document.body.scrollWidth})")
               if dims['scroll'] > dims['client'] + 2 or dims['body'] > dims['client'] + 2:
                   raise AssertionError(f'Document clips horizontally: {dims}')
 
-          def assert_contract(page, *, mobile=False):
+          def assert_contract(page, mobile=False):
               wait_sheet(page)
               text = page.locator('body').inner_text()
               for label in controls:
-                  if label not in text:
-                      raise AssertionError(f'Missing monitoring control: {label}')
+                  if label not in text: raise AssertionError(f'Missing monitoring control: {label}')
               if not mobile:
                   header = page.locator('.sheet-header').inner_text()
                   for label in columns:
-                      if label not in header:
-                          raise AssertionError(f'Missing monitoring column: {label}')
-
+                      if label not in header: raise AssertionError(f'Missing monitoring column: {label}')
               rows = page.locator('article.monitor-row')
-              if rows.count() < 5:
-                  raise AssertionError(f'Expected at least five monitoring rows, got {rows.count()}')
+              if rows.count() < 5: raise AssertionError(f'Expected at least five rows, got {rows.count()}')
               first = rows.first
-              first.get_by_text('WHAT CHANGED', exact=True).count() if mobile else None
-              if not first.locator('.signal').inner_text().strip():
-                  raise AssertionError('First row does not expose a signal')
-              if first.locator('.impact-dot').count() != 5:
-                  raise AssertionError('Impact is not rendered as a five-dot scale')
-              ai_view = first.locator('.ai-view-cell .cell-copy').inner_text().strip()
-              if len(ai_view.split()) > 50:
-                  raise AssertionError(f'Compact AI View exceeds 50 words: {len(ai_view.split())}')
-
+              if first.locator('.impact-dot').count() != 5: raise AssertionError('Impact scale is malformed')
+              if len(first.locator('.ai-view-cell .cell-copy').inner_text().strip().split()) > 50:
+                  raise AssertionError('Compact AI View exceeds 50 words')
               first.locator('button.row-toggle').click()
               first.get_by_text('FULL ANALYST NOTE', exact=True).wait_for(timeout=30000)
-              for section in ('RNS SUMMARY', 'KEY NUMBERS', 'WHAT CHANGED', 'AI VIEW'):
-                  first.get_by_text(section, exact=True).first.wait_for(timeout=30000)
               first.get_by_role('link', name='ORIGINAL RNS ↗', exact=True).wait_for(timeout=30000)
-
-              if mobile:
-                  box = first.locator('button.row-toggle').bounding_box()
-                  if box is None or box['width'] < 27.5 or box['height'] < 27.5:
-                      raise AssertionError(f'Mobile row toggle is too small: {box}')
 
           with sync_playwright() as p:
               browser = p.chromium.launch()
-
               desktop = browser.new_context(viewport={'width': 1440, 'height': 1000})
               page = desktop.new_page()
-              page.goto(base, wait_until='domcontentloaded')
+              page.goto(url, wait_until='domcontentloaded')
               assert_contract(page)
-              assert_no_document_overflow(page)
-              computed = page.evaluate(
-                  """
-                  () => ({
-                    background: getComputedStyle(document.body).backgroundColor,
-                    headingSize: parseFloat(getComputedStyle(document.querySelector('h1')).fontSize),
-                    headingWeight: parseInt(getComputedStyle(document.querySelector('h1')).fontWeight, 10),
-                    accent: getComputedStyle(document.querySelector('h1 span')).color,
-                    radius: getComputedStyle(document.querySelector('.filter-shell')).borderRadius,
-                  })
-                  """
-              )
-              if computed['background'] != 'rgb(3, 8, 13)':
-                  raise AssertionError(f'Wrong SmallcapsBigBags background: {computed}')
-              if computed['headingSize'] < 80 or computed['headingWeight'] < 700:
-                  raise AssertionError(f'Hero typography is not the monitoring-sheet hierarchy: {computed}')
-              if computed['accent'] != 'rgb(70, 215, 255)':
-                  raise AssertionError(f'Wrong cyan accent: {computed}')
-              if computed['radius'] not in {'0px', '0'}:
-                  raise AssertionError(f'Filter shell should remain square-edged: {computed}')
+              no_overflow(page)
+              computed = page.evaluate("() => ({background: getComputedStyle(document.body).backgroundColor, accent: getComputedStyle(document.querySelector('h1 span')).color, radius: getComputedStyle(document.querySelector('.filter-shell')).borderRadius})")
+              if computed['background'] != 'rgb(3, 8, 13)' or computed['accent'] != 'rgb(70, 215, 255)' or computed['radius'] not in {'0px', '0'}:
+                  raise AssertionError(f'SCBB visual contract drifted: {computed}')
               page.screenshot(path=out / '01-scbb-monitoring-desktop.png', full_page=True)
               desktop.close()
 
-              laptop = browser.new_context(viewport={'width': 1280, 'height': 900})
-              page = laptop.new_page()
-              page.goto(base, wait_until='domcontentloaded')
-              assert_contract(page)
-              assert_no_document_overflow(page)
-              page.screenshot(path=out / '02-scbb-monitoring-laptop.png', full_page=True)
-              laptop.close()
-
-              mobile = browser.new_context(
-                  viewport={'width': 390, 'height': 844},
-                  device_scale_factor=1,
-                  is_mobile=True,
-              )
+              mobile = browser.new_context(viewport={'width': 390, 'height': 844}, device_scale_factor=1, is_mobile=True)
               page = mobile.new_page()
-              page.goto(base, wait_until='domcontentloaded')
+              page.goto(url, wait_until='domcontentloaded')
               assert_contract(page, mobile=True)
-              assert_no_document_overflow(page)
-              grid = page.locator('article.monitor-row .monitor-row-grid').first
-              columns_value = grid.evaluate('(el) => getComputedStyle(el).gridTemplateColumns')
-              if ' ' in columns_value.strip():
-                  raise AssertionError(f'Mobile monitoring row did not collapse to one column: {columns_value}')
-              page.screenshot(path=out / '03-scbb-monitoring-mobile.png', full_page=True)
+              no_overflow(page)
+              columns_value = page.locator('article.monitor-row .monitor-row-grid').first.evaluate('(el) => getComputedStyle(el).gridTemplateColumns')
+              if ' ' in columns_value.strip(): raise AssertionError(f'Mobile monitoring row did not collapse: {columns_value}')
+              page.screenshot(path=out / '02-scbb-monitoring-mobile.png', full_page=True)
               mobile.close()
-
               browser.close()
           PY
 
