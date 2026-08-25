@@ -74,7 +74,11 @@ def create_daily_editor_routes(
     async def timeline(request: Request) -> Response:
         try:
             day = _parse_day(request)
-            if request.query_params.get("state") or request.query_params.get("edition_state") or request.query_params.get("cutoff"):
+            if (
+                request.query_params.get("state")
+                or request.query_params.get("edition_state")
+                or request.query_params.get("cutoff")
+            ):
                 raise ValueError("timeline accepts date only")
             payload = provider().get_timeline(day)
         except ValueError as exc:
@@ -97,7 +101,9 @@ def create_daily_editor_routes(
 def _parse_query(request: Request) -> tuple[date, str | None, time | None]:
     day = _parse_day(request)
     params = request.query_params
-    state_value = str(params.get("state") or params.get("edition_state") or "").strip().lower()
+    state_value = str(
+        params.get("state") or params.get("edition_state") or ""
+    ).strip().lower()
     cutoff_value = str(params.get("cutoff") or "").strip()
     if state_value and cutoff_value:
         raise ValueError("edition_state cannot be combined with cutoff")
@@ -185,6 +191,7 @@ def _service_error(exc: Exception) -> JSONResponse:
                 "message": "AIM Daily data is temporarily unavailable.",
                 "reference": reference,
             },
+        },
         cache_seconds=0,
         status_code=503,
     )
