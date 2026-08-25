@@ -128,6 +128,7 @@ _MONEY_RE = re.compile(
 _PERCENT_RE = re.compile(r"\b(\d+(?:\.\d+)?)\s*%")
 _SECURITY_COUNT_RE = re.compile(
     r"\b(\d+(?:[,.]\d+)*)\s*(bn|billion|m|million|k|thousand)?\s+"
+    r"(?:(?:nil[- ]cost|performance|restricted)\s+)?"
     r"(?:ordinary\s+)?(?:shares?|options?|awards?)\b",
     re.IGNORECASE,
 )
