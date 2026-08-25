@@ -8,6 +8,9 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from database.models import Base
+# Import the additive triage model before create_all so existing Railway/Postgres
+# deployments gain only the new table; no existing table needs ALTER migration.
+from database import triage_models as _triage_models  # noqa: F401
 
 
 def normalise_database_url(url: str) -> str:
