@@ -82,8 +82,9 @@ def test_repository_only_feeds_publication_safe_full_analysis_into_editor() -> N
     )
 
     assert edition.candidate_count == 1
-    assert edition.lead is not None
-    assert edition.lead.primary_source_id == "full-rns"
-    assert edition.lead.source_ids == ["full-rns"]
+    assert edition.lead is None
+    assert len(edition.also_matters) == 1
+    assert edition.also_matters[0].primary_source_id == "full-rns"
+    assert edition.also_matters[0].source_ids == ["full-rns"]
 
     engine.dispose()
