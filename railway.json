@@ -5,7 +5,7 @@
   },
   "deploy": {
     "preDeployCommand": [
-      "sh -c 'python -m jobs.validate_runtime --service web --create-schema && python -m jobs.audit_production --service web --record --reconcile-stale --reconcile-publication --historical-worker-failures-warn && python -m jobs.release_acceptance --require-public-data && python -m jobs.monitoring_acceptance --require-public-data && python -m jobs.company_acceptance --require-public-data'"
+      "sh -c 'python -m jobs.validate_runtime --service web --create-schema && python -m jobs.audit_production --service web --record --reconcile-stale --reconcile-publication --historical-worker-failures-warn && python -m jobs.release_acceptance --require-public-data && python -m jobs.monitoring_acceptance --require-public-data && python -m jobs.company_acceptance --require-public-data && python -m jobs.daily_editor_acceptance --require-public-data'"
     ],
     "startCommand": "python -m uvicorn web_app:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips '*'",
     "healthcheckPath": "/api/v1/health",
