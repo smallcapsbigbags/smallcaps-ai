@@ -1,0 +1,100 @@
+[
+  {
+    "id":"director-small-ned-buy",
+    "title":"Director/PDMR Shareholding",
+    "text":"A non-executive director purchased ordinary shares for an aggregate consideration of £20,000.",
+    "context":{},
+    "expected":"light"
+  },
+  {
+    "id":"director-ceo-buy",
+    "title":"Director/PDMR Shareholding",
+    "text":"The Chief Executive Officer purchased ordinary shares for an aggregate consideration of £35,000.",
+    "context":{},
+    "expected":"full"
+  },
+  {
+    "id":"director-after-warning",
+    "title":"Director/PDMR Shareholding",
+    "text":"A director purchased ordinary shares for £20,000.",
+    "context":{"recent_adverse_trading":true},
+    "expected":"full"
+  },
+  {
+    "id":"repeated-director-dealing",
+    "title":"Director/PDMR Shareholding",
+    "text":"A director purchased ordinary shares for £12,000.",
+    "context":{"recent_director_dealings":2},
+    "expected":"full"
+  },
+  {
+    "id":"large-director-dealing",
+    "title":"Director/PDMR Shareholding",
+    "text":"A non-executive director purchased ordinary shares for £125,000.",
+    "context":{},
+    "expected":"full"
+  },
+  {
+    "id":"contract-small-relative",
+    "title":"Contract Award",
+    "text":"The company has been awarded a £500,000 contract for delivery over twelve months.",
+    "context":{"latest_revenue_value":"£100m"},
+    "expected":"light"
+  },
+  {
+    "id":"contract-material-relative",
+    "title":"Contract Award",
+    "text":"The company has been awarded a £3m contract for delivery over two years.",
+    "context":{"latest_revenue_value":"£20m"},
+    "expected":"full"
+  },
+  {
+    "id":"contract-large-no-denominator",
+    "title":"Contract Award",
+    "text":"The company has signed a £6m contract with a new customer.",
+    "context":{},
+    "expected":"full"
+  },
+  {
+    "id":"ltip-small-relative",
+    "title":"Grant of Awards under Long-Term Incentive Plan",
+    "text":"The company granted 500,000 nil-cost options under its LTIP.",
+    "context":{"latest_share_count_value":"100m"},
+    "expected":"light"
+  },
+  {
+    "id":"ltip-material-relative",
+    "title":"Grant of Awards under Long-Term Incentive Plan",
+    "text":"The company granted 5m nil-cost options under its LTIP.",
+    "context":{"latest_share_count_value":"100m"},
+    "expected":"full"
+  },
+  {
+    "id":"ltip-explicit-percent",
+    "title":"Grant of Awards under Long-Term Incentive Plan",
+    "text":"The awards represent 4.1% of issued share capital.",
+    "context":{},
+    "expected":"full"
+  },
+  {
+    "id":"hidden-solvency",
+    "title":"Corporate Update",
+    "text":"The company has insufficient funds to continue as a going concern and has filed a notice of intention to appoint administrators.",
+    "context":{},
+    "expected":"full"
+  },
+  {
+    "id":"board-ned-appointment",
+    "title":"Directorate Change",
+    "text":"The company has appointed an independent non-executive director to the board.",
+    "context":{},
+    "expected":"light"
+  },
+  {
+    "id":"cfo-resignation",
+    "title":"Directorate Change",
+    "text":"The Chief Financial Officer has resigned and will leave the company with immediate effect.",
+    "context":{},
+    "expected":"full"
+  }
+]

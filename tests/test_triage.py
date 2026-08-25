@@ -7,12 +7,18 @@ from types import SimpleNamespace
 from zoneinfo import ZoneInfo
 
 from analyst.models import AnnouncementInput
-from analyst.triage import TRIAGE_VERSION, triage_evidence, triage_metadata
+from analyst.triage import (
+    TRIAGE_VERSION,
+    TriageContext,
+    triage_evidence,
+    triage_metadata,
+)
 from database.db import create_database_engine, create_session_factory, init_database
 from database.repository import IntelligenceRepository
 from database.triage_store import TriageRepository
 from ingestion.daily_service import DailyAIMIngestionService
 from ingestion.investegate_daily import CatalogueAnnouncement
+from jobs.run_triage_benchmark import run as run_triage_benchmark
 
 LONDON = ZoneInfo("Europe/London")
 DAY = date(2026, 8, 25)
@@ -43,22 +49,59 @@ def test_metadata_triage_benchmark_is_loss_averse_and_exact():
 
 def test_light_evidence_escalates_only_when_a_deterministic_trigger_is_present():
     contract = item("Contract Award")
-    assert triage_evidence(contract, "A new contract worth £500,000 was signed.").processing_level == "light"
-    large = triage_evidence(contract, "A new three-year contract worth £3.2m was signed.")
-    assert large.processing_level == "full"
-    assert large.escalated is True
-    assert "£2m" in large.escalation_reason
+    assert triage_evidence(
+        contract,
+        "A new contract worth £500,000 was signed.",
+        context=TriageContext(latest_revenue_value="£100m"),
+    ).processing_level == "light"
+    relative = triage_evidence(
+        contract,
+        "A new three-year contract worth £3m was signed.",
+        context=TriageContext(latest_revenue_value="£20m"),
+    )
+    assert relative.processing_level == "full"
+    assert "10%" in relative.escalation_reason
 
     dealing = item("Director/PDMR Shareholding")
-    small = triage_evidence(dealing, "The CEO purchased ordinary shares for £12,000.")
-    assert small.processing_level == "light"
-    large_dealing = triage_evidence(dealing, "The Chief Executive Officer purchased shares for £85,000.")
-    assert large_dealing.processing_level == "full"
-    assert "CEO/CFO" in large_dealing.escalation_reason
+    small_ned = triage_evidence(
+        dealing,
+        "A non-executive director purchased ordinary shares for £12,000.",
+    )
+    assert small_ned.processing_level == "light"
+    senior = triage_evidence(
+        dealing,
+        "The Chief Executive Officer purchased shares for £12,000.",
+    )
+    assert senior.processing_level == "full"
+    assert "CEO/CFO" in senior.escalation_reason
+
+    after_warning = triage_evidence(
+        dealing,
+        "A director purchased ordinary shares for £20,000.",
+        context=TriageContext(recent_adverse_trading=True),
+    )
+    assert after_warning.processing_level == "full"
+
+    repeated = triage_evidence(
+        dealing,
+        "A director purchased ordinary shares for £10,000.",
+        context=TriageContext(recent_director_dealings=2),
+    )
+    assert repeated.processing_level == "full"
 
     ltip = item("Grant of Awards under Long-Term Incentive Plan")
-    assert triage_evidence(ltip, "Awards represent 1.2% of issued share capital.").processing_level == "light"
-    assert triage_evidence(ltip, "Awards represent 4.1% of issued share capital.").processing_level == "full"
+    assert triage_evidence(
+        ltip,
+        "The company granted 500,000 nil-cost options.",
+        context=TriageContext(latest_share_count_value="100m"),
+    ).processing_level == "light"
+    relative_ltip = triage_evidence(
+        ltip,
+        "The company granted 5m nil-cost options.",
+        context=TriageContext(latest_share_count_value="100m"),
+    )
+    assert relative_ltip.processing_level == "full"
+    assert "3%" in relative_ltip.escalation_reason
 
 
 def test_light_screen_extracts_minimum_reprocessable_fact_sketch():
@@ -66,7 +109,31 @@ def test_light_screen_extracts_minimum_reprocessable_fact_sketch():
         item("Director/PDMR Shareholding"),
         "The CFO purchased £62,500 of shares, representing 0.4% of the company.",
     )
-    assert {fact["kind"] for fact in decision.light_facts} >= {"money", "percent", "role"}
+    assert {fact["kind"] for fact in decision.light_facts} >= {
+        "money",
+        "percent",
+        "role",
+    }
+
+    options = triage_evidence(
+        item("Grant of Awards under Long-Term Incentive Plan"),
+        "The company granted 5m nil-cost options.",
+        context=TriageContext(latest_share_count_value="100m"),
+    )
+    assert any(fact["kind"] == "securities" for fact in options.light_facts)
+
+
+def test_full_triage_benchmark_passes_and_reports_analyst_savings():
+    result = run_triage_benchmark(
+        Path("benchmarks/triage_cases.json"),
+        Path("benchmarks/triage_evidence_cases.json"),
+    )
+    assert result["passed"] is True
+    assert result["failure_count"] == 0
+    assert result["metadata_cases"] == 18
+    assert result["evidence_cases"] >= 14
+    assert result["projected_full_analyst_calls"] < result["baseline_full_analyst_calls"]
+    assert result["estimated_full_analyst_call_reduction_pct"] > 0
 
 
 class StubPipeline:
@@ -126,7 +193,10 @@ def service_for(source: OneItemSource):
 
 
 def test_light_item_is_recorded_screened_once_and_skips_full_analyst():
-    source = OneItemSource("Contract Award", "A £500,000 contract was signed. Margin was not disclosed.")
+    source = OneItemSource(
+        "Contract Award",
+        "A £500,000 contract was signed. Margin was not disclosed.",
+    )
     service, triage_repo, pipeline = service_for(source)
 
     first = service.run(DAY)
@@ -150,7 +220,10 @@ def test_light_item_is_recorded_screened_once_and_skips_full_analyst():
 
 
 def test_light_item_escalates_to_full_without_a_second_evidence_fetch():
-    source = OneItemSource("Contract Award", "A material contract worth £3.2m was signed.")
+    source = OneItemSource(
+        "Contract Award",
+        "A material contract worth £3.2m was signed.",
+    )
     service, triage_repo, pipeline = service_for(source)
 
     result = service.run(DAY)
