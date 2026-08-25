@@ -6,24 +6,46 @@ from starlette.applications import Starlette
 from starlette.testclient import TestClient
 
 from api.daily_editor import create_daily_editor_routes
-from product.daily_editor import DailyEditorPage, DailyEditorStory
+from product.daily_editor import (
+    DailyEditorPage,
+    DailyEditorStory,
+    build_daily_editor_timeline,
+    resolve_editor_cutoff,
+)
 
 
 class StubDailyEditorRepository:
     def __init__(self) -> None:
         self.last_day: date | None = None
         self.last_cutoff: time | None = None
+        self.last_state: str | None = None
 
-    def get_edition(self, day: date, *, cutoff: time) -> DailyEditorPage:
+    def get_edition(
+        self,
+        day: date,
+        *,
+        cutoff: time | None = None,
+        edition_state: str | None = None,
+    ) -> DailyEditorPage:
+        state, resolved_cutoff = resolve_editor_cutoff(
+            edition_state=edition_state,
+            cutoff=cutoff,
+        )
         self.last_day = day
-        self.last_cutoff = cutoff
+        self.last_cutoff = resolved_cutoff
+        self.last_state = state
         story = DailyEditorStory(
+            story_key="SPR:trading:spr-update",
+            story_family="trading",
             primary_source_id="spr-update",
+            latest_source_id="spr-update",
             source_ids=["spr-update"],
             ticker="SPR",
             company="Springfield Properties plc",
+            first_published_at=datetime(2026, 8, 21, 7, 0, tzinfo=timezone.utc),
             published_at=datetime(2026, 8, 21, 7, 0, tzinfo=timezone.utc),
             bucket="lead",
+            algorithmic_bucket="lead",
             priority_score=67,
             ranking_reasons=["Impact 4/5 contributes 40 points."],
             rns_types=["Results & trading"],
@@ -38,13 +60,23 @@ class StubDailyEditorRepository:
         return DailyEditorPage(
             generated_at=datetime(2026, 8, 21, 11, 30, tzinfo=timezone.utc),
             date=day.isoformat(),
-            cutoff=cutoff.strftime("%H:%M"),
+            edition_state=state,
+            cutoff=resolved_cutoff.strftime("%H:%M"),
             quiet_morning=False,
             candidate_count=1,
             published_story_count=1,
             other_analysed_count=0,
+            developing_story_count=0,
+            override_count=0,
             lead=story,
         )
+
+    def get_timeline(self, day: date):
+        editions = [
+            self.get_edition(day, edition_state=state)
+            for state in ("early_read", "morning_note", "aim_close")
+        ]
+        return build_daily_editor_timeline(day=day, editions=editions)
 
 
 def client_and_repository() -> tuple[TestClient, StubDailyEditorRepository]:
@@ -58,19 +90,43 @@ def test_aim_daily_endpoint_exposes_versioned_json_only_contract() -> None:
 
     response = client.get(
         "/api/v1/aim-daily",
-        params={"date": "2026-08-21", "cutoff": "11:30"},
+        params={"date": "2026-08-21", "state": "morning_note"},
     )
 
     assert response.status_code == 200
     assert response.headers["access-control-allow-origin"] == "*"
     assert response.headers["cache-control"].startswith("public, max-age=60")
     body = response.json()
-    assert body["schema_version"] == "aim-daily-editor-v1"
-    assert body["editor_version"] == "aim-daily-editor-1.0"
-    assert body["lead"]["primary_source_id"] == "spr-update"
+    assert body["schema_version"] == "aim-daily-editor-v2"
+    assert body["editor_version"] == "aim-daily-editor-2.0"
+    assert body["edition_state"] == "morning_note"
+    assert body["cutoff"] == "08:00"
+    assert body["lead"]["story_key"] == "SPR:trading:spr-update"
     assert body["lead"]["editorial_headline"] == "Guidance upgraded as debt falls"
     assert repository.last_day == date(2026, 8, 21)
+    assert repository.last_cutoff == time(8, 0)
+    assert repository.last_state == "morning_note"
+
+
+def test_aim_daily_supports_custom_replay_cutoff_and_timeline() -> None:
+    client, repository = client_and_repository()
+
+    replay = client.get(
+        "/api/v1/aim-daily",
+        params={"date": "2026-08-21", "cutoff": "11:30"},
+    )
+    assert replay.status_code == 200
+    assert replay.json()["edition_state"] == "custom"
     assert repository.last_cutoff == time(11, 30)
+
+    timeline = client.get("/api/v1/aim-daily/timeline?date=2026-08-21")
+    assert timeline.status_code == 200
+    body = timeline.json()
+    assert [item["edition_state"] for item in body["editions"]] == [
+        "early_read",
+        "morning_note",
+        "aim_close",
+    ]
 
 
 def test_aim_daily_schema_endpoint_is_strict_and_versioned() -> None:
@@ -80,19 +136,25 @@ def test_aim_daily_schema_endpoint_is_strict_and_versioned() -> None:
 
     assert response.status_code == 200
     body = response.json()
-    assert body["schema_version"] == "aim-daily-editor-v1"
+    assert body["schema_version"] == "aim-daily-editor-v2"
+    assert body["canonical_cutoffs"] == {
+        "early_read": "07:30",
+        "morning_note": "08:00",
+        "aim_close": "16:35",
+    }
     assert body["edition"]["additionalProperties"] is False
-    assert "lead" in body["edition"]["properties"]
-    assert "other_analysed_count" in body["edition"]["properties"]
+    assert "edition_state" in body["edition"]["properties"]
+    assert "developing_story_count" in body["edition"]["properties"]
+    assert "transitions" in body["timeline"]["properties"]
 
 
-def test_aim_daily_rejects_invalid_date_and_cutoff_without_exception_leakage() -> None:
+def test_aim_daily_rejects_invalid_date_state_and_cutoff_without_exception_leakage() -> None:
     client, _repository = client_and_repository()
 
     bad_date = client.get("/api/v1/aim-daily?date=21-08-2026")
     assert bad_date.status_code == 400
     assert bad_date.json() == {
-        "schema_version": "aim-daily-editor-v1",
+        "schema_version": "aim-daily-editor-v2",
         "error": {
             "code": "INVALID_QUERY",
             "message": "date must use YYYY-MM-DD",
@@ -101,8 +163,17 @@ def test_aim_daily_rejects_invalid_date_and_cutoff_without_exception_leakage() -
 
     bad_cutoff = client.get("/api/v1/aim-daily?date=2026-08-21&cutoff=11:30:45")
     assert bad_cutoff.status_code == 400
-    assert bad_cutoff.json()["error"]["code"] == "INVALID_QUERY"
     assert bad_cutoff.json()["error"]["message"] == "cutoff must use HH:MM"
+
+    bad_state = client.get("/api/v1/aim-daily?date=2026-08-21&state=lunch")
+    assert bad_state.status_code == 400
+    assert "early_read" in bad_state.json()["error"]["message"]
+
+    conflict = client.get(
+        "/api/v1/aim-daily?date=2026-08-21&state=morning_note&cutoff=08:00"
+    )
+    assert conflict.status_code == 400
+    assert "cannot be combined" in conflict.json()["error"]["message"]
 
     midnight = client.get("/api/v1/aim-daily?date=2026-08-21&cutoff=00:00")
     assert midnight.status_code == 400
