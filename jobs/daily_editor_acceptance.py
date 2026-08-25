@@ -10,7 +10,9 @@ from sqlalchemy import desc, select
 
 from database.daily_editor import DailyEditorRepository
 from database.db import create_database_engine, create_session_factory, init_database, session_scope
+from database.editorial_calibration import EditorialCalibrationRepository
 from database.models import AnalystRunRow, AnnouncementRow
+from product.daily_editor import DAILY_EDITOR_SCHEMA_VERSION, DAILY_EDITOR_VERSION
 from settings import Settings
 
 LONDON = ZoneInfo("Europe/London")
@@ -84,10 +86,11 @@ def run_daily_editor_acceptance(
             )
         else:
             day, anchor_source_id = anchor
-            edition = DailyEditorRepository(factory).get_edition(
-                day,
-                cutoff=time(23, 59),
-            )
+            calibration = EditorialCalibrationRepository(factory)
+            story_links_created = calibration.ensure_story_links(day)
+            editor = DailyEditorRepository(factory)
+            edition = editor.get_edition(day, cutoff=time(23, 59))
+            timeline = editor.get_timeline(day)
             surfaced = [
                 *([edition.lead] if edition.lead is not None else []),
                 *edition.also_matters,
@@ -96,7 +99,9 @@ def run_daily_editor_acceptance(
             malformed = [
                 story.primary_source_id
                 for story in surfaced
-                if not story.editorial_headline.strip()
+                if not story.story_key.strip()
+                or not story.story_family.strip()
+                or not story.editorial_headline.strip()
                 or not story.why_it_matters.strip()
                 or not story.source_urls
                 or not all(_valid_http_url(url) for url in story.source_urls)
@@ -106,10 +111,17 @@ def run_daily_editor_acceptance(
                 and edition.other_analysed_count <= edition.candidate_count
                 and edition.published_story_count == len(surfaced)
             )
+            timeline_ok = (
+                len(timeline.editions) == 3
+                and [item.edition_state for item in timeline.editions]
+                == ["early_read", "morning_note", "aim_close"]
+            )
             contract_ok = (
-                edition.schema_version == "aim-daily-editor-v1"
-                and edition.editor_version == "aim-daily-editor-1.0"
+                edition.schema_version == DAILY_EDITOR_SCHEMA_VERSION
+                and edition.editor_version == DAILY_EDITOR_VERSION
+                and edition.edition_state == "custom"
                 and count_ok
+                and timeline_ok
                 and not malformed
             )
             checks.append(
@@ -117,9 +129,9 @@ def run_daily_editor_acceptance(
                     "code": "AIM_DAILY_EDITOR_READ_MODEL",
                     "status": "pass" if contract_ok else "fail",
                     "message": (
-                        f"AIM Daily editor produced {edition.published_story_count} story/stories from {edition.candidate_count} publication-safe FULL candidate(s)."
+                        f"AIM Daily editor produced {edition.published_story_count} story/stories from {edition.candidate_count} publication-safe FULL candidate(s) with a three-state edition timeline."
                         if contract_ok
-                        else "AIM Daily editor contract is malformed or its counts are inconsistent."
+                        else "AIM Daily editor contract, story identity or edition timeline is malformed."
                     ),
                     "details": {
                         "date": day.isoformat(),
@@ -127,6 +139,10 @@ def run_daily_editor_acceptance(
                         "candidate_count": edition.candidate_count,
                         "published_story_count": edition.published_story_count,
                         "other_analysed_count": edition.other_analysed_count,
+                        "developing_story_count": edition.developing_story_count,
+                        "override_count": edition.override_count,
+                        "story_links_created": story_links_created,
+                        "timeline_transition_count": len(timeline.transitions),
                         "quiet_morning": edition.quiet_morning,
                         "malformed_source_ids": malformed,
                     },
@@ -138,8 +154,8 @@ def run_daily_editor_acceptance(
             "passed": not failures,
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "database_dialect": engine.dialect.name,
-            "schema_version": "aim-daily-editor-v1",
-            "editor_version": "aim-daily-editor-1.0",
+            "schema_version": DAILY_EDITOR_SCHEMA_VERSION,
+            "editor_version": DAILY_EDITOR_VERSION,
             "failure_count": len(failures),
             "checks": checks,
         }
