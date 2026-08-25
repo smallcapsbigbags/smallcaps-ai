@@ -57,7 +57,12 @@ _GUIDANCE_STATUS_PRIORITY = {
     "delivered": 25,
 }
 
-_NUMBER_RE = re.compile(r"(?<![A-Za-z])(?:£|\$|€)?-?\d[\d,]*(?:\.\d+)?%?(?:m|bn|k)?", re.I)
+# Do not mistake period labels such as FY27/Q3 for unsupported financial claims.
+# Numeric copy-desk tokens must be bounded by non-alphanumeric characters.
+_NUMBER_RE = re.compile(
+    r"(?<![A-Za-z0-9])(?:£|\$|€)?-?\d[\d,]*(?:\.\d+)?%?(?:m|bn|k)?(?![A-Za-z0-9])",
+    re.I,
+)
 
 
 class NewsroomModel(BaseModel):
@@ -258,10 +263,17 @@ def _ref(
 
 
 def _guidance_news(packet: NewsroomStoryPacket) -> NewsroomClaim | None:
-    candidates = [item for item in packet.guidance if item.status.lower() in _GUIDANCE_STATUS_PRIORITY]
+    candidates = [
+        item
+        for item in packet.guidance
+        if item.status.lower() in _GUIDANCE_STATUS_PRIORITY
+    ]
     if not candidates:
         return None
-    item = max(candidates, key=lambda value: (_guidance_score(value), value.metric, value.period))
+    item = max(
+        candidates,
+        key=lambda value: (_guidance_score(value), value.metric, value.period),
+    )
     status = item.status.lower()
     verb = {
         "downgraded": "cut",
@@ -278,31 +290,60 @@ def _guidance_news(packet: NewsroomStoryPacket) -> NewsroomClaim | None:
     if status == "withdrawn":
         text = f"{subject} withdrew {item.metric} guidance{period}"
     elif item.value and item.previous_value and status in {"downgraded", "upgraded"}:
-        text = f"{subject} {verb} {item.metric} guidance{period} to {item.value} from {item.previous_value}"
+        text = (
+            f"{subject} {verb} {item.metric} guidance{period} "
+            f"to {item.value} from {item.previous_value}"
+        )
     elif item.value:
         text = f"{subject} {verb} {item.metric} guidance{period} at {item.value}"
     else:
         text = f"{subject} {verb} {item.metric} guidance{period}"
-    refs = [_ref(packet, item.source_id, field_path="guidance_events", label=item.metric)]
+    refs = [
+        _ref(packet, item.source_id, field_path="guidance_events", label=item.metric)
+    ]
     if item.previous_source_id:
-        refs.append(_ref(packet, item.previous_source_id, field_path="guidance_events.previous_value", label=item.metric))
+        refs.append(
+            _ref(
+                packet,
+                item.previous_source_id,
+                field_path="guidance_events.previous_value",
+                label=item.metric,
+            )
+        )
     return NewsroomClaim(kind="news", text=_sentence(text), provenance=refs)
 
 
 def _fact_news(packet: NewsroomStoryPacket) -> NewsroomClaim | None:
-    candidates = [item for item in packet.facts if item.value and item.basis != "not-disclosed"]
+    candidates = [
+        item
+        for item in packet.facts
+        if item.value and item.basis != "not-disclosed"
+    ]
     if not candidates:
         return None
-    item = max(candidates, key=lambda value: (_fact_score(value), value.metric, value.label))
+    item = max(
+        candidates,
+        key=lambda value: (_fact_score(value), value.metric, value.label),
+    )
     subject = packet.story.company or packet.story.ticker
     label = item.label or item.metric
     if item.previous_value:
-        text = f"{subject} reported {label} of {item.value}, versus {item.previous_value} at the prior comparable disclosure"
+        text = (
+            f"{subject} reported {label} of {item.value}, versus "
+            f"{item.previous_value} at the prior comparable disclosure"
+        )
     else:
         text = f"{subject} reported {label} of {item.value}"
     refs = [_ref(packet, item.source_id, field_path="facts", label=label)]
     if item.comparator_source_id:
-        refs.append(_ref(packet, item.comparator_source_id, field_path="facts.previous_value", label=label))
+        refs.append(
+            _ref(
+                packet,
+                item.comparator_source_id,
+                field_path="facts.previous_value",
+                label=label,
+            )
+        )
     return NewsroomClaim(kind="news", text=_sentence(text), provenance=refs)
 
 
@@ -311,13 +352,22 @@ def _fallback_news(packet: NewsroomStoryPacket) -> NewsroomClaim:
     return NewsroomClaim(
         kind="news",
         text=_sentence(packet.story.what_changed),
-        provenance=[_ref(packet, source_id, field_path="analyst_run.what_changed.today") for source_id in source_ids],
+        provenance=[
+            _ref(
+                packet,
+                source_id,
+                field_path="analyst_run.what_changed.today",
+            )
+            for source_id in source_ids
+        ],
     )
 
 
 def _context_claims(packet: NewsroomStoryPacket) -> list[NewsroomClaim]:
     histories = [item for item in packet.metric_history if len(item.points) >= 2]
-    histories.sort(key=lambda item: (_metric_score(item.metric), len(item.points)), reverse=True)
+    histories.sort(
+        key=lambda item: (_metric_score(item.metric), len(item.points)), reverse=True
+    )
     output: list[NewsroomClaim] = []
     for history in histories[:2]:
         points = history.points[-3:]
@@ -325,9 +375,16 @@ def _context_claims(packet: NewsroomStoryPacket) -> list[NewsroomClaim]:
         previous = points[-2]
         if len(points) >= 3:
             oldest = points[0]
-            text = f"{history.label} has moved from {oldest.value} to {previous.value} and now {latest.value} across the last three comparable disclosures"
+            text = (
+                f"{history.label} has moved from {oldest.value} to "
+                f"{previous.value} and now {latest.value} across the last "
+                "three comparable disclosures"
+            )
         else:
-            text = f"{history.label} is now {latest.value}, from {previous.value} at the prior comparable disclosure"
+            text = (
+                f"{history.label} is now {latest.value}, from {previous.value} "
+                "at the prior comparable disclosure"
+            )
         refs = [
             NewsroomEvidenceRef(
                 source_id=point.source_id,
@@ -338,7 +395,9 @@ def _context_claims(packet: NewsroomStoryPacket) -> list[NewsroomClaim]:
             )
             for point in points
         ]
-        output.append(NewsroomClaim(kind="context", text=_sentence(text), provenance=refs))
+        output.append(
+            NewsroomClaim(kind="context", text=_sentence(text), provenance=refs)
+        )
     return output
 
 
@@ -346,7 +405,9 @@ def _number(packet: NewsroomStoryPacket) -> NewsroomNumber | None:
     histories = [item for item in packet.metric_history if len(item.points) >= 2]
     if not histories:
         return None
-    history = max(histories, key=lambda item: (_metric_score(item.metric), len(item.points)))
+    history = max(
+        histories, key=lambda item: (_metric_score(item.metric), len(item.points))
+    )
     return NewsroomNumber(
         label=history.label,
         metric=history.metric,
@@ -360,17 +421,32 @@ def _view(packet: NewsroomStoryPacket) -> NewsroomClaim:
     return NewsroomClaim(
         kind="view",
         text=_sentence(packet.story.why_it_matters),
-        provenance=[_ref(packet, source_id, field_path="analyst_run.analyst_view") for source_id in source_ids],
+        provenance=[
+            _ref(packet, source_id, field_path="analyst_run.analyst_view")
+            for source_id in source_ids
+        ],
     )
 
 
 def _catch(packet: NewsroomStoryPacket) -> NewsroomClaim | None:
-    text = _clean(packet.challenges[0]) if packet.challenges else _clean(packet.management_language_mismatch)
+    text = (
+        _clean(packet.challenges[0])
+        if packet.challenges
+        else _clean(packet.management_language_mismatch)
+    )
     if not text:
         return None
     source_id = packet.story.primary_source_id
-    field_path = "analyst_run.challenges_case" if packet.challenges else "analyst_run.disclosure_assessment.management_language_mismatch"
-    return NewsroomClaim(kind="catch", text=_sentence(text), provenance=[_ref(packet, source_id, field_path=field_path)])
+    field_path = (
+        "analyst_run.challenges_case"
+        if packet.challenges
+        else "analyst_run.disclosure_assessment.management_language_mismatch"
+    )
+    return NewsroomClaim(
+        kind="catch",
+        text=_sentence(text),
+        provenance=[_ref(packet, source_id, field_path=field_path)],
+    )
 
 
 def _missing(packet: NewsroomStoryPacket) -> list[NewsroomClaim]:
@@ -379,7 +455,13 @@ def _missing(packet: NewsroomStoryPacket) -> list[NewsroomClaim]:
         NewsroomClaim(
             kind="missing",
             text=_sentence(item),
-            provenance=[_ref(packet, source_id, field_path="analyst_run.disclosure_assessment.missing_items")],
+            provenance=[
+                _ref(
+                    packet,
+                    source_id,
+                    field_path="analyst_run.disclosure_assessment.missing_items",
+                )
+            ],
         )
         for item in packet.missing_items[:3]
         if _clean(item)
@@ -392,7 +474,9 @@ def _next_test(packet: NewsroomStoryPacket) -> NewsroomClaim | None:
         return NewsroomClaim(
             kind="next_test",
             text=_sentence(packet.watch_items[0]),
-            provenance=[_ref(packet, source_id, field_path="analyst_run.watch_items")],
+            provenance=[
+                _ref(packet, source_id, field_path="analyst_run.watch_items")
+            ],
         )
     if packet.open_claims:
         claim, target_date, claim_source_id, claim_source_url = packet.open_claims[0]
@@ -413,7 +497,10 @@ def _next_test(packet: NewsroomStoryPacket) -> NewsroomClaim | None:
 
 
 def _numeric_tokens(value: str) -> set[str]:
-    return {match.group(0).lower().replace(",", "") for match in _NUMBER_RE.finditer(value)}
+    return {
+        match.group(0).lower().replace(",", "")
+        for match in _NUMBER_RE.finditer(value)
+    }
 
 
 def _evidence_tokens(packet: NewsroomStoryPacket) -> set[str]:
@@ -428,7 +515,9 @@ def _valid_url(value: str) -> bool:
     return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
 
 
-def _copydesk(packet: NewsroomStoryPacket, article: NewsroomArticle) -> list[str]:
+def _copydesk(
+    packet: NewsroomStoryPacket, article: NewsroomArticle
+) -> list[str]:
     flags: list[str] = []
     claims = [article.news, *article.context, article.view]
     if article.the_catch is not None:
@@ -444,7 +533,9 @@ def _copydesk(packet: NewsroomStoryPacket, article: NewsroomArticle) -> list[str
     if not article.view.text.strip():
         flags.append("VIEW_BLANK")
 
-    all_copy = " ".join([article.headline, *(claim.text for claim in claims)]).lower()
+    all_copy = " ".join(
+        [article.headline, *(claim.text for claim in claims)]
+    ).lower()
     for phrase in BANNED_AI_PHRASES:
         if phrase in all_copy:
             flags.append(f"HOUSE_STYLE:{phrase}")
@@ -517,7 +608,9 @@ def build_newsroom_edition(
     packets: list[NewsroomStoryPacket],
     generated_at: datetime | None = None,
 ) -> NewsroomEdition:
-    by_key = {packet.story.story_key: build_newsroom_article(packet) for packet in packets}
+    by_key = {
+        packet.story.story_key: build_newsroom_article(packet) for packet in packets
+    }
 
     def article_for(story: DailyEditorStory | None) -> NewsroomArticle | None:
         if story is None:
@@ -528,8 +621,16 @@ def build_newsroom_edition(
         return article
 
     lead = article_for(editor_page.lead)
-    also = [article for story in editor_page.also_matters if (article := article_for(story)) is not None]
-    quick = [article for story in editor_page.quick_takes if (article := article_for(story)) is not None]
+    also = [
+        article
+        for story in editor_page.also_matters
+        if (article := article_for(story)) is not None
+    ]
+    quick = [
+        article
+        for story in editor_page.quick_takes
+        if (article := article_for(story)) is not None
+    ]
     selected = editor_page.published_story_count
     published = (1 if lead is not None else 0) + len(also) + len(quick)
     return NewsroomEdition(
