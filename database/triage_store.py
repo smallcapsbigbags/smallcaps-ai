@@ -2,14 +2,21 @@ from __future__ import annotations
 
 import uuid
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Iterator
 
-from sqlalchemy import JSON, Boolean, DateTime, Index, String, Text, Uuid, select
+from sqlalchemy import JSON, Boolean, DateTime, Index, String, Text, Uuid, desc, func, or_, select
 from sqlalchemy.orm import Mapped, Session, mapped_column, sessionmaker
 
-from analyst.triage import TRIAGE_VERSION, TriageDecision, catalogue_hash, evidence_hash, triage_rns_type
-from database.models import Base
+from analyst.triage import (
+    TRIAGE_VERSION,
+    TriageContext,
+    TriageDecision,
+    catalogue_hash,
+    evidence_hash,
+    triage_rns_type,
+)
+from database.models import AnalystRunRow, AnnouncementRow, Base, CompanyRow, FactRow
 
 
 def utcnow() -> datetime:
@@ -117,6 +124,7 @@ class TriageRepository:
             row.triage_class = decision.triage_class
             row.triage_reason = decision.reason
             row.processing_level = decision.processing_level
+            row.triage_version = TRIAGE_VERSION
             row.escalated = decision.escalated
             row.escalation_reason = decision.escalation_reason
             row.light_facts = decision.light_facts
@@ -154,3 +162,108 @@ class TriageRepository:
                 return None
             session.expunge(row)
             return row
+
+    def company_context(self, ticker: str, *, before: datetime) -> TriageContext:
+        """Return the narrow deterministic context used by LIGHT escalation.
+
+        The screen deliberately avoids a second AI call. It uses recent stored
+        triage history plus publication-safe Analyst/Fact history to decide whether
+        a director event, contract or LTIP deserves full Analyst 3.3 treatment.
+        """
+
+        ticker = ticker.upper().strip()
+        start = before - timedelta(days=180)
+        with _session_scope(self.session_factory) as session:
+            recent_director_dealings = session.scalar(
+                select(func.count())
+                .select_from(AnnouncementTriageRow)
+                .where(
+                    AnnouncementTriageRow.ticker == ticker,
+                    AnnouncementTriageRow.published_at < before,
+                    AnnouncementTriageRow.published_at >= start,
+                    or_(
+                        func.lower(AnnouncementTriageRow.title).like("%director%"),
+                        func.lower(AnnouncementTriageRow.title).like("%pdmr%"),
+                    ),
+                )
+            ) or 0
+
+            recent_adverse_trading = bool(
+                session.scalar(
+                    select(AnalystRunRow.id)
+                    .join(AnnouncementRow, AnnouncementRow.id == AnalystRunRow.announcement_id)
+                    .join(CompanyRow, CompanyRow.id == AnnouncementRow.company_id)
+                    .where(
+                        CompanyRow.ticker == ticker,
+                        AnnouncementRow.published_at < before,
+                        AnnouncementRow.published_at >= start,
+                        AnalystRunRow.is_current.is_(True),
+                        AnalystRunRow.impact_colour == "red",
+                        or_(
+                            func.lower(AnnouncementRow.headline).like("%trading%"),
+                            func.lower(AnnouncementRow.announcement_type).like("%results%"),
+                            func.lower(AnnouncementRow.announcement_type).like("%trading%"),
+                        ),
+                    )
+                    .order_by(desc(AnnouncementRow.published_at))
+                    .limit(1)
+                )
+            )
+
+            revenue = self._latest_fact(
+                session,
+                ticker=ticker,
+                before=before,
+                patterns=("%revenue%", "%sales%"),
+            )
+            shares = self._latest_fact(
+                session,
+                ticker=ticker,
+                before=before,
+                patterns=(
+                    "%shares in issue%",
+                    "%total voting rights%",
+                    "%issued share capital%",
+                ),
+            )
+
+        return TriageContext(
+            recent_director_dealings=int(recent_director_dealings),
+            recent_adverse_trading=recent_adverse_trading,
+            latest_revenue_value=revenue,
+            latest_share_count_value=shares,
+        )
+
+    @staticmethod
+    def _latest_fact(
+        session: Session,
+        *,
+        ticker: str,
+        before: datetime,
+        patterns: tuple[str, ...],
+    ) -> str:
+        predicates = []
+        for pattern in patterns:
+            predicates.extend(
+                [
+                    func.lower(FactRow.metric).like(pattern),
+                    func.lower(FactRow.label).like(pattern),
+                ]
+            )
+        row = session.scalar(
+            select(FactRow)
+            .join(CompanyRow, CompanyRow.id == FactRow.company_id)
+            .join(AnnouncementRow, AnnouncementRow.id == FactRow.announcement_id)
+            .join(AnalystRunRow, AnalystRunRow.id == FactRow.analyst_run_id)
+            .where(
+                CompanyRow.ticker == ticker,
+                AnnouncementRow.published_at < before,
+                AnalystRunRow.is_current.is_(True),
+                AnalystRunRow.quality_status == "publishable",
+                FactRow.basis.in_(("reported", "calculated")),
+                or_(*predicates),
+            )
+            .order_by(desc(AnnouncementRow.published_at), FactRow.ordinal)
+            .limit(1)
+        )
+        return row.value if row is not None else ""
