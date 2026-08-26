@@ -7,7 +7,28 @@ from sqlalchemy import DateTime, Float, ForeignKey, Index, Integer, JSON, String
 from sqlalchemy.orm import Mapped, Session, mapped_column
 
 from database.models import Base, CompanyRow, utcnow
-from product.radar import RadarSetup
+from product.radar import CompanyState, RADAR_VERSION, RadarSetup
+
+
+class RadarCompanyStateRow(Base):
+    __tablename__ = "radar_company_states"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    company_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("companies.id", ondelete="CASCADE"),
+        unique=True,
+        nullable=False,
+        index=True,
+    )
+    state: Mapped[dict[str, object]] = mapped_column(JSON, default=dict, nullable=False)
+    source_id: Mapped[str] = mapped_column(String(160), default="", nullable=False, index=True)
+    radar_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, nullable=False, index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, nullable=False
+    )
 
 
 class RadarSetupRow(Base):
@@ -42,11 +63,60 @@ class RadarRepository:
     def __init__(self, session: Session) -> None:
         self.session = session
 
-    def upsert(self, setup: RadarSetup) -> RadarSetupRow:
-        company = self.session.query(CompanyRow).filter(CompanyRow.ticker == setup.ticker).one_or_none()
+    def _company(self, ticker: str) -> CompanyRow:
+        company = (
+            self.session.query(CompanyRow)
+            .filter(CompanyRow.ticker == ticker.upper())
+            .one_or_none()
+        )
         if company is None:
-            raise ValueError(f"Unknown company ticker for radar setup: {setup.ticker}")
+            raise ValueError(f"Unknown company ticker for Radar: {ticker}")
+        return company
 
+    def get_state(self, ticker: str) -> CompanyState:
+        company = self._company(ticker)
+        row = (
+            self.session.query(RadarCompanyStateRow)
+            .filter(RadarCompanyStateRow.company_id == company.id)
+            .one_or_none()
+        )
+        if row is None:
+            return CompanyState()
+        return CompanyState.model_validate(row.state)
+
+    def upsert_state(
+        self,
+        *,
+        ticker: str,
+        state: CompanyState,
+        source_id: str,
+        updated_at: datetime | None = None,
+    ) -> RadarCompanyStateRow:
+        company = self._company(ticker)
+        row = (
+            self.session.query(RadarCompanyStateRow)
+            .filter(RadarCompanyStateRow.company_id == company.id)
+            .one_or_none()
+        )
+        if row is None:
+            row = RadarCompanyStateRow(
+                company_id=company.id,
+                state=state.model_dump(mode="json"),
+                source_id=source_id,
+                radar_version=RADAR_VERSION,
+                updated_at=updated_at or utcnow(),
+            )
+            self.session.add(row)
+        else:
+            row.state = state.model_dump(mode="json")
+            row.source_id = source_id
+            row.radar_version = RADAR_VERSION
+            row.updated_at = updated_at or utcnow()
+        self.session.flush()
+        return row
+
+    def upsert(self, setup: RadarSetup) -> RadarSetupRow:
+        company = self._company(setup.ticker)
         row = (
             self.session.query(RadarSetupRow)
             .filter(
@@ -111,10 +181,13 @@ class RadarRepository:
     def mark_inactive(self, *, ticker: str, setup_type: str, status: str) -> RadarSetupRow:
         if status not in {"resolved", "invalidated"}:
             raise ValueError("Radar setup status must be resolved or invalidated")
+        company = self._company(ticker)
         row = (
             self.session.query(RadarSetupRow)
-            .join(CompanyRow, CompanyRow.id == RadarSetupRow.company_id)
-            .filter(CompanyRow.ticker == ticker.upper(), RadarSetupRow.setup_type == setup_type)
+            .filter(
+                RadarSetupRow.company_id == company.id,
+                RadarSetupRow.setup_type == setup_type,
+            )
             .one()
         )
         row.status = status
