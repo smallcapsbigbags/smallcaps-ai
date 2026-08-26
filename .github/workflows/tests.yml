@@ -42,6 +42,7 @@ jobs:
       - run: python -m json.tool benchmarks/aim_daily_editor_cases.json > /dev/null
       - run: python -m json.tool benchmarks/aim_daily_editor_evolution_cases.json > /dev/null
       - run: python -m json.tool benchmarks/aim_daily_newsroom_cases.json > /dev/null
+      - run: python -m json.tool benchmarks/radar_cases.json > /dev/null
       - run: python -m json.tool railway.json > /dev/null
       - run: python -m json.tool railway.ingest.json > /dev/null
       - run: python -m json.tool railway.prices.json > /dev/null
@@ -54,4 +55,5 @@ jobs:
       - run: python -m jobs.run_daily_editor_benchmark --cases benchmarks/aim_daily_editor_cases.json --output /tmp/aim-daily-editor-results.json
       - run: python -m jobs.run_daily_editor_evolution_benchmark --cases benchmarks/aim_daily_editor_evolution_cases.json --output /tmp/aim-daily-evolution-results.json
       - run: python -m jobs.run_newsroom_benchmark --cases benchmarks/aim_daily_newsroom_cases.json --output /tmp/aim-daily-newsroom-results.json
+      - run: python -m jobs.run_radar_benchmark --cases benchmarks/radar_cases.json --output /tmp/aim-radar-results.json
       - run: pytest -q
