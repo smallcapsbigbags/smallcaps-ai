@@ -90,6 +90,20 @@ def test_radar_repository_persists_and_updates_setup_identity() -> None:
         assert second.id == first_id
         assert second.status == "active"
         assert second.source_ids == ["xyz-contract-1", "xyz-contract-2"]
+
+        newest = setup.model_copy(
+            update={
+                "primary_source_id": "xyz-contract-3",
+                "source_ids": ["xyz-contract-3"],
+                "last_updated_at": datetime.fromisoformat("2026-08-28T07:10:00+01:00"),
+            }
+        )
+        third = repo.upsert(newest)
+        session.commit()
+
+        assert third.id == first_id
+        assert third.status == "active"
+        assert third.source_ids == ["xyz-contract-1", "xyz-contract-2", "xyz-contract-3"]
         assert len(repo.active()) == 1
     finally:
         session.close()
