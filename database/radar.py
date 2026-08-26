@@ -80,7 +80,12 @@ class RadarRepository:
 
         row.setup_score = setup.setup_score
         row.confidence = setup.confidence
-        row.status = "active" if row.status == "new" else setup.status
+        if setup.status in {"resolved", "invalidated"}:
+            row.status = setup.status
+        elif row.status in {"new", "active"}:
+            row.status = "active"
+        else:
+            row.status = setup.status
         row.headline = setup.headline
         row.why_interesting = setup.why_interesting
         row.next_test = setup.next_test
