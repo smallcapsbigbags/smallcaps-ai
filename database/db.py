@@ -9,9 +9,10 @@ from sqlalchemy.pool import StaticPool
 
 from database.models import Base
 # Import additive models before create_all so existing databases gain the
-# newsroom support tables without altering established public tables.
+# newsroom and Radar support tables without altering established public tables.
 from database import triage_store as _triage_store  # noqa: F401,E402
 from database import editorial_calibration as _editorial_calibration  # noqa: F401,E402
+from database import radar as _radar  # noqa: F401,E402
 
 
 def normalise_database_url(url: str) -> str:
