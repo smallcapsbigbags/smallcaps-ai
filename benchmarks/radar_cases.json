@@ -1,0 +1,226 @@
+{
+  "schema_version": "aim-radar-benchmark-v1",
+  "cases": [
+    {
+      "case_id": "hidden-deterioration-broader-than-headline",
+      "observation": {
+        "source_id": "radar-abc-warning",
+        "ticker": "ABC",
+        "company": "ABC plc",
+        "published_at": "2026-08-26T07:05:00+01:00",
+        "title": "Trading Update",
+        "rns_type": "Results & trading",
+        "impact_score": 5,
+        "signal": "RED",
+        "outlook": "DOWNGRADED",
+        "source_url": "https://example.com/abc",
+        "previous_state": {
+          "earnings": "stable",
+          "growth": "stable",
+          "cash": "stable",
+          "balance_sheet": "stable",
+          "execution": "stable",
+          "funding": "stable",
+          "dilution": "stable"
+        },
+        "current_state": {
+          "earnings": "deteriorating",
+          "growth": "stable",
+          "cash": "deteriorating",
+          "balance_sheet": "deteriorating",
+          "execution": "deteriorating",
+          "funding": "stable",
+          "dilution": "stable"
+        },
+        "surprises": [
+          {
+            "metric": "Adjusted EBITDA",
+            "expected": "£10m",
+            "actual": "£8m",
+            "delta_percent": -20,
+            "direction": "negative",
+            "expectation_source_id": "abc-prior",
+            "actual_source_id": "radar-abc-warning"
+          }
+        ]
+      },
+      "expected_types": ["HIDDEN_DETERIORATION"]
+    },
+    {
+      "case_id": "contract-read-the-small-print",
+      "observation": {
+        "source_id": "radar-xyz-contract",
+        "ticker": "XYZ",
+        "company": "XYZ plc",
+        "published_at": "2026-08-26T07:10:00+01:00",
+        "title": "£12m Contract Award",
+        "rns_type": "Contracts",
+        "impact_score": 4,
+        "signal": "GREEN",
+        "source_url": "https://example.com/xyz",
+        "contract": {
+          "headline_value": 12,
+          "committed_value": 4,
+          "optional_value": 8,
+          "currency": "GBP",
+          "margin_disclosed": false
+        }
+      },
+      "expected_types": ["READ_THE_SMALL_PRINT"]
+    },
+    {
+      "case_id": "funding-before-catalyst",
+      "observation": {
+        "source_id": "radar-bio-funding",
+        "ticker": "BIO",
+        "company": "BIO plc",
+        "published_at": "2026-08-26T07:20:00+01:00",
+        "title": "Operational Update",
+        "rns_type": "Operations",
+        "impact_score": 4,
+        "signal": "AMBER",
+        "source_url": "https://example.com/bio",
+        "funding_window": {
+          "cash_runway_end": "2027-01-31",
+          "next_major_catalyst": "2027-04-30",
+          "funding_required_before_catalyst": true
+        }
+      },
+      "expected_types": ["FUNDING_CLOCK"]
+    },
+    {
+      "case_id": "three-point-deleveraging",
+      "observation": {
+        "source_id": "radar-spr-debt",
+        "ticker": "SPR",
+        "company": "Springfield Properties plc",
+        "published_at": "2026-08-26T07:30:00+01:00",
+        "title": "Trading Update",
+        "rns_type": "Results & trading",
+        "impact_score": 4,
+        "signal": "GREEN",
+        "source_url": "https://example.com/spr",
+        "metric_series": [
+          {
+            "metric": "Net debt",
+            "period_family": "Point in time",
+            "unit": "m",
+            "currency": "GBP",
+            "points": [
+              {"source_id": "spr-dec", "published_at": "2025-12-15", "value": "£29.8m", "value_numeric": 29.8},
+              {"source_id": "spr-may", "published_at": "2026-05-15", "value": "£24.0m", "value_numeric": 24.0},
+              {"source_id": "radar-spr-debt", "published_at": "2026-08-26", "value": "£18.2m", "value_numeric": 18.2}
+            ]
+          }
+        ]
+      },
+      "expected_types": ["DELEVERAGING"]
+    },
+    {
+      "case_id": "earnings-inflection",
+      "observation": {
+        "source_id": "radar-gatc-upgrade",
+        "ticker": "GATC",
+        "company": "GATC plc",
+        "published_at": "2026-08-26T07:35:00+01:00",
+        "title": "Trading Update",
+        "rns_type": "Results & trading",
+        "impact_score": 4,
+        "signal": "GREEN",
+        "outlook": "UPGRADED",
+        "source_url": "https://example.com/gatc",
+        "previous_state": {"earnings": "stable"},
+        "current_state": {"earnings": "improving"},
+        "surprises": [
+          {
+            "metric": "Adjusted EBITDA",
+            "expected": "£8m",
+            "actual": "£9m",
+            "delta_percent": 12.5,
+            "direction": "positive",
+            "expectation_source_id": "gatc-prior",
+            "actual_source_id": "radar-gatc-upgrade"
+          }
+        ]
+      },
+      "expected_types": ["EARNINGS_INFLECTION"]
+    },
+    {
+      "case_id": "management-delivery-pattern",
+      "observation": {
+        "source_id": "radar-def-delivery",
+        "ticker": "DEF",
+        "company": "DEF plc",
+        "published_at": "2026-08-26T07:40:00+01:00",
+        "title": "Milestone Update",
+        "rns_type": "Operations",
+        "impact_score": 3,
+        "signal": "GREEN",
+        "source_url": "https://example.com/def",
+        "management_delivery": {
+          "delivered": 4,
+          "delayed": 1,
+          "missed": 0,
+          "open": 2
+        }
+      },
+      "expected_types": ["MANAGEMENT_DELIVERING"]
+    },
+    {
+      "case_id": "control-fully-committed-contract",
+      "observation": {
+        "source_id": "radar-control-contract",
+        "ticker": "CTL",
+        "company": "Control plc",
+        "published_at": "2026-08-26T07:45:00+01:00",
+        "title": "Contract Award",
+        "rns_type": "Contracts",
+        "impact_score": 3,
+        "signal": "GREEN",
+        "source_url": "https://example.com/control",
+        "contract": {
+          "headline_value": 5,
+          "committed_value": 5,
+          "optional_value": 0,
+          "currency": "GBP",
+          "margin_disclosed": true
+        }
+      },
+      "expected_types": []
+    },
+    {
+      "case_id": "control-boring-stable-update",
+      "observation": {
+        "source_id": "radar-control-stable",
+        "ticker": "STB",
+        "company": "Stable plc",
+        "published_at": "2026-08-26T07:50:00+01:00",
+        "title": "Trading Update",
+        "rns_type": "Results & trading",
+        "impact_score": 2,
+        "signal": "NO COLOUR",
+        "outlook": "MAINTAINED",
+        "source_url": "https://example.com/stable",
+        "previous_state": {
+          "earnings": "stable",
+          "growth": "stable",
+          "cash": "stable",
+          "balance_sheet": "stable",
+          "execution": "stable",
+          "funding": "stable",
+          "dilution": "stable"
+        },
+        "current_state": {
+          "earnings": "stable",
+          "growth": "stable",
+          "cash": "stable",
+          "balance_sheet": "stable",
+          "execution": "stable",
+          "funding": "stable",
+          "dilution": "stable"
+        }
+      },
+      "expected_types": []
+    }
+  ]
+}
