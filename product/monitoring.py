@@ -168,6 +168,7 @@ class MonitoringSheetRow(MonitoringModel):
     rns_title: str
     rns_type: str
     signal: MonitoringSignal
+    takeaway: str = ""
     what_changed: str
     ai_view: str
     outlook: MonitoringOutlook
