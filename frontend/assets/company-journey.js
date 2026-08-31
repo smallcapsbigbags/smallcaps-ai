@@ -47,14 +47,14 @@
 
       const link = document.createElement("a");
       link.className = "company-history-action company-feed-link";
-      link.href = `/?date=${isoDate}&open=${encodeURIComponent(sourceId)}`;
-      link.textContent = "OPEN IN FEED →";
-      link.setAttribute("aria-label", `Open the ${dateText} announcement in the RNS feed`);
+      link.href = `/rns?date=${isoDate}&open=${encodeURIComponent(sourceId)}`;
+      link.textContent = "OPEN IN NEWS →";
+      link.setAttribute("aria-label", `Open the ${dateText} announcement in Company News`);
 
-      const original = [...actions.querySelectorAll("a")].find((item) =>
-        clean(item.textContent).startsWith("ORIGINAL RNS"),
+      const source = [...actions.querySelectorAll("a")].find((item) =>
+        clean(item.textContent).startsWith("SOURCE") || clean(item.textContent).startsWith("ORIGINAL RNS"),
       );
-      actions.insertBefore(link, original || null);
+      actions.insertBefore(link, source || null);
       row.dataset.feedJourneyReady = "true";
     });
   }
@@ -66,7 +66,7 @@
         table.closest(".company-section")?.querySelector(".company-section-head h2")?.textContent,
       );
       table.setAttribute("role", "table");
-      table.setAttribute("aria-label", title ? `${title} table` : "Company research table");
+      table.setAttribute("aria-label", title ? `${title} table` : "Company Intelligence table");
 
       table.querySelectorAll(".company-data-head, .company-history-head").forEach((head) => {
         head.setAttribute("role", "row");
