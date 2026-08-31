@@ -10,7 +10,51 @@
 }
 
 @media (max-width: 680px) {
+  .daily-site-header .header-inner {
+    grid-template-areas:
+      "brand meta"
+      "nav nav";
+    grid-template-columns: minmax(0, 1fr) auto;
+    width: calc(100% - 24px);
+    min-height: 0;
+    gap: 0 12px;
+  }
+
+  .daily-site-header .wordmark {
+    display: inline-flex;
+    grid-area: brand;
+    align-items: center;
+    min-height: 50px;
+  }
+
+  .daily-site-header .primary-nav {
+    grid-area: nav;
+    width: 100%;
+    height: 44px;
+    gap: 0;
+    border-top: 1px solid var(--line);
+  }
+
+  .daily-site-header .nav-link {
+    flex: 1 1 0;
+    justify-content: center;
+    padding: 0 8px;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+
+  .daily-site-header .nav-link-active::after {
+    right: 8px;
+    left: 8px;
+  }
+
+  .daily-site-header .header-meta {
+    grid-area: meta;
+    justify-self: end;
+  }
+
   .daily-site-header .text-action {
     display: inline-flex;
+    white-space: nowrap;
   }
 }
