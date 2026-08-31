@@ -120,5 +120,5 @@ def test_final_consistency_review_locks_evidence_and_impact_checks():
     ):
         assert token in prompt
 
-    assert ANALYSIS_VERSION == "aim-intelligence-analyst-3.3"
-    assert DEFAULT_PROMPT_VERSION == "analyst-engine-3.3-scbb-monitoring-sheet"
+    assert ANALYSIS_VERSION == "aim-intelligence-analyst-3.4"
+    assert DEFAULT_PROMPT_VERSION == "analyst-engine-3.4-facts-no-fluff-routing"
