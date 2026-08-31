@@ -10,6 +10,7 @@ def test_feed_uses_facts_no_fluff_company_news_language() -> None:
     assert "Facts. No fluff." in html
     assert "Every material AIM announcement, reduced to what changed." in html
     assert 'id="filter-panel"' in html and 'hidden' in html
+    assert '/assets/news.css' in html
     assert "COMPANY / RNS / SIGNAL" not in html
     assert "AI VIEW" not in html
     assert "GROUP BY COMPANY" not in html
@@ -17,7 +18,10 @@ def test_feed_uses_facts_no_fluff_company_news_language() -> None:
 
 
 def test_feed_visual_system_is_light_dense_and_signal_separated() -> None:
-    css = (ROOT / "frontend" / "assets" / "research.css").read_text(
+    css = (ROOT / "frontend" / "assets" / "news.css").read_text(
+        encoding="utf-8"
+    )
+    shared = (ROOT / "frontend" / "assets" / "research.css").read_text(
         encoding="utf-8"
     )
     assert "color-scheme: light" in css
@@ -29,6 +33,8 @@ def test_feed_visual_system_is_light_dense_and_signal_separated() -> None:
     assert '.monitor-row[data-signal="RED"]' in css
     assert ".impact-dot.filled" in css
     assert "border-radius: 9px" in css
+    assert "color-scheme: dark" in shared
+    assert "--cyan: #46d7ff" in shared
 
 
 def test_key_news_and_take_limits_are_code_locked() -> None:
@@ -49,6 +55,8 @@ def test_key_news_and_take_limits_are_code_locked() -> None:
 def test_private_beta_matches_company_news_brand_language() -> None:
     html = (ROOT / "frontend" / "access.html").read_text(encoding="utf-8")
     assert '<meta name="theme-color" content="#f5f6f8">' in html
+    assert '/assets/news.css' in html
     assert "AIM COMPANY NEWS" in html
     assert "Facts" in html and "No fluff" in html
     assert "Every material AIM announcement reduced to the facts" in html
+    assert '<span class="status-full">PRIVATE BETA</span>' in html
