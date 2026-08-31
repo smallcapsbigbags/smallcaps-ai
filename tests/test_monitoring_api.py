@@ -35,6 +35,9 @@ class StubMonitoringRepository:
             rns_title="Contract Award",
             rns_type="Contracts",
             signal="GREEN",
+            takeaway=(
+                "£12m three-year contract signed. Guidance unchanged; margin undisclosed."
+            ),
             what_changed="A £12m three-year contract was signed.",
             ai_view="Useful win, but margin remains undisclosed.",
             outlook="MAINTAINED",
@@ -59,7 +62,7 @@ class StubMonitoringRepository:
             **self.row.model_dump(),
             research=MonitoringResearch(
                 verdict="£12m contract won; margin remains undisclosed",
-                takeaway="The contract is signed and guidance is unchanged.",
+                takeaway=self.row.takeaway,
                 what_changed=MonitoringWhatChanged(
                     before="No contract was previously disclosed.",
                     today=self.row.what_changed,
@@ -139,6 +142,7 @@ def test_monitoring_list_endpoint_exposes_versioned_column_contract() -> None:
     body = response.json()
     assert body["schema_version"] == "scbb-monitoring-v1"
     assert body["items"][0]["signal"] == "GREEN"
+    assert body["items"][0]["takeaway"].startswith("£12m three-year contract")
     assert body["items"][0]["what_changed"].startswith("A £12m")
     assert body["items"][0]["balance_sheet"]["status"] == "carried"
     assert body["items"][0]["detail_url"].endswith("spr-contract")
@@ -156,6 +160,8 @@ def test_monitoring_detail_health_schema_and_cors_preflight() -> None:
 
     detail = client.get("/api/v1/monitoring/spr-contract")
     assert detail.status_code == 200
+    assert detail.json()["takeaway"].startswith("£12m three-year contract")
+    assert detail.json()["research"]["takeaway"] == detail.json()["takeaway"]
     assert detail.json()["research"]["provenance"]["quality_status"] == "publishable"
     assert detail.json()["original_source_url"].startswith("https://")
 
@@ -171,6 +177,7 @@ def test_monitoring_detail_health_schema_and_cors_preflight() -> None:
     schema = client.get("/api/v1/schemas/monitoring-sheet")
     assert schema.status_code == 200
     assert "properties" in schema.json()["list"]
+    assert "takeaway" in schema.json()["list"]["$defs"]["MonitoringSheetRow"]["properties"]
     assert "properties" in schema.json()["detail"]
 
     options = client.options("/api/v1/monitoring")

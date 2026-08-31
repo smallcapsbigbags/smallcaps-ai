@@ -34,7 +34,6 @@
   async function initialise() {
     cacheControls();
     bindControls();
-
     try {
       const request = readJourneyRequest();
       state.requestedDate = request.date;
@@ -49,8 +48,8 @@
 
       if (state.journeyOpen && state.rows.some((row) => row.source_id === state.journeyOpen)) {
         state.expanded.add(state.journeyOpen);
-        const journeyRow = state.rows.find((row) => row.source_id === state.journeyOpen);
-        if (Number(journeyRow?.impact?.score || 0) < KEY_NEWS_THRESHOLD) state.showAll = true;
+        const requested = state.rows.find((row) => row.source_id === state.journeyOpen);
+        if (Number(requested?.impact?.score || 0) < KEY_NEWS_THRESHOLD) state.showAll = true;
       }
 
       populateFilterOptions();
@@ -189,9 +188,7 @@
       credentials: "same-origin",
     });
     const payload = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      throw new Error(payload?.error?.message || "Company news is unavailable.");
-    }
+    if (!response.ok) throw new Error(payload?.error?.message || "Company news is unavailable.");
     if (payload.schema_version !== MONITORING_SCHEMA) {
       throw new Error("The company-news data contract is incompatible.");
     }
@@ -237,6 +234,7 @@
           row.company,
           row.rns_title,
           row.rns_type,
+          row.takeaway,
           row.what_changed,
           row.ai_view,
           row.outlook,
@@ -266,7 +264,6 @@
     renderRows();
     updateSummary(keyRows.length);
     updateFilterCount();
-
     if (state.pendingReveal) window.requestAnimationFrame(revealJourneyRow);
   }
 
@@ -362,7 +359,7 @@
     );
     toggle.append(
       element("h2", "news-headline", clean(row.rns_title) || "Company update"),
-      element("p", "news-take", compactWords(row.ai_view || row.what_changed, 45)),
+      element("p", "news-take", compactWords(row.takeaway || row.ai_view || row.what_changed, 45)),
       buildNewsFooter(row),
     );
     toggle.addEventListener("click", () => toggleRow(row, article));
@@ -392,30 +389,31 @@
 
   function buildNewsFooter(row) {
     const footer = element("div", "news-footer");
-    const reaction = row.market_reaction || {};
-    const previous = Number(reaction.previous_close);
-    const change = Number(reaction.change_pct);
-    const hasPrevious = Number.isFinite(previous);
-    const hasChange = reaction.status === "available" && Number.isFinite(change);
-
-    const price = element("span", "price-line");
-    if (hasPrevious) price.append(element("span", "", `PRE ${formatPrice(previous, reaction.currency)}`));
-    if (hasPrevious && hasChange) price.append(element("span", "dot-separator", "·"));
-    if (hasChange) {
-      price.append(element(
-        "span",
-        change > 0 ? "day-positive" : change < 0 ? "day-negative" : "day-flat",
-        `DAY ${formatSigned(change)}%`,
-      ));
-    }
-    if (!hasPrevious && !hasChange) price.append(element("span", "", "PRICE PENDING"));
-    footer.append(price);
-
+    footer.append(buildPriceLine(row.market_reaction || {}));
     if (row.outlook && row.outlook !== "N/A") {
       footer.append(element("span", "dot-separator", "·"));
       footer.append(element("span", "outlook-inline", `GUIDANCE ${clean(row.outlook)}`));
     }
     return footer;
+  }
+
+  function buildPriceLine(reaction) {
+    const previous = optionalNumber(reaction.previous_close);
+    const change = optionalNumber(reaction.change_pct);
+    const hasPrevious = previous !== null;
+    const hasChange = reaction.status === "available" && change !== null;
+    const line = element("span", "price-line");
+    if (hasPrevious) line.append(element("span", "", `PRE ${formatPrice(previous, reaction.currency)}`));
+    if (hasPrevious && hasChange) line.append(element("span", "dot-separator", "·"));
+    if (hasChange) {
+      line.append(element(
+        "span",
+        change > 0 ? "day-positive" : change < 0 ? "day-negative" : "day-flat",
+        `DAY ${formatSigned(change)}%`,
+      ));
+    }
+    if (!hasPrevious && !hasChange) line.append(element("span", "", "PRICE PENDING"));
+    return line;
   }
 
   function toggleRow(row, article) {
@@ -457,7 +455,9 @@
       });
       const detail = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(detail?.error?.message || "Company news detail is unavailable.");
-      if (detail.schema_version !== MONITORING_SCHEMA) throw new Error("The company-news detail contract is incompatible.");
+      if (detail.schema_version !== MONITORING_SCHEMA) {
+        throw new Error("The company-news detail contract is incompatible.");
+      }
       state.detailCache.set(row.source_id, detail);
       renderDetail(detail, container);
     } catch (error) {
@@ -467,10 +467,11 @@
 
   function renderDetail(detail, container) {
     const research = detail.research || {};
-    const inner = element("div", "expanded-inner");
-    const top = element("div", "expanded-topline");
-    top.append(element("p", "", "COMPANY NEWS DETAIL"));
+    const facts = Array.isArray(research.evidence) ? research.evidence : [];
+    const inner = element("div", "expanded-inner forensic-detail");
 
+    const top = element("div", "expanded-topline");
+    top.append(element("p", "", "EVIDENCE"));
     const actions = element("div", "expanded-top-actions");
     const ticker = clean(detail.ticker);
     if (ticker) {
@@ -487,33 +488,25 @@
     if (source) actions.append(source);
     if (actions.children.length) top.append(actions);
 
-    const grid = element("div", "expanded-grid");
-    const first = element("div", "expanded-column");
-    first.append(
-      researchBlock("TAKE", [
-        element("p", "research-verdict", research.verdict || detail.rns_title),
-        element("p", "", compactWords(research.takeaway || detail.ai_view, 45)),
-      ]),
-      buildFactBlock(research.evidence || []),
-    );
+    const take = researchBlock("TAKE", [
+      element("p", "forensic-take", compactWords(research.takeaway || detail.takeaway || detail.ai_view, 45)),
+    ]);
 
-    const second = element("div", "expanded-column");
-    second.append(
+    const grid = element("div", "forensic-grid");
+    const primary = element("div", "forensic-primary");
+    primary.append(buildFactBlock(facts));
+
+    const side = element("div", "forensic-side");
+    side.append(
       buildWhatChangedBlock(research.what_changed || {}),
-      researchBlock("READ-THROUGH", [element("p", "", research.analyst_view || detail.ai_view)]),
-      buildListBlock("WHAT TO WATCH", research.watch_items || []),
-    );
-
-    const third = element("div", "expanded-column");
-    third.append(
+      buildMarketReactionBlock(detail.market_reaction || {}),
       buildGuidanceBlock(research.guidance_events || []),
-      buildListBlock("SUPPORTS THE CASE", research.supports_case || []),
-      buildListBlock("CHALLENGES THE CASE", research.challenges_case || []),
-      buildDisclosureBlock(research.disclosure || {}, research.provenance || {}),
+      buildNotDisclosedBlock(facts, research.disclosure || {}),
+      buildSourceChecksBlock(research.disclosure || {}, research.provenance || {}),
     );
 
-    grid.append(first, second, third);
-    inner.append(top, grid);
+    grid.append(primary, side);
+    inner.append(top, take, grid);
     container.replaceChildren(inner);
   }
 
@@ -525,23 +518,36 @@
   }
 
   function buildFactBlock(facts) {
-    const usable = facts.filter((fact) => clean(fact.label) || clean(fact.value));
-    if (!usable.length) return buildListBlock("MATERIAL FACTS", ["No structured material facts available."]);
-    const table = element("table", "fact-table");
+    const usable = facts.filter((fact) => {
+      const basis = clean(fact.basis).toLowerCase();
+      return basis !== "not-disclosed"
+        && basis !== "source-warning"
+        && (clean(fact.label) || clean(fact.value));
+    });
+    if (!usable.length) {
+      return buildListBlock("MATERIAL FACTS", ["No structured material facts available."]);
+    }
+
+    const table = element("table", "fact-table forensic-fact-table");
     const body = document.createElement("tbody");
     usable.forEach((fact) => {
       const row = document.createElement("tr");
       const label = document.createElement("th");
       label.scope = "row";
       label.textContent = fact.label || fact.metric || "Reported fact";
+
       const value = document.createElement("td");
-      value.textContent = fact.value || "Not disclosed";
-      const notes = [
-        fact.previous_value ? `Previous: ${fact.previous_value}` : "",
-        fact.period || fact.as_of_date || "",
-        fact.basis && fact.basis !== "reported" ? fact.basis : "",
-      ].filter(Boolean);
-      if (notes.length) value.append(element("span", "fact-note", notes.join(" · ")));
+      value.append(element("strong", "fact-value", fact.value || "—"));
+
+      const meta = [];
+      if (clean(fact.basis)) meta.push(clean(fact.basis).toUpperCase());
+      if (clean(fact.period)) meta.push(clean(fact.period));
+      if (clean(fact.as_of_date) && clean(fact.as_of_date) !== clean(fact.period)) meta.push(clean(fact.as_of_date));
+      if (clean(fact.previous_value)) meta.push(`Previous ${clean(fact.previous_value)}`);
+      else if (clean(fact.comparator)) meta.push(`Comparator ${clean(fact.comparator)}`);
+      if (meta.length) value.append(element("span", "fact-note", meta.join(" · ")));
+      if (clean(fact.note)) value.append(element("span", "fact-method", clean(fact.note)));
+
       row.append(label, value);
       body.append(row);
     });
@@ -550,20 +556,98 @@
   }
 
   function buildWhatChangedBlock(change) {
-    const stack = element("div", "change-stack");
     const baseline = change.coverage_status === "building";
-    [
-      [baseline ? "BASELINE" : "BEFORE", baseline ? change.today : change.before],
-      [baseline ? "" : "TODAY", baseline ? "" : change.today],
-      ["READ-THROUGH", change.read_through],
-    ].forEach(([label, value]) => {
+    const stack = element("div", "change-stack");
+    const values = baseline
+      ? [["BASELINE", change.today]]
+      : [["BEFORE", change.before], ["TODAY", change.today]];
+
+    values.forEach(([label, value]) => {
       if (!clean(value)) return;
       const item = element("div", "change-item");
-      if (label) item.append(element("span", "", label));
-      item.append(element("strong", "", value));
+      item.append(element("span", "", label));
+      item.append(element("strong", "", clean(value)));
       stack.append(item);
     });
+
+    if (!stack.children.length) {
+      return document.createDocumentFragment();
+    }
     return researchBlock(baseline ? "CURRENT BASELINE" : "WHAT CHANGED", [stack]);
+  }
+
+  function buildMarketReactionBlock(reaction) {
+    const previous = optionalNumber(reaction.previous_close);
+    const change = optionalNumber(reaction.change_pct);
+    const hasPrevious = previous !== null;
+    const hasChange = reaction.status === "available" && change !== null;
+    const grid = element("div", "market-reaction-grid");
+
+    const pre = element("div", "market-reaction-cell");
+    pre.append(
+      element("span", "", "PRE"),
+      element("strong", "", hasPrevious ? formatPrice(previous, reaction.currency) : "Pending"),
+    );
+    grid.append(pre);
+
+    const day = element("div", "market-reaction-cell");
+    const dayValue = hasChange ? `${formatSigned(change)}%` : "Pending";
+    day.append(
+      element("span", "", "DAY"),
+      element(
+        "strong",
+        hasChange ? (change > 0 ? "day-positive" : change < 0 ? "day-negative" : "day-flat") : "",
+        dayValue,
+      ),
+    );
+    grid.append(day);
+
+    const phase = clean(reaction.phase);
+    if (hasChange && phase) {
+      grid.append(element("p", "market-reaction-note", phase === "close" ? "Official close" : "Live session"));
+    }
+    return researchBlock("MARKET REACTION", [grid]);
+  }
+
+  function buildGuidanceBlock(events) {
+    const usable = events.filter((event) => clean(event.metric) || clean(event.value) || clean(event.status));
+    if (!usable.length) return document.createDocumentFragment();
+    const list = element("ul", "research-list guidance-list");
+    usable.forEach((event) => {
+      const parts = [clean(event.metric) || "Guidance"];
+      if (clean(event.period)) parts.push(clean(event.period));
+      if (clean(event.value)) parts.push(clean(event.value));
+      if (clean(event.status)) parts.push(clean(event.status).toUpperCase());
+      if (clean(event.previous_value)) parts.push(`Previous ${clean(event.previous_value)}`);
+      list.append(element("li", "", parts.join(" · ")));
+    });
+    return researchBlock("GUIDANCE", [list]);
+  }
+
+  function buildNotDisclosedBlock(facts, disclosure) {
+    const items = [];
+    facts.forEach((fact) => {
+      if (clean(fact.basis).toLowerCase() !== "not-disclosed") return;
+      items.push(clean(fact.label || fact.metric || "Material item"));
+    });
+    (disclosure.missing_items || []).forEach((item) => items.push(clean(item)));
+    return buildListBlock("NOT DISCLOSED", uniqueStrings(items));
+  }
+
+  function buildSourceChecksBlock(disclosure, provenance) {
+    const items = [];
+    if (clean(disclosure.management_language_mismatch)) {
+      items.push(clean(disclosure.management_language_mismatch));
+    }
+    (provenance.source_warnings || []).forEach((warning) => {
+      if (clean(warning)) items.push(clean(warning));
+    });
+    if (!items.length && disclosure.status === "insufficient" && clean(disclosure.note)) {
+      items.push(clean(disclosure.note));
+    }
+    const block = buildListBlock("SOURCE CHECKS", uniqueStrings(items));
+    if (block instanceof HTMLElement) block.classList.add("research-warning");
+    return block;
   }
 
   function buildListBlock(title, values) {
@@ -572,28 +656,6 @@
     const list = element("ul", "research-list");
     items.forEach((item) => list.append(element("li", "", item)));
     return researchBlock(title, [list]);
-  }
-
-  function buildGuidanceBlock(events) {
-    if (!events.length) return document.createDocumentFragment();
-    return buildListBlock("GUIDANCE", events.map((event) => {
-      const metric = event.metric || "Guidance";
-      const period = event.period ? ` · ${event.period}` : "";
-      const value = event.value ? `: ${event.value}` : "";
-      return `${metric}${period}${value} (${clean(event.status).toUpperCase()})`;
-    }));
-  }
-
-  function buildDisclosureBlock(disclosure, provenance) {
-    const items = [];
-    (disclosure.missing_items || []).forEach((item) => items.push(`Not disclosed: ${item}`));
-    if (disclosure.management_language_mismatch) items.push(disclosure.management_language_mismatch);
-    (provenance.source_warnings || []).forEach((warning) => items.push(`Source warning: ${warning}`));
-    if (!items.length && disclosure.status === "complete") return document.createDocumentFragment();
-    if (!items.length && disclosure.note) items.push(disclosure.note);
-    const block = buildListBlock("DISCLOSURE GAPS / SOURCE WARNINGS", items);
-    if (block instanceof HTMLElement) block.classList.add("research-warning");
-    return block;
   }
 
   function updatePagination() {
@@ -728,6 +790,10 @@
     });
   }
 
+  function uniqueStrings(values) {
+    return [...new Set(values.map(clean).filter(Boolean))];
+  }
+
   function compactWords(value, limit) {
     const text = clean(value);
     const words = text.split(" ").filter(Boolean);
@@ -741,6 +807,12 @@
 
   function slug(value) {
     return clean(value).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  }
+
+  function optionalNumber(value) {
+    if (value === null || value === undefined || value === "") return null;
+    const number = Number(value);
+    return Number.isFinite(number) ? number : null;
   }
 
   function validIsoDate(value) {

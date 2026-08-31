@@ -1,0 +1,172 @@
+.forensic-detail {
+  padding-top: 16px;
+  padding-bottom: 18px;
+}
+
+.forensic-detail .expanded-topline {
+  margin-bottom: 13px;
+}
+
+.forensic-detail > .research-block {
+  margin: 0 0 17px;
+  padding-bottom: 17px;
+  border-bottom: 1px solid var(--line);
+}
+
+.forensic-take {
+  max-width: 920px;
+  margin: 0;
+  color: var(--text);
+  font-size: 13.5px;
+  font-weight: 620;
+  line-height: 1.48;
+}
+
+.forensic-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(285px, .75fr);
+  gap: 28px;
+  align-items: start;
+}
+
+.forensic-primary,
+.forensic-side {
+  min-width: 0;
+}
+
+.forensic-side {
+  border-left: 1px solid var(--line);
+  padding-left: 24px;
+}
+
+.forensic-side .research-block + .research-block {
+  margin-top: 19px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+.forensic-fact-table th,
+.forensic-fact-table td {
+  padding-top: 9px;
+  padding-bottom: 9px;
+}
+
+.forensic-fact-table th {
+  width: 37%;
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 650;
+}
+
+.forensic-fact-table td {
+  color: var(--text);
+}
+
+.fact-value {
+  display: block;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 720;
+  line-height: 1.35;
+}
+
+.fact-method {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 450;
+  line-height: 1.4;
+}
+
+.forensic-detail .change-stack {
+  gap: 9px;
+}
+
+.forensic-detail .change-item {
+  border-left-color: var(--line-strong);
+  padding-left: 10px;
+}
+
+.forensic-detail .change-item strong {
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 620;
+}
+
+.market-reaction-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.market-reaction-cell {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 9px 10px;
+  background: var(--surface);
+}
+
+.market-reaction-cell > span {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--muted-light);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: .08em;
+}
+
+.market-reaction-cell > strong {
+  display: block;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.market-reaction-note {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--muted-light);
+  font-size: 8.5px;
+  font-weight: 600;
+}
+
+.guidance-list li,
+.forensic-detail .research-list li {
+  margin-bottom: 6px;
+  color: var(--text-soft);
+  font-size: 10.5px;
+  line-height: 1.42;
+}
+
+.forensic-detail .research-warning {
+  border-left: 0;
+  padding-left: 0;
+}
+
+@media (max-width: 760px) {
+  .forensic-detail {
+    padding-top: 14px;
+  }
+
+  .forensic-grid {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+
+  .forensic-side {
+    border-top: 1px solid var(--line);
+    border-left: 0;
+    padding-top: 18px;
+    padding-left: 0;
+  }
+
+  .forensic-fact-table th {
+    width: 42%;
+  }
+
+  .market-reaction-cell {
+    min-height: 54px;
+  }
+}

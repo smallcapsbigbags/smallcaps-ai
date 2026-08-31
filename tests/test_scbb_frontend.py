@@ -27,6 +27,7 @@ def test_public_root_serves_the_aim_daily_and_company_news_stays_available(monke
         news = client.get("/rns")
         shared_css = client.get("/assets/research.css")
         news_css = client.get("/assets/news.css")
+        news_detail_css = client.get("/assets/news-detail.css")
         daily_css = client.get("/assets/daily.css")
         daily_javascript = client.get("/assets/daily.js")
         research_javascript = client.get("/assets/research.js")
@@ -48,6 +49,7 @@ def test_public_root_serves_the_aim_daily_and_company_news_stays_available(monke
     assert 'id="filter-panel"' in news.text
     assert 'id="material-toggle"' in news.text
     assert 'id="feed-mode">Key News' in news.text
+    assert '/assets/news-detail.css' in news.text
     for heading in (
         "Company",
         "News type",
@@ -68,6 +70,8 @@ def test_public_root_serves_the_aim_daily_and_company_news_stays_available(monke
     assert shared_css.headers["content-type"].startswith("text/css")
     assert news_css.status_code == 200
     assert news_css.headers["content-type"].startswith("text/css")
+    assert news_detail_css.status_code == 200
+    assert news_detail_css.headers["content-type"].startswith("text/css")
     assert daily_css.status_code == 200
     assert daily_css.headers["content-type"].startswith("text/css")
     assert daily_javascript.status_code == 200
@@ -123,6 +127,7 @@ def test_frontend_source_freezes_the_facts_no_fluff_visual_and_output_contract()
     html = Path("frontend/index.html").read_text(encoding="utf-8")
     shared_css = Path("frontend/assets/research.css").read_text(encoding="utf-8")
     news_css = Path("frontend/assets/news.css").read_text(encoding="utf-8")
+    detail_css = Path("frontend/assets/news-detail.css").read_text(encoding="utf-8")
     javascript = Path("frontend/assets/research.js").read_text(encoding="utf-8")
 
     # Shared publication styling stays dark for The AIM Daily and Company pages.
@@ -141,6 +146,12 @@ def test_frontend_source_freezes_the_facts_no_fluff_visual_and_output_contract()
     assert "border-radius: 9px" in news_css
     assert "@media (max-width: 680px)" in news_css
 
+    # Pass 6 forensic detail is a separate compact layer.
+    assert ".forensic-grid" in detail_css
+    assert ".market-reaction-grid" in detail_css
+    assert "grid-template-columns: minmax(0, 1.55fr)" in detail_css
+    assert "@media (max-width: 760px)" in detail_css
+
     for control in (
         "Company",
         "News type",
@@ -156,12 +167,21 @@ def test_frontend_source_freezes_the_facts_no_fluff_visual_and_output_contract()
     assert "MATERIAL FACTS" in javascript
     assert "CURRENT BASELINE" in javascript
     assert "WHAT CHANGED" in javascript
-    assert "DISCLOSURE GAPS / SOURCE WARNINGS" in javascript
+    assert "MARKET REACTION" in javascript
+    assert "NOT DISCLOSED" in javascript
+    assert "SOURCE CHECKS" in javascript
     assert "SOURCE ↗" in javascript
     assert "KEY_NEWS_THRESHOLD = 3" in javascript
-    assert "compactWords(row.ai_view || row.what_changed, 45)" in javascript
+    assert "compactWords(row.takeaway || row.ai_view || row.what_changed, 45)" in javascript
     assert "textContent" in javascript
     assert ".innerHTML" not in javascript
+    for retired_detail in (
+        'researchBlock("READ-THROUGH"',
+        'buildListBlock("WHAT TO WATCH"',
+        'buildListBlock("SUPPORTS THE CASE"',
+        'buildListBlock("CHALLENGES THE CASE"',
+    ):
+        assert retired_detail not in javascript
 
 
 def test_aim_daily_source_uses_newsroom_contract_and_journalistic_labels() -> None:
@@ -198,6 +218,7 @@ def test_frontend_does_not_reintroduce_the_old_streamlit_card_language() -> None
         for path in (
             "frontend/index.html",
             "frontend/assets/news.css",
+            "frontend/assets/news-detail.css",
             "frontend/assets/research.js",
         )
     )

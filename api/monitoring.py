@@ -13,6 +13,7 @@ from starlette.responses import JSONResponse, Response
 from starlette.routing import Route
 
 from database.db import create_database_engine, create_session_factory, init_database
+from database.forensic_monitoring import ForensicMonitoringSheetRepository
 from database.monitoring import MonitoringSheetQuery, MonitoringSheetRepository
 from product.monitoring import (
     MONITORING_SCHEMA_VERSION,
@@ -29,7 +30,7 @@ RepositoryProvider = Callable[[], MonitoringSheetRepository]
 def _repository_for_url(database_url: str) -> MonitoringSheetRepository:
     engine = create_database_engine(database_url)
     init_database(engine)
-    return MonitoringSheetRepository(create_session_factory(engine))
+    return ForensicMonitoringSheetRepository(create_session_factory(engine))
 
 
 def default_repository() -> MonitoringSheetRepository:
