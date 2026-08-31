@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 PRODUCT_NAME = "smallcaps.ai"
@@ -14,7 +14,14 @@ Direction = Literal["positive", "mixed", "negative", "neutral"]
 DirectionColour = Literal["green", "amber", "red", "grey"]
 BaselineStatus = Literal["building", "established"]
 ChangeDirection = Literal["up", "down", "flat", "new", "unclear"]
-FactBasis = Literal["reported", "calculated", "compared", "derived", "not-disclosed"]
+ChangeBasis = Literal["compared", "explicit-transition"]
+FactBasis = Literal[
+    "reported",
+    "calculated",
+    "compared",
+    "not-disclosed",
+    "source-warning",
+]
 
 DIRECTION_BY_COLOUR: dict[DirectionColour, Direction] = {
     "green": "positive",
@@ -85,12 +92,13 @@ class MaterialFact(ProductContractModel):
 
 
 class SupportedChange(ProductContractModel):
-    """A change that is backed by a valid comparator or explicit current disclosure."""
+    """A delta backed by a valid comparator or explicit current-state transition."""
 
     label: str
     direction: ChangeDirection
     today: str
     before: str = ""
+    basis: ChangeBasis = "compared"
     source_id: str
     comparator_source_id: str = ""
     note: str = ""
@@ -102,6 +110,12 @@ class SupportedChange(ProductContractModel):
         if not cleaned:
             raise ValueError("value must not be blank")
         return cleaned
+
+    @model_validator(mode="after")
+    def require_supported_change(self) -> "SupportedChange":
+        if self.basis == "compared" and not self.before.strip():
+            raise ValueError("compared changes require a supported before value")
+        return self
 
 
 class MarketReaction(ProductContractModel):
