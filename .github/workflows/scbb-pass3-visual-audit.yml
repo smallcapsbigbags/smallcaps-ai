@@ -142,7 +142,7 @@ jobs:
 
               first = page.locator('article.monitor-row').first
               first.locator('button.row-toggle').click()
-              first.get_by_text('COMPANY NEWS DETAIL', exact=True).wait_for(timeout=30000)
+              first.get_by_text('EVIDENCE', exact=True).wait_for(timeout=30000)
               first.get_by_text('MATERIAL FACTS', exact=True).wait_for(timeout=30000)
               first.get_by_role('link', name='SOURCE ↗', exact=True).wait_for(timeout=30000)
               page.screenshot(path=out / '01-facts-no-fluff-desktop.png', full_page=True)
