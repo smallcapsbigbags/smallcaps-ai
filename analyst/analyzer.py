@@ -160,10 +160,10 @@ class OpenAIAnalystEngine:
                 "editorial-output-contract problems, including Facts. No fluff. contract "
                 "violations. Do not invent a missing sector KPI, add outside information or "
                 "change a defensible judgement merely to create a different opinion. The "
-                "final headline and takeaway must be compact investor shorthand; key_facts "
-                "must retain all decision-useful material facts; what_changed must use only "
-                "supported comparators; and unsupported inference or speculation must be "
-                "removed. Return the complete corrected AnalystNote.\n\n"
+                "final headline and takeaway must be compact investor shorthand; first three key facts "
+                "must stay feed-ready; key_facts must retain all decision-useful material facts; "
+                "what_changed must use only supported comparators; unsupported inference or speculation must be removed. "
+                "Return the complete corrected AnalystNote.\n\n"
                 + json.dumps(review_payload, ensure_ascii=False)
             ),
             text_format=AnalystNote,
