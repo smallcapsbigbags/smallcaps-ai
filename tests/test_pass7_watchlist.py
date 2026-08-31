@@ -31,7 +31,7 @@ def test_company_news_exposes_one_combined_rolling_watchlist_feed() -> None:
     assert 'state.showAll = state.watchlistOnly;' in js
     assert 'controls.feedMode.textContent = state.showAll ? "Watchlist" : "Watchlist · Key News";' in js
     assert '"All updates from companies you follow."' in js
-    assert '"saved on this browser"' in js
+    assert "saved on this browser" in js
 
 
 def test_watchlist_rows_are_starred_without_reusing_signal_colour() -> None:
