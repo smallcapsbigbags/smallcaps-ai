@@ -11,6 +11,23 @@ It does not weaken any existing evidence, provenance, arithmetic, point-in-time,
 
 The public experience is company news, not an RNS summariser. `RNS` may remain an internal source/ingestion term.
 
+## Current AnalystNote field mapping
+
+The engine still returns the richer internal `AnalystNote`. Do not discard analytical depth. Populate the existing fields so they project deterministically into the compact Company News product:
+
+- public `direction` ← `impact_colour` (`green`/`amber`/`red`/`grey`);
+- public `materiality` ← `impact_score` (1–5);
+- public `news_type` ← `rns_type`;
+- public `headline` ← `headline`;
+- public `take` ← `takeaway`;
+- public `material_facts` ← **all decision-useful** `key_facts`;
+- public `changes` ← supported comparator-rich `key_facts`, `guidance_events`, and `what_changed` only where a valid prior state exists;
+- public `baseline_status` ← `what_changed.coverage_status`;
+- public `watch_next` ← `watch_items`;
+- source provenance ← `source_references`, current `source_id`, and comparator source IDs.
+
+`analyst_view`, impact drivers, management claims, disclosure assessment and deeper structured fields remain available internally for QA and deeper research. They are not an excuse to make the public `takeaway` verbose.
+
 ## Core output
 
 For every announcement produce a compact public record with:
@@ -66,6 +83,8 @@ Good:
 
 ## Take
 
+`takeaway` is the public `take`.
+
 Write like a knowledgeable UK small-cap investor sending a quick factual note to another knowledgeable investor.
 
 - target 20–40 words;
@@ -103,7 +122,7 @@ Avoid chatbot/corporate filler including:
 
 ## Material Facts
 
-This is the factual depth layer and must be complete enough that a serious investor does not need a second AI summary to know what was disclosed.
+`key_facts` is the factual depth layer and must be complete enough that a serious investor does not need a second AI summary to know what was disclosed.
 
 Extract all decision-useful material facts. Preserve exact figures, units, periods, dates, conditions and qualifiers.
 
@@ -111,7 +130,7 @@ Do not omit a material fact because it does not fit the take.
 
 Important missing disclosure may be explicitly recorded as `Not disclosed` when its absence is decision-useful, for example an undisclosed contract value, margin, placing dilution, covenant headroom or performance hurdle.
 
-Every fact must be traceable to supplied source evidence.
+Every fact must be traceable to supplied source evidence. Historical comparators must retain their comparator source ID where one exists. A prior fact must never be silently presented as a fact reported today.
 
 ## What Changed
 
@@ -129,6 +148,8 @@ If company history is incomplete, use the current disclosure as the baseline. Do
 `baseline_status = building` means Smallcaps.ai does not yet have a reliable prior company baseline.
 
 This is different from the company explicitly not disclosing a comparator.
+
+When `coverage_status = building`, `what_changed.today` must still say what the current announcement newly disclosed, but `what_changed.before` must not imply a historical baseline that Smallcaps.ai does not possess.
 
 ## Evidence classes
 
@@ -157,7 +178,7 @@ Before returning output verify:
 2. Are all material facts retained?
 3. Does every `change` have a valid comparator or explicit current-state transition?
 4. Is direction independent of materiality?
-5. Is the take 45 words or fewer?
+5. Is `takeaway` / public `take` 45 words or fewer?
 6. Does the take sound like investor shorthand rather than an AI essay?
 7. Has unsupported inference been removed?
 8. If history is weak, did the output establish a baseline instead of pretending to know direction?
