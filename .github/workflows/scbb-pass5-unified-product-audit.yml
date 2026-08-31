@@ -40,6 +40,7 @@ jobs:
           node --check frontend/assets/research.js
           node --check frontend/assets/company.js
           node --check frontend/assets/company-journey.js
+          node --check frontend/assets/company-launch.js
 
       - name: Seed deterministic unified product data
         run: |
@@ -64,7 +65,7 @@ jobs:
           cat /tmp/scbb-pass5-audit/web.log
           exit 1
 
-      - name: Validate Feed and Company Intelligence round-trip
+      - name: Validate News and Company Intelligence round-trip
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -123,13 +124,14 @@ jobs:
           def wait_company(page, ticker):
               page.get_by_role('heading', name=ticker, exact=True).wait_for(timeout=30000)
               page.locator('[data-company-section="current-view"]').wait_for(timeout=30000)
+              page.get_by_text('LATEST COMPANY NEWS', exact=True).wait_for(timeout=30000)
 
           with sync_playwright() as p:
               browser = p.chromium.launch()
 
               desktop = browser.new_context(viewport={'width': 1440, 'height': 1000})
               page = desktop.new_page()
-              destination = '/?date=2026-08-21&open=spr-preview-buyback'
+              destination = '/rns?date=2026-08-21&open=spr-preview-buyback'
               authenticate(page, destination)
               row = wait_feed(page, 'spr-preview-buyback')
               expect(page.locator('#active-day')).to_have_text('21 Aug 2026')
@@ -155,17 +157,21 @@ jobs:
               springfield = page.locator('article.monitor-row[data-source-id="spr-preview-buyback"]')
               springfield.locator('a.company-research-link').click()
               wait_company(page, 'SPR')
-              expect(page.locator('.company-feed-link')).to_have_count(2)
+              page.get_by_role('link', name='News', exact=True).wait_for(timeout=30000)
+              page.get_by_role('link', name='Watchlist', exact=False).wait_for(timeout=30000)
+              page.get_by_text('VIEW EVIDENCE', exact=True).wait_for(timeout=30000)
               no_overflow(page)
               no_duplicate_ids(page)
               page.screenshot(path=out / '03-company-roundtrip-desktop.png', full_page=True)
 
-              page.get_by_role('link', name='OPEN IN RNS FEED →', exact=True).click()
-              page.wait_for_url(f'{base}/?date=2026-08-21&open=spr-preview-buyback', timeout=30000)
+              page.get_by_role('link', name='OPEN IN NEWS →', exact=True).click()
+              page.wait_for_url(f'{base}/rns?date=2026-08-21&open=spr-preview-buyback', timeout=30000)
               wait_feed(page, 'spr-preview-buyback')
               query = parse_qs(urlparse(page.url).query)
               if query.get('date') != ['2026-08-21'] or query.get('open') != ['spr-preview-buyback']:
                   raise AssertionError(f'Company-to-news deep link lost state: {page.url}')
+              if urlparse(page.url).path != '/rns':
+                  raise AssertionError(f'Company-to-news deep link is not canonical: {page.url}')
               page.screenshot(path=out / '04-company-to-news-desktop.png', full_page=True)
               desktop.close()
 
@@ -174,8 +180,12 @@ jobs:
               authenticate(page, '/company/SPR')
               wait_company(page, 'SPR')
               feed_link = page.locator('.company-feed-link').first
+              feed_link.wait_for(timeout=30000)
+              feed_box = feed_link.bounding_box()
+              if feed_box is None or feed_box['height'] < 43.5:
+                  raise AssertionError(f'Mobile company-news target is too small: {feed_box}')
               feed_link.click()
-              page.wait_for_url(f'{base}/?date=2026-08-21&open=spr-preview-buyback', timeout=30000)
+              page.wait_for_url(f'{base}/rns?date=2026-08-21&open=spr-preview-buyback', timeout=30000)
               row = wait_feed(page, 'spr-preview-buyback')
               columns = row.locator('.news-row-head').evaluate('(el) => getComputedStyle(el).gridTemplateColumns')
               if ' ' in columns.strip():
