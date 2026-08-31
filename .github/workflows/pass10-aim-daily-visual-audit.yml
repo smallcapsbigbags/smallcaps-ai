@@ -66,6 +66,8 @@ jobs:
         run: |
           python - <<'PY'
           import re
+          from pathlib import Path
+
           import requests
 
           base = 'http://127.0.0.1:8501'
@@ -78,6 +80,14 @@ jobs:
           for asset in ('news.css', 'daily.css', 'daily-polish.css', 'daily.js'):
               if re.search(rf'/assets/{re.escape(asset)}\?v=[0-9a-f]{{12}}', response.text) is None:
                   raise AssertionError(f'{asset} is not content fingerprinted')
+
+          css = Path('frontend/assets/daily.css').read_text(encoding='utf-8')
+          for selector in ('.lead-layout', '.also-story', '.quick-list', '.rest-grid'):
+              if selector not in css:
+                  raise AssertionError(f'Missing Daily surface contract: {selector}')
+          for retired in ('#03080d', '#46d7ff', 'rgb(3, 8, 13)'):
+              if retired in css:
+                  raise AssertionError(f'Retired dark-theme token remains: {retired}')
           PY
 
       - name: Audit desktop and mobile Daily journeys
@@ -148,17 +158,18 @@ jobs:
               links = page.locator('nav[aria-label="Primary navigation"] a').evaluate_all(
                   "els => els.map(el => ({text: el.textContent.trim(), href: el.getAttribute('href')}))"
               )
-              if links != [
+              expected = [
                   {'text': 'News', 'href': '/rns'},
                   {'text': 'Watchlist', 'href': '/rns?watchlist=1'},
                   {'text': 'The AIM Daily', 'href': '/'},
-              ]:
+              ]
+              if links != expected:
                   raise AssertionError(f'Navigation is not the shared product header: {links}')
 
           def wait_daily(page):
               page.get_by_role('heading', name='THE AIM DAILY', exact=True).wait_for(timeout=30000)
               expect(page.locator('#edition-summary')).to_contain_text('full analyses', timeout=30000)
-              page.locator('article[data-story-key]').first.wait_for(timeout=30000)
+              page.locator('.lead-layout').wait_for(timeout=30000)
 
           with sync_playwright() as p:
               browser = p.chromium.launch()
@@ -178,13 +189,13 @@ jobs:
                     const accent = getComputedStyle(document.querySelector('#daily-title span'));
                     const summary = getComputedStyle(document.querySelector('.daily-summary-strip'));
                     const lead = getComputedStyle(document.querySelector('.lead-layout'));
-                    const also = getComputedStyle(document.querySelector('.also-story'));
-                    const active = getComputedStyle(document.querySelector('.edition-switcher button[aria-pressed="true"]'));
+                    const rest = getComputedStyle(document.querySelector('.rest-grid'));
+                    const active = document.querySelector('.edition-switcher button[aria-pressed="true"]');
+                    const activeStyle = getComputedStyle(active);
                     const main = document.querySelector('.daily-main').getBoundingClientRect();
                     const headerInner = document.querySelector('.header-inner').getBoundingClientRect();
                     return {
                       bodyBackground: body.backgroundColor,
-                      bodyText: body.color,
                       bodyFont: body.fontFamily,
                       headerBackground: header.backgroundColor,
                       titleColour: title.color,
@@ -194,11 +205,12 @@ jobs:
                       summaryRadius: summary.borderTopLeftRadius,
                       leadBackground: lead.backgroundColor,
                       leadRadius: lead.borderTopLeftRadius,
-                      alsoBackground: also.backgroundColor,
-                      alsoRadius: also.borderTopLeftRadius,
-                      activeBackground: active.backgroundColor,
-                      activeColour: active.color,
-                      activeHeight: document.querySelector('.edition-switcher button[aria-pressed="true"]').getBoundingClientRect().height,
+                      restBackground: rest.backgroundColor,
+                      restRadius: rest.borderTopLeftRadius,
+                      activeText: active.textContent.trim(),
+                      activeBackground: activeStyle.backgroundColor,
+                      activeColour: activeStyle.color,
+                      activeHeight: active.getBoundingClientRect().height,
                       mainWidth: main.width,
                       headerWidth: headerInner.width,
                     };
@@ -216,11 +228,13 @@ jobs:
                   raise AssertionError(f'Daily masthead scale is outside the restrained product range: {computed}')
               if abs(computed['mainWidth'] - computed['headerWidth']) > 2 or not 1100 <= computed['mainWidth'] <= 1122:
                   raise AssertionError(f'Daily and header do not share the product grid: {computed}')
-              for key in ('summaryBackground', 'leadBackground', 'alsoBackground'):
+              for key in ('summaryBackground', 'leadBackground', 'restBackground'):
                   if computed[key] != 'rgb(255, 255, 255)':
                       raise AssertionError(f'{key} is not a white product surface: {computed}')
-              if computed['summaryRadius'] != '10px' or computed['alsoRadius'] != '10px' or computed['leadRadius'] != '12px':
+              if computed['summaryRadius'] != '10px' or computed['restRadius'] != '10px' or computed['leadRadius'] != '12px':
                   raise AssertionError(f'Daily card geometry is inconsistent: {computed}')
+              if computed['activeText'] != '08:00 MORNING':
+                  raise AssertionError(f'Default edition state drifted: {computed}')
               if computed['activeBackground'] != 'rgb(238, 244, 255)' or computed['activeColour'] != 'rgb(37, 99, 235)':
                   raise AssertionError(f'Edition selection does not use the blue product state: {computed}')
               if computed['activeHeight'] < 56:
@@ -239,6 +253,15 @@ jobs:
                   raise AssertionError('The Daily did not request the undated latest edition')
               if page.locator('#edition-summary').inner_text().strip().startswith('0 full analyses'):
                   raise AssertionError('The light Daily regressed to an empty current-day edition')
+
+              close_button = page.get_by_role('button', name='16:35 CLOSE', exact=True)
+              close_button.click()
+              expect(close_button).to_have_attribute('aria-pressed', 'true')
+              page.wait_for_url('**/?state=aim_close')
+              expect(page.locator('#edition-label')).to_contain_text('AIM CLOSE')
+              page.get_by_role('button', name='08:00 MORNING', exact=True).click()
+              expect(page.get_by_role('button', name='08:00 MORNING', exact=True)).to_have_attribute('aria-pressed', 'true')
+
               assert_clean(failures, 'Desktop Daily')
               page.screenshot(path=out / '01-aim-daily-light-desktop.png', full_page=True)
               desktop.close()
@@ -257,6 +280,7 @@ jobs:
                       titleSize: parseFloat(getComputedStyle(document.querySelector('#daily-title')).fontSize),
                       buttonHeights: buttons.map(button => button.getBoundingClientRect().height),
                       leadColumns: getComputedStyle(document.querySelector('.lead-layout')).gridTemplateColumns,
+                      sideColumns: getComputedStyle(document.querySelector('.lead-side')).gridTemplateColumns,
                       alsoColumns: getComputedStyle(document.querySelector('.also-grid')).gridTemplateColumns,
                       signOutDisplay: getComputedStyle(document.querySelector('.text-action')).display,
                       activeNavDisplay: getComputedStyle(document.querySelector('.nav-link-active')).display,
@@ -270,8 +294,9 @@ jobs:
                   raise AssertionError(f'Mobile masthead is not restrained: {mobile_state}')
               if min(mobile_state['buttonHeights']) < 47.5:
                   raise AssertionError(f'Mobile edition controls are not 48px targets: {mobile_state}')
-              if ' ' in mobile_state['leadColumns'].strip() or ' ' in mobile_state['alsoColumns'].strip():
-                  raise AssertionError(f'Mobile editorial cards did not collapse to one column: {mobile_state}')
+              for key in ('leadColumns', 'sideColumns', 'alsoColumns'):
+                  if ' ' in mobile_state[key].strip():
+                      raise AssertionError(f'Mobile editorial layout did not collapse: {mobile_state}')
               if mobile_state['signOutDisplay'] == 'none' or mobile_state['activeNavDisplay'] == 'none':
                   raise AssertionError(f'Mobile product navigation is incomplete: {mobile_state}')
               assert_nav(page)
