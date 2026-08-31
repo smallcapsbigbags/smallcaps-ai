@@ -20,12 +20,14 @@ def _local_runtime(monkeypatch, *, private_beta: bool) -> None:
     monkeypatch.setenv("APP_BETA_PASSWORD", "preview-access")
 
 
-def test_public_root_serves_the_aim_daily_and_rns_monitor_stays_available(monkeypatch) -> None:
+def test_public_root_serves_the_aim_daily_and_company_news_stays_available(monkeypatch) -> None:
     _local_runtime(monkeypatch, private_beta=False)
     with TestClient(app) as client:
         daily = client.get("/")
-        rns = client.get("/rns")
-        css = client.get("/assets/research.css")
+        news = client.get("/rns")
+        shared_css = client.get("/assets/research.css")
+        news_css = client.get("/assets/news.css")
+        news_detail_css = client.get("/assets/news-detail.css")
         daily_css = client.get("/assets/daily.css")
         daily_javascript = client.get("/assets/daily.js")
         research_javascript = client.get("/assets/research.js")
@@ -39,22 +41,37 @@ def test_public_root_serves_the_aim_daily_and_rns_monitor_stays_available(monkey
     assert "THE REST OF AIM" in daily.text
     assert 'href="/rns"' in daily.text
 
-    assert rns.status_code == 200
-    assert "AIM RNS feed" in rns.text
-    assert "ANALYST MONITORING SHEET" in rns.text
+    assert news.status_code == 200
+    assert "AIM COMPANY NEWS" in news.text
+    assert "Facts. No fluff." in news.text
+    assert "Every material AIM announcement, reduced to what changed." in news.text
+    assert 'id="filters-toggle"' in news.text
+    assert 'id="filter-panel"' in news.text
+    assert 'id="material-toggle"' in news.text
+    assert 'id="feed-mode">Key News' in news.text
+    assert '/assets/news-detail.css' in news.text
     for heading in (
-        "COMPANY / RNS / SIGNAL",
-        "WHAT CHANGED",
-        "AI VIEW",
-        "OUTLOOK",
-        "MARKET REACTION",
-        "BALANCE SHEET",
-        "IMPACT",
+        "Company",
+        "News type",
+        "Signal",
+        "Materiality",
+        "Sort",
     ):
-        assert heading in rns.text
+        assert heading in news.text
+    for retired in (
+        "ANALYST MONITORING SHEET",
+        "COMPANY / RNS / SIGNAL",
+        "AI VIEW",
+        "GROUP BY COMPANY",
+    ):
+        assert retired not in news.text
 
-    assert css.status_code == 200
-    assert css.headers["content-type"].startswith("text/css")
+    assert shared_css.status_code == 200
+    assert shared_css.headers["content-type"].startswith("text/css")
+    assert news_css.status_code == 200
+    assert news_css.headers["content-type"].startswith("text/css")
+    assert news_detail_css.status_code == 200
+    assert news_detail_css.headers["content-type"].startswith("text/css")
     assert daily_css.status_code == 200
     assert daily_css.headers["content-type"].startswith("text/css")
     assert daily_javascript.status_code == 200
@@ -69,14 +86,14 @@ def test_public_root_serves_the_aim_daily_and_rns_monitor_stays_available(monkey
     assert "frame-ancestors 'none'" in daily.headers["content-security-policy"]
 
 
-def test_legacy_open_deep_link_still_resolves_to_rns_monitor(monkeypatch) -> None:
+def test_legacy_open_deep_link_still_resolves_to_company_news(monkeypatch) -> None:
     _local_runtime(monkeypatch, private_beta=False)
     with TestClient(app) as client:
         response = client.get("/?date=2026-08-21&open=trls-pass1-administration")
 
     assert response.status_code == 200
-    assert "AIM RNS feed" in response.text
-    assert "ANALYST MONITORING SHEET" in response.text
+    assert "AIM COMPANY NEWS" in response.text
+    assert "Facts. No fluff." in response.text
     assert "THE AIM DAILY" not in response.text
 
 
@@ -87,12 +104,12 @@ def test_private_beta_uses_a_server_validated_httponly_cookie(monkeypatch) -> No
         rejected = client.post("/access", data={"access_code": "wrong"})
         accepted = client.post("/access", data={"access_code": "preview-access"})
         unlocked = client.get("/")
-        unlocked_rns = client.get("/rns")
+        unlocked_news = client.get("/rns")
         logged_out = client.post("/logout")
 
     assert entrance.status_code == 200
-    assert "Know what changed" in entrance.text
-    assert "See the evidence" in entrance.text
+    assert "AIM COMPANY NEWS" in entrance.text
+    assert "Facts" in entrance.text and "No fluff" in entrance.text
     assert "PRIVATE BETA ACCESS" in entrance.text
     assert rejected.status_code == 401
     assert "not recognised" in rejected.text
@@ -101,44 +118,70 @@ def test_private_beta_uses_a_server_validated_httponly_cookie(monkeypatch) -> No
     assert "samesite=lax" in accepted.headers["set-cookie"].lower()
     assert unlocked.status_code == 200
     assert "THE AIM DAILY" in unlocked.text
-    assert unlocked_rns.status_code == 200
-    assert "AIM RNS feed" in unlocked_rns.text
+    assert unlocked_news.status_code == 200
+    assert "Facts. No fluff." in unlocked_news.text
     assert logged_out.status_code == 303
 
 
-def test_frontend_source_freezes_the_scbb_visual_and_output_contract() -> None:
+def test_frontend_source_freezes_the_facts_no_fluff_visual_and_output_contract() -> None:
     html = Path("frontend/index.html").read_text(encoding="utf-8")
-    css = Path("frontend/assets/research.css").read_text(encoding="utf-8")
+    shared_css = Path("frontend/assets/research.css").read_text(encoding="utf-8")
+    news_css = Path("frontend/assets/news.css").read_text(encoding="utf-8")
+    detail_css = Path("frontend/assets/news-detail.css").read_text(encoding="utf-8")
     javascript = Path("frontend/assets/research.js").read_text(encoding="utf-8")
 
-    assert "--page: #03080d" in css
-    assert "--cyan: #46d7ff" in css
-    assert '"Helvetica Neue", Helvetica, Arial, sans-serif' in css
-    assert "--sheet-grid:" in css
-    assert "border-radius: 0" in css
-    assert "@media (max-width: 560px)" in css
-    assert "grid-template-columns: var(--sheet-grid)" in css
+    # Shared publication styling stays dark for The AIM Daily and Company pages.
+    assert "--page: #03080d" in shared_css
+    assert "--cyan: #46d7ff" in shared_css
+
+    # Company News owns its light visual layer separately.
+    assert "color-scheme: light" in news_css
+    assert "--page: #f5f6f8" in news_css
+    assert "--surface: #ffffff" in news_css
+    assert "--blue: #2563eb" in news_css
+    assert '.monitor-row[data-signal="GREEN"]' in news_css
+    assert '.monitor-row[data-signal="AMBER"]' in news_css
+    assert '.monitor-row[data-signal="RED"]' in news_css
+    assert ".impact-dot.filled" in news_css
+    assert "border-radius: 9px" in news_css
+    assert "@media (max-width: 680px)" in news_css
+
+    # Pass 6 forensic detail is a separate compact layer.
+    assert ".forensic-grid" in detail_css
+    assert ".market-reaction-grid" in detail_css
+    assert "grid-template-columns: minmax(0, 1.55fr)" in detail_css
+    assert "@media (max-width: 760px)" in detail_css
 
     for control in (
-        "UNIVERSE",
-        "COMPANY",
-        "RNS TYPE",
-        "SIGNAL",
-        "IMPACT",
-        "SORT",
-        "IMPACT 3+",
-        "GROUP BY COMPANY",
-        "RESET",
+        "Company",
+        "News type",
+        "Signal",
+        "Materiality",
+        "Sort",
+        "Reset filters",
     ):
         assert control in html
 
     assert "/api/v1/monitoring" in javascript
     assert "scbb-monitoring-v1" in javascript
-    assert "KEY NUMBERS" in javascript
-    assert "DISCLOSURE GAPS / SOURCE WARNINGS" in javascript
-    assert "ORIGINAL RNS ↗" in javascript
+    assert "MATERIAL FACTS" in javascript
+    assert "CURRENT BASELINE" in javascript
+    assert "WHAT CHANGED" in javascript
+    assert "MARKET REACTION" in javascript
+    assert "NOT DISCLOSED" in javascript
+    assert "SOURCE CHECKS" in javascript
+    assert "SOURCE ↗" in javascript
+    assert "KEY_NEWS_THRESHOLD = 3" in javascript
+    assert "compactWords(row.takeaway || row.ai_view || row.what_changed, 45)" in javascript
     assert "textContent" in javascript
     assert ".innerHTML" not in javascript
+    for retired_detail in (
+        'researchBlock("READ-THROUGH"',
+        'buildListBlock("WHAT TO WATCH"',
+        'buildListBlock("SUPPORTS THE CASE"',
+        'buildListBlock("CHALLENGES THE CASE"',
+    ):
+        assert retired_detail not in javascript
 
 
 def test_aim_daily_source_uses_newsroom_contract_and_journalistic_labels() -> None:
@@ -174,7 +217,8 @@ def test_frontend_does_not_reintroduce_the_old_streamlit_card_language() -> None
         Path(path).read_text(encoding="utf-8")
         for path in (
             "frontend/index.html",
-            "frontend/assets/research.css",
+            "frontend/assets/news.css",
+            "frontend/assets/news-detail.css",
             "frontend/assets/research.js",
         )
     )

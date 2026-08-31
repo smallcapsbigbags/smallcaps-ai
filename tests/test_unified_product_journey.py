@@ -47,7 +47,7 @@ def test_private_beta_rejects_an_external_or_header_injection_destination(monkey
     assert response.headers["location"] == "/"
 
 
-def test_feed_owns_company_navigation_and_shareable_rns_state() -> None:
+def test_feed_owns_company_navigation_and_shareable_company_news_state() -> None:
     html = Path("frontend/index.html").read_text(encoding="utf-8")
     javascript = Path("frontend/assets/research.js").read_text(encoding="utf-8")
 
@@ -60,6 +60,7 @@ def test_feed_owns_company_navigation_and_shareable_rns_state() -> None:
     assert "company-research-link" in javascript
     assert "company-inline-link" in javascript
     assert "scbb-monitoring-v1" in javascript
+    assert "KEY_NEWS_THRESHOLD = 3" in javascript
 
 
 def test_company_history_builds_exact_dated_feed_links_and_table_semantics() -> None:
@@ -75,13 +76,16 @@ def test_company_history_builds_exact_dated_feed_links_and_table_semantics() -> 
     assert "innerHTML" not in javascript
 
 
-def test_mobile_product_header_retains_sign_out_and_compact_status() -> None:
+def test_mobile_product_headers_retain_sign_out_and_responsive_status() -> None:
     feed = Path("frontend/index.html").read_text(encoding="utf-8")
     company = Path("frontend/company.html").read_text(encoding="utf-8")
-    css = Path("frontend/assets/company-polish.css").read_text(encoding="utf-8")
+    shared_css = Path("frontend/assets/company-polish.css").read_text(encoding="utf-8")
+    news_css = Path("frontend/assets/news.css").read_text(encoding="utf-8")
 
-    assert "status-full" in feed and "status-compact" in feed
+    assert 'button class="text-action" type="submit">Sign out</button>' in feed
     assert "status-full" in company and "status-compact" in company
-    assert "display: inline-flex" in css
-    assert ".text-action" in css
-    assert ".status-compact" in css
+    assert "display: inline-flex" in shared_css
+    assert ".text-action" in shared_css
+    assert ".status-compact" in shared_css
+    assert "@media (max-width: 680px)" in news_css
+    assert ".live-status { display: none; }" in news_css

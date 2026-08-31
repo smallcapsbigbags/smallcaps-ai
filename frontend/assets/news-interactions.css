@@ -1,0 +1,16 @@
+.news-row-head {
+  position: relative;
+  z-index: 3;
+}
+
+.company-research-link {
+  position: relative;
+  z-index: 4;
+  pointer-events: auto;
+}
+
+.row-toggle {
+  position: relative;
+  z-index: 1;
+  min-height: 44px;
+}

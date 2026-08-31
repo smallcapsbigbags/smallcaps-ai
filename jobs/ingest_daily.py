@@ -53,6 +53,10 @@ def _empty_ingestion_summary(
         "light": 0,
         "escalated": 0,
         "analyst_calls_avoided": 0,
+        "analyst_initial_calls": 0,
+        "analyst_review_calls": 0,
+        "analyst_reviews_avoided": 0,
+        "analyst_model_calls": 0,
         "deferred": 0,
         "blocked": 0,
         "failed": 0,
@@ -142,6 +146,7 @@ def main() -> None:
                     progress=_progress,
                 )
                 result = service.run()
+                analyst_stats = analyst.model_call_stats()
                 story_links_created = 0
                 story_sync_failed = False
                 try:
@@ -165,6 +170,10 @@ def main() -> None:
                     "light": result.light_processed,
                     "escalated": result.escalated_to_full,
                     "analyst_calls_avoided": result.analyst_calls_avoided,
+                    "analyst_initial_calls": analyst_stats["initial_calls"],
+                    "analyst_review_calls": analyst_stats["review_calls"],
+                    "analyst_reviews_avoided": analyst_stats["reviews_avoided"],
+                    "analyst_model_calls": analyst_stats["total_calls"],
                     "deferred": result.deferred,
                     "blocked": result.blocked,
                     "failed": result.failed,

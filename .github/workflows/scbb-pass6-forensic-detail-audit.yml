@@ -1,0 +1,177 @@
+name: scbb-pass6-forensic-detail-audit
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main", "facts-no-fluff-pass-5"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: scbb-pass6-forensic-detail-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  forensic-company-news:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DATABASE_URL: sqlite+pysqlite:///data/scbb-pass6-preview.db
+      PRIVATE_BETA_MODE: "false"
+      APP_BETA_PASSWORD: preview-access
+      APP_ADMIN_PASSWORD: preview-admin
+      MARKET_DATA_ENABLED: "true"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install application and browser dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install playwright==1.55.0
+          python -m playwright install --with-deps chromium
+          node --check frontend/assets/research.js
+
+      - name: Seed deterministic forensic company news
+        run: |
+          rm -f data/scbb-pass6-preview.db
+          python -m jobs.seed_launch_preview
+          python -m jobs.seed_pass1_preview
+
+      - name: Start combined product
+        shell: bash
+        run: |
+          mkdir -p /tmp/scbb-pass6-audit
+          python -m uvicorn web_app:app --host 127.0.0.1 --port 8501 \
+            > /tmp/scbb-pass6-audit/web.log 2>&1 &
+          echo $! > /tmp/scbb-pass6-web.pid
+          for attempt in $(seq 1 90); do
+            if curl --fail --silent http://127.0.0.1:8501/api/v1/health >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/scbb-pass6-audit/web.log
+          exit 1
+
+      - name: Validate forensic detail on desktop and mobile
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          from playwright.sync_api import expect, sync_playwright
+
+          out = Path('/tmp/scbb-pass6-audit')
+          base = 'http://127.0.0.1:8501'
+          source_id = 'gama-pass1-possible-offer'
+          expected_take = (
+              'Gamma confirms preliminary discussions with Waterland about a possible '
+              'offer for all its shares, while talks with other potential offerors '
+              'continue. No offer price or firm intention has been announced.'
+          )
+          url = f'{base}/rns?date=2026-08-21&open={source_id}'
+
+          def no_overflow(page):
+              dims = page.evaluate(
+                  """
+                  () => ({
+                    client: document.documentElement.clientWidth,
+                    scroll: document.documentElement.scrollWidth,
+                    body: document.body.scrollWidth,
+                  })
+                  """
+              )
+              if dims['scroll'] > dims['client'] + 2 or dims['body'] > dims['client'] + 2:
+                  raise AssertionError(f'Document clips horizontally: {dims}')
+
+          def wait_forensic(page):
+              page.get_by_role('heading', name='Facts. No fluff.', exact=True).wait_for(timeout=30000)
+              row = page.locator(f'article.monitor-row[data-source-id="{source_id}"]')
+              row.wait_for(timeout=30000)
+              expect(row.locator('button.row-toggle')).to_have_attribute('aria-expanded', 'true')
+              detail = row.locator('.expanded-research:not([hidden])')
+              detail.wait_for(timeout=30000)
+              detail.get_by_text('EVIDENCE', exact=True).wait_for(timeout=30000)
+              detail.get_by_text('MATERIAL FACTS', exact=True).wait_for(timeout=30000)
+              return row, detail
+
+          def assert_contract(row, detail):
+              expect(row.locator('.news-take')).to_have_text(expected_take)
+              expect(detail.locator('.forensic-take')).to_have_text(expected_take)
+              expect(detail.get_by_text('CURRENT BASELINE', exact=True)).to_be_visible()
+              expect(detail.get_by_text('MARKET REACTION', exact=True)).to_be_visible()
+              expect(detail.get_by_text('NOT DISCLOSED', exact=True)).to_be_visible()
+              expect(detail.get_by_text('PRE', exact=True)).to_be_visible()
+              expect(detail.get_by_text('969.5p', exact=True)).to_be_visible()
+              expect(detail.get_by_text('DAY', exact=True)).to_be_visible()
+              expect(detail.get_by_text('+7.3%', exact=True)).to_be_visible()
+              expect(detail.get_by_text('Official close', exact=True)).to_be_visible()
+              expect(detail.locator('.forensic-fact-table tbody tr')).to_have_count(3)
+              expect(detail.get_by_text('Preliminary discussions', exact=True)).to_be_visible()
+              expect(detail.get_by_text('Waterland Private Equity Investments', exact=True)).to_be_visible()
+              expect(detail.get_by_text('18 Sep 2026 · 17:00', exact=True)).to_be_visible()
+              expect(detail.get_by_text('Possible offer price and terms.', exact=True)).to_be_visible()
+              expect(detail.get_by_role('link', name='SOURCE ↗', exact=True)).to_be_visible()
+              for retired in ('READ-THROUGH', 'WHAT TO WATCH', 'SUPPORTS THE CASE', 'CHALLENGES THE CASE'):
+                  expect(detail.get_by_text(retired, exact=True)).to_have_count(0)
+
+          with sync_playwright() as p:
+              browser = p.chromium.launch()
+
+              desktop = browser.new_context(viewport={'width': 1440, 'height': 1000})
+              page = desktop.new_page()
+              page.goto(url, wait_until='domcontentloaded')
+              row, detail = wait_forensic(page)
+              assert_contract(row, detail)
+              no_overflow(page)
+              columns = detail.locator('.forensic-grid').evaluate(
+                  '(el) => getComputedStyle(el).gridTemplateColumns'
+              )
+              if len(columns.split()) != 2:
+                  raise AssertionError(f'Desktop forensic grid should have two columns: {columns}')
+              page.screenshot(path=out / '01-forensic-detail-desktop.png', full_page=True)
+              desktop.close()
+
+              mobile = browser.new_context(
+                  viewport={'width': 390, 'height': 844},
+                  device_scale_factor=1,
+                  is_mobile=True,
+              )
+              page = mobile.new_page()
+              page.goto(url, wait_until='domcontentloaded')
+              row, detail = wait_forensic(page)
+              assert_contract(row, detail)
+              no_overflow(page)
+              columns = detail.locator('.forensic-grid').evaluate(
+                  '(el) => getComputedStyle(el).gridTemplateColumns'
+              )
+              if len(columns.split()) != 1:
+                  raise AssertionError(f'Mobile forensic grid did not collapse: {columns}')
+              page.screenshot(path=out / '02-forensic-detail-mobile.png', full_page=True)
+              mobile.close()
+
+              browser.close()
+          PY
+
+      - name: Reject runtime and frontend failures
+        run: |
+          if grep -En 'Traceback \(most recent call last\)|Uncaught app exception|monitoring-api-error' /tmp/scbb-pass6-audit/web.log; then
+            cat /tmp/scbb-pass6-audit/web.log
+            exit 1
+          fi
+
+      - name: Upload Pass 6 forensic audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smallcaps-pass6-forensic-detail-audit
+          path: /tmp/scbb-pass6-audit
+          if-no-files-found: error
+          retention-days: 90

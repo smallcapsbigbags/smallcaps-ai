@@ -122,8 +122,8 @@ def test_scbb_monitoring_contract_is_the_final_prompt() -> None:
 
 
 def test_pass1_version_is_code_locked() -> None:
-    assert ANALYSIS_VERSION == "aim-intelligence-analyst-3.3"
-    assert DEFAULT_PROMPT_VERSION == "analyst-engine-3.3-scbb-monitoring-sheet"
+    assert ANALYSIS_VERSION == "aim-intelligence-analyst-3.4"
+    assert DEFAULT_PROMPT_VERSION == "analyst-engine-3.4-facts-no-fluff-routing"
 
 
 def test_monitoring_signal_and_outlook_are_derived_from_existing_fields() -> None:

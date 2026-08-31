@@ -14,8 +14,9 @@ from database.db import (
     init_database,
     session_scope,
 )
+from database.forensic_monitoring import ForensicMonitoringSheetRepository
 from database.models import AnalystRunRow, AnnouncementRow
-from database.monitoring import MonitoringSheetQuery, MonitoringSheetRepository
+from database.monitoring import MonitoringSheetQuery
 from product.monitoring import MONITORING_SCHEMA_VERSION, word_count
 from settings import Settings
 
@@ -38,7 +39,7 @@ def run_monitoring_acceptance(
     try:
         init_database(engine)
         factory = create_session_factory(engine)
-        repository = MonitoringSheetRepository(factory)
+        repository = ForensicMonitoringSheetRepository(factory)
         dialect_ok = allow_sqlite or engine.dialect.name == "postgresql"
         checks.append(
             {
@@ -95,6 +96,7 @@ def run_monitoring_acceptance(
                 or not item.company.strip()
                 or not item.rns_title.strip()
                 or not item.rns_type.strip()
+                or not item.takeaway.strip()
                 or not item.what_changed.strip()
                 or not item.ai_view.strip()
                 or word_count(item.ai_view) > 50
@@ -126,6 +128,8 @@ def run_monitoring_acceptance(
             detail_ok = bool(
                 detail
                 and detail.source_id == anchor.source_id
+                and detail.takeaway.strip()
+                and detail.research.takeaway == detail.takeaway
                 and detail.research.verdict.strip()
                 and detail.research.what_changed.today == detail.what_changed
                 and any(
