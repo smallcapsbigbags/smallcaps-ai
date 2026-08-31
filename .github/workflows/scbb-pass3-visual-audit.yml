@@ -129,11 +129,11 @@ jobs:
               if computed['radius'] not in {'9px', '9'}:
                   raise AssertionError(f'News row radius drifted: {computed}')
 
-              page.get_by_role('button', name='Filters', exact=False).click()
+              page.locator('#filters-toggle').click()
               expect(page.locator('#filter-panel')).to_be_visible()
               for label in ('Company', 'News type', 'Signal', 'Materiality', 'Sort'):
                   page.get_by_text(label, exact=True).first.wait_for(timeout=30000)
-              page.get_by_role('button', name='Filters', exact=False).click()
+              page.locator('#filters-toggle').click()
 
               page.locator('#material-toggle').click()
               expect(page.locator('#feed-mode')).to_have_text('All News')
