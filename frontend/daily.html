@@ -6,11 +6,11 @@
   <meta name="description" content="The AIM Daily — the AIM market, edited for investors every morning by Smallcaps.ai.">
   <meta name="theme-color" content="#03080d">
   <title>The AIM Daily · Smallcaps.ai</title>
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/assets/research.css">
-  <link rel="stylesheet" href="/assets/daily.css">
-  <link rel="stylesheet" href="/assets/daily-polish.css">
-  <script src="/assets/daily.js" defer></script>
+  <link rel="icon" href="/favicon.svg?v={{ASSET_VERSION}}" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/research.css?v={{ASSET_VERSION}}">
+  <link rel="stylesheet" href="/assets/daily.css?v={{ASSET_VERSION}}">
+  <link rel="stylesheet" href="/assets/daily-polish.css?v={{ASSET_VERSION}}">
+  <script src="/assets/daily.js?v={{ASSET_VERSION}}" defer></script>
 </head>
 <body class="daily-body">
   <a class="skip-link" href="#daily-edition">Skip to The AIM Daily</a>
@@ -20,14 +20,14 @@
       <span>smallcaps</span><strong>.ai</strong>
     </a>
     <nav class="daily-nav" aria-label="Primary navigation">
-      <a class="daily-nav-active" href="/">THE AIM DAILY</a>
-      <a href="/rns">COMPANY NEWS</a>
+      <a href="/rns">NEWS</a>
       <a href="/rns?watchlist=1">WATCHLIST</a>
+      <a class="daily-nav-active" href="/" aria-current="page">THE AIM DAILY</a>
     </nav>
     <div class="header-meta">
       <span class="live-status">
         <i aria-hidden="true"></i>
-        <span class="status-full">AIM NEWSROOM</span>
+        <span class="status-full">AIM NEWSROOM LIVE</span>
         <span class="status-compact">LIVE</span>
       </span>
       <form action="/logout" method="post">

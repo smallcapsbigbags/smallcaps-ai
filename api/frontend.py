@@ -17,6 +17,7 @@ from settings import Settings
 _COOKIE_NAME: Final = "smallcaps_beta"
 _COOKIE_MAX_AGE: Final = 60 * 60 * 24 * 30
 _FRONTEND_ROOT = Path(__file__).resolve().parents[1] / "frontend"
+_ASSET_VERSION_PLACEHOLDER: Final = "{{ASSET_VERSION}}"
 
 
 @lru_cache(maxsize=4)
@@ -37,6 +38,28 @@ def _valid_token(value: str, secret: str) -> bool:
     except (BadSignature, SignatureExpired):
         return False
     return isinstance(payload, dict) and payload.get("access") == "monitoring-sheet"
+
+
+@lru_cache(maxsize=1)
+def _asset_version() -> str:
+    """Return a deterministic fingerprint for every customer-facing asset.
+
+    HTML responses are never cached, so embedding this value in stylesheet and
+    script URLs forces a browser to fetch the exact asset set shipped with the
+    current deployment. This prevents an older cached research.js or daily.js
+    from running against a newer DOM contract.
+    """
+
+    digest = hashlib.sha256()
+    asset_root = _FRONTEND_ROOT / "assets"
+    for path in sorted(asset_root.iterdir(), key=lambda item: item.name):
+        if not path.is_file():
+            continue
+        digest.update(path.name.encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(path.read_bytes())
+        digest.update(b"\0")
+    return digest.hexdigest()[:12]
 
 
 def _security_headers(*, cache: str = "no-store") -> dict[str, str]:
@@ -65,6 +88,14 @@ def _file(path: Path, *, media_type: str = "text/html") -> FileResponse:
     return FileResponse(path, media_type=media_type, headers=_security_headers())
 
 
+def _html_file(path: Path) -> HTMLResponse:
+    source = path.read_text(encoding="utf-8").replace(
+        _ASSET_VERSION_PLACEHOLDER,
+        _asset_version(),
+    )
+    return HTMLResponse(source, headers=_security_headers())
+
+
 def _safe_next(value: object) -> str:
     path = str(value or "/").strip()
     if (
@@ -91,6 +122,7 @@ def _access_html(*, failed: bool = False, next_path: str = "/") -> str:
     return (
         source.replace("{{ACCESS_ERROR}}", message)
         .replace("{{ACCESS_NEXT}}", html.escape(_safe_next(next_path), quote=True))
+        .replace(_ASSET_VERSION_PLACEHOLDER, _asset_version())
     )
 
 
@@ -107,14 +139,14 @@ def _protected_file(request: Request, filename: str) -> Response:
             _access_html(next_path=_request_target(request)),
             headers=_security_headers(),
         )
-    return _file(_FRONTEND_ROOT / filename)
+    return _html_file(_FRONTEND_ROOT / filename)
 
 
 def create_frontend_routes() -> list[Route]:
-    """Serve The AIM Daily, RNS Monitor, Company Intelligence and beta entrance."""
+    """Serve The AIM Daily, Company News, Company Intelligence and beta entrance."""
 
     async def home(request: Request) -> Response:
-        # Pass 5 company links already deep-link to /?date=...&open=SOURCE_ID.
+        # Legacy company links may still deep-link to /?date=...&open=SOURCE_ID.
         # Keep those stable while making the plain root URL The AIM Daily.
         filename = "index.html" if request.query_params.get("open") else "daily.html"
         return _protected_file(request, filename)

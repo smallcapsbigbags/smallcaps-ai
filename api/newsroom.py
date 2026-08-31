@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import uuid
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 from functools import lru_cache
 from typing import Any, Callable
 from zoneinfo import ZoneInfo
@@ -12,12 +12,14 @@ from starlette.responses import JSONResponse, Response
 from starlette.routing import Route
 
 from database.db import create_database_engine, create_session_factory, init_database
+from database.latest_daily import latest_full_analysis_day
 from database.newsroom import NewsroomRepository
 from product.daily_editor import resolve_editor_cutoff
 from product.newsroom import NEWSROOM_SCHEMA_VERSION, NEWSROOM_VERSION, NewsroomEdition
 from settings import Settings
 
 LONDON = ZoneInfo("Europe/London")
+STUB_LOOKBACK_DAYS = 45
 RepositoryProvider = Callable[[], NewsroomRepository]
 
 
@@ -53,23 +55,87 @@ def create_newsroom_routes(
         )
 
     async def newsroom(request: Request) -> Response:
+        explicit_date = _has_explicit_date(request)
         try:
             day, edition_state, cutoff = _parse_query(request)
-            edition = provider().get_edition(
-                day,
-                edition_state=edition_state,
-                cutoff=cutoff,
-            )
+            repository = provider()
+            if explicit_date:
+                edition = repository.get_edition(
+                    day,
+                    edition_state=edition_state,
+                    cutoff=cutoff,
+                )
+            else:
+                edition = _latest_populated_edition(
+                    repository,
+                    on_or_before=day,
+                    edition_state=edition_state,
+                    cutoff=cutoff,
+                )
         except ValueError as exc:
             return _client_error("INVALID_QUERY", str(exc), status_code=400)
         except Exception as exc:  # pragma: no cover - production logging path
             return _service_error(exc)
-        return _json(edition.model_dump(mode="json"), cache_seconds=60)
+        return _json(
+            edition.model_dump(mode="json"),
+            cache_seconds=60 if explicit_date else 0,
+        )
 
     return [
         Route("/api/v1/schemas/aim-daily-newsroom", schema, methods=["GET"]),
         Route("/api/v1/aim-daily/newsroom", newsroom, methods=["GET"]),
     ]
+
+
+def _has_explicit_date(request: Request) -> bool:
+    return bool(str(request.query_params.get("date") or "").strip())
+
+
+def _latest_populated_edition(
+    repository: NewsroomRepository,
+    *,
+    on_or_before: date,
+    edition_state: str | None,
+    cutoff: time | None,
+) -> NewsroomEdition:
+    """Resolve the latest day with a publication-safe FULL candidate.
+
+    Production repositories expose a session factory, so the date is resolved
+    directly from persisted publication-safe analysis data before the edition is
+    built. The bounded loop remains only for injected test doubles.
+    """
+
+    session_factory = getattr(repository, "session_factory", None)
+    if session_factory is not None:
+        latest_day = latest_full_analysis_day(
+            session_factory,
+            on_or_before=on_or_before,
+            edition_state=edition_state,
+            cutoff=cutoff,
+        )
+        return repository.get_edition(
+            latest_day or on_or_before,
+            edition_state=edition_state,
+            cutoff=cutoff,
+        )
+
+    first = repository.get_edition(
+        on_or_before,
+        edition_state=edition_state,
+        cutoff=cutoff,
+    )
+    if first.screened_candidate_count > 0:
+        return first
+
+    for offset in range(1, STUB_LOOKBACK_DAYS + 1):
+        candidate = repository.get_edition(
+            on_or_before - timedelta(days=offset),
+            edition_state=edition_state,
+            cutoff=cutoff,
+        )
+        if candidate.screened_candidate_count > 0:
+            return candidate
+    return first
 
 
 def _parse_query(request: Request) -> tuple[date, str | None, time | None]:
