@@ -10,6 +10,9 @@
   <link rel="stylesheet" href="/assets/research.css">
   <link rel="stylesheet" href="/assets/company.css">
   <link rel="stylesheet" href="/assets/company-polish.css">
+  <link rel="stylesheet" href="/assets/watchlist.css">
+  <script src="/assets/watchlist.js" defer></script>
+  <script src="/assets/company-watchlist.js" defer></script>
   <script src="/assets/company.js" defer></script>
   <script src="/assets/company-journey.js" defer></script>
 </head>
@@ -34,7 +37,8 @@
 
   <main class="company-main" id="company-research">
     <nav class="company-back" aria-label="Company research navigation">
-      <a href="/rns">← AIM RNS FEED</a>
+      <a href="/rns">← COMPANY NEWS</a>
+      <a href="/rns?watchlist=1">WATCHLIST →</a>
       <a href="/">THE AIM DAILY →</a>
     </nav>
 
@@ -45,6 +49,7 @@
         <strong id="company-name">Loading company research…</strong>
         <span id="company-market">AIM</span>
       </div>
+      <button id="company-watch-toggle" class="company-watch-toggle" type="button" aria-pressed="false">☆ Watch</button>
       <p id="company-coverage" class="company-coverage" aria-live="polite">Preparing Company Intelligence…</p>
     </section>
 
@@ -62,7 +67,7 @@
   <footer class="site-footer">
     <span>SMALLCAPS.AI</span>
     <p>Machine-scale monitoring. Human-style investment judgement.</p>
-    <a href="/rns">AIM RNS feed ↗</a>
+    <a href="/rns">Company News ↗</a>
   </footer>
 </body>
 </html>

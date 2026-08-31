@@ -1,0 +1,217 @@
+name: scbb-pass7-watchlist-audit
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main", "facts-no-fluff-pass-6"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: scbb-pass7-watchlist-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  watchlist:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DATABASE_URL: sqlite+pysqlite:///data/scbb-pass7-preview.db
+      PRIVATE_BETA_MODE: "false"
+      APP_BETA_PASSWORD: preview-access
+      APP_ADMIN_PASSWORD: preview-admin
+      MARKET_DATA_ENABLED: "true"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install application and browser dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install playwright==1.55.0
+          python -m playwright install --with-deps chromium
+          node --check frontend/assets/watchlist.js
+          node --check frontend/assets/company-watchlist.js
+          node --check frontend/assets/research.js
+
+      - name: Seed deterministic watchlist company news
+        run: |
+          rm -f data/scbb-pass7-preview.db
+          python -m jobs.seed_launch_preview
+          python -m jobs.seed_pass1_preview
+
+      - name: Start combined product
+        shell: bash
+        run: |
+          mkdir -p /tmp/scbb-pass7-audit
+          python -m uvicorn web_app:app --host 127.0.0.1 --port 8501 \
+            > /tmp/scbb-pass7-audit/web.log 2>&1 &
+          echo $! > /tmp/scbb-pass7-web.pid
+          for attempt in $(seq 1 90); do
+            if curl --fail --silent http://127.0.0.1:8501/api/v1/health >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/scbb-pass7-audit/web.log
+          exit 1
+
+      - name: Validate persistent combined Watchlist on desktop and mobile
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          from playwright.sync_api import expect, sync_playwright
+
+          out = Path('/tmp/scbb-pass7-audit')
+          base = 'http://127.0.0.1:8501'
+          gamma = 'gama-pass1-possible-offer'
+          spr_current = 'spr-preview-buyback'
+          spr_prior = 'spr-preview-prior'
+
+          def no_overflow(page):
+              dims = page.evaluate(
+                  """
+                  () => ({
+                    client: document.documentElement.clientWidth,
+                    scroll: document.documentElement.scrollWidth,
+                    body: document.body.scrollWidth,
+                  })
+                  """
+              )
+              if dims['scroll'] > dims['client'] + 2 or dims['body'] > dims['client'] + 2:
+                  raise AssertionError(f'Document clips horizontally: {dims}')
+
+          def wait_news(page):
+              page.get_by_role('heading', name='Facts. No fluff.', exact=True).wait_for(timeout=30000)
+              page.locator('article.monitor-row').first.wait_for(timeout=30000)
+
+          def wait_watchlist(page):
+              expect(page.locator('#page-eyebrow')).to_have_text('WATCHLIST')
+              expect(page.locator('#watchlist-nav-link')).to_have_attribute('aria-current', 'page')
+              expect(page.locator('#news-nav-link')).not_to_have_attribute('aria-current', 'page')
+              page.locator('#feed-mode').wait_for(timeout=30000)
+
+          with sync_playwright() as p:
+              browser = p.chromium.launch()
+
+              desktop = browser.new_context(viewport={'width': 1440, 'height': 1000})
+              page = desktop.new_page()
+              page.goto(f'{base}/rns', wait_until='domcontentloaded')
+              wait_news(page)
+
+              gamma_row = page.locator(f'article.monitor-row[data-source-id="{gamma}"]')
+              gamma_row.wait_for(timeout=30000)
+              gamma_star = gamma_row.locator('button.watch-toggle')
+              expect(gamma_star).to_have_attribute('aria-pressed', 'false')
+              gamma_star.click()
+              expect(gamma_star).to_have_attribute('aria-pressed', 'true')
+              expect(page.locator('#watchlist-nav-count')).to_have_text('1')
+
+              page.reload(wait_until='domcontentloaded')
+              wait_news(page)
+              gamma_row = page.locator(f'article.monitor-row[data-source-id="{gamma}"]')
+              expect(gamma_row.locator('button.watch-toggle')).to_have_attribute('aria-pressed', 'true')
+
+              page.goto(f'{base}/rns?watchlist=1', wait_until='domcontentloaded')
+              wait_watchlist(page)
+              expect(page.locator('#feed-mode')).to_have_text('Watchlist')
+              expect(page.locator('#feed-tagline')).to_have_text('All updates from companies you follow.')
+              expect(page.locator('#period-label')).to_have_text('Coverage')
+              expect(page.locator('#result-status')).to_contain_text('1 company')
+              expect(page.locator('#result-status')).to_contain_text('saved on this browser')
+              expect(page.locator('article.monitor-row')).to_have_count(1)
+              gamma_row = page.locator(f'article.monitor-row[data-source-id="{gamma}"]')
+              expect(gamma_row.locator('.ticker')).to_have_text('GAMA')
+              expect(gamma_row.locator('.news-time-watchlist')).to_contain_text('21 Aug')
+              expect(gamma_row.locator('.price-line')).to_contain_text('PRE 969.5p')
+              expect(gamma_row.locator('.price-line')).to_contain_text('DAY +7.3%')
+              expect(page.locator('#material-toggle')).to_have_text('Show key news only')
+              no_overflow(page)
+
+              page.goto(f'{base}/company/SPR', wait_until='domcontentloaded')
+              page.locator('#company-ticker').wait_for(timeout=30000)
+              expect(page.locator('#company-ticker')).to_have_text('SPR')
+              company_watch = page.locator('#company-watch-toggle')
+              expect(company_watch).to_have_attribute('aria-pressed', 'false')
+              company_watch.click()
+              expect(company_watch).to_have_attribute('aria-pressed', 'true')
+              expect(company_watch).to_have_text('★ Watching')
+
+              page.goto(f'{base}/rns?watchlist=1', wait_until='domcontentloaded')
+              wait_watchlist(page)
+              expect(page.locator('#watchlist-nav-count')).to_have_text('2')
+              page.locator(f'article.monitor-row[data-source-id="{spr_current}"]').wait_for(timeout=30000)
+              page.locator(f'article.monitor-row[data-source-id="{spr_prior}"]').wait_for(timeout=30000)
+              page.locator(f'article.monitor-row[data-source-id="{gamma}"]').wait_for(timeout=30000)
+
+              page.locator(f'article.monitor-row[data-source-id="{gamma}"] button.watch-toggle').click()
+              expect(page.locator(f'article.monitor-row[data-source-id="{gamma}"]')).to_have_count(0)
+              expect(page.locator('#watchlist-nav-count')).to_have_text('1')
+              expect(page.locator('#result-status')).to_contain_text('1 company')
+
+              expect(page.locator(f'article.monitor-row[data-source-id="{spr_prior}"]')).to_be_visible()
+              page.locator('#material-toggle').click()
+              expect(page.locator('#feed-mode')).to_have_text('Watchlist · Key News')
+              expect(page.locator(f'article.monitor-row[data-source-id="{spr_current}"]')).to_be_visible()
+              expect(page.locator(f'article.monitor-row[data-source-id="{spr_prior}"]')).to_have_count(0)
+              page.screenshot(path=out / '01-watchlist-desktop.png', full_page=True)
+              desktop.close()
+
+              empty = browser.new_context(viewport={'width': 900, 'height': 700})
+              page = empty.new_page()
+              page.goto(f'{base}/rns?watchlist=1', wait_until='domcontentloaded')
+              wait_watchlist(page)
+              page.get_by_role('heading', name='Your watchlist is empty.', exact=True).wait_for(timeout=30000)
+              expect(page.get_by_role('link', name='Browse company news →', exact=True)).to_be_visible()
+              empty.close()
+
+              mobile = browser.new_context(
+                  viewport={'width': 390, 'height': 844},
+                  device_scale_factor=1,
+                  is_mobile=True,
+              )
+              mobile.add_init_script(
+                  """
+                  try {
+                    localStorage.setItem('smallcaps-ai-watchlist-v1', JSON.stringify(['GAMA', 'SPR']));
+                  } catch (_) {}
+                  """
+              )
+              page = mobile.new_page()
+              page.goto(f'{base}/rns?watchlist=1', wait_until='domcontentloaded')
+              wait_watchlist(page)
+              page.locator('article.monitor-row').first.wait_for(timeout=30000)
+              no_overflow(page)
+              box = page.locator('article.monitor-row').first.locator('button.watch-toggle').bounding_box()
+              if not box or box['width'] < 40 or box['height'] < 40:
+                  raise AssertionError(f'Mobile watch target is too small: {box}')
+              expect(page.locator('.news-time-watchlist').first).to_contain_text('Aug')
+              page.screenshot(path=out / '02-watchlist-mobile.png', full_page=True)
+              mobile.close()
+
+              browser.close()
+          PY
+
+      - name: Reject runtime and frontend failures
+        run: |
+          if grep -En 'Traceback \(most recent call last\)|Uncaught app exception|monitoring-api-error' /tmp/scbb-pass7-audit/web.log; then
+            cat /tmp/scbb-pass7-audit/web.log
+            exit 1
+          fi
+
+      - name: Upload Pass 7 Watchlist audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smallcaps-pass7-watchlist-audit
+          path: /tmp/scbb-pass7-audit
+          if-no-files-found: error
+          retention-days: 90

@@ -4,6 +4,8 @@
   const PAGE_SIZE = 50;
   const API_LIMIT = 250;
   const KEY_NEWS_THRESHOLD = 3;
+  const WATCHLIST_RANGE_DAYS = 365;
+  const WATCHLIST_MAX_ROWS = 1000;
   const LONDON = "Europe/London";
   const MONITORING_SCHEMA = "scbb-monitoring-v1";
   const SIGNAL_LABELS = {
@@ -20,9 +22,13 @@
     page: 0,
     showAll: false,
     activeDate: "",
+    rangeFrom: "",
     requestedDate: "",
     journeyOpen: "",
     pendingReveal: false,
+    watchlistOnly: false,
+    watchlist: new Set(),
+    watchlistTruncated: false,
     detailCache: new Map(),
     expanded: new Set(),
   };
@@ -34,17 +40,28 @@
   async function initialise() {
     cacheControls();
     bindControls();
+    bindWatchlist();
+
     try {
       const request = readJourneyRequest();
       state.requestedDate = request.date;
       state.journeyOpen = request.open;
       state.pendingReveal = Boolean(request.open);
+      state.watchlistOnly = request.watchlistOnly;
+      state.watchlist = new Set(readWatchlist());
+      state.showAll = state.watchlistOnly;
 
-      const result = request.date
-        ? await loadMarketDay(request.date)
-        : await loadLatestMarketDay();
+      applyModeChrome();
+      const result = state.watchlistOnly
+        ? await loadWatchlistFeed()
+        : request.date
+          ? await loadMarketDay(request.date)
+          : await loadLatestMarketDay();
+
       state.rows = result.items;
       state.activeDate = result.date;
+      state.rangeFrom = result.from || "";
+      state.watchlistTruncated = Boolean(result.truncated);
 
       if (state.journeyOpen && state.rows.some((row) => row.source_id === state.journeyOpen)) {
         state.expanded.add(state.journeyOpen);
@@ -53,7 +70,8 @@
       }
 
       populateFilterOptions();
-      controls.activeDay.textContent = formatLongDate(result.date);
+      updatePeriodLabel();
+      updateWatchlistNav();
       applyFilters();
     } catch (error) {
       renderError(error);
@@ -65,6 +83,12 @@
     controls.feedCount = document.getElementById("feed-count");
     controls.feedMode = document.getElementById("feed-mode");
     controls.activeDay = document.getElementById("active-day");
+    controls.periodLabel = document.getElementById("period-label");
+    controls.pageEyebrow = document.getElementById("page-eyebrow");
+    controls.feedTagline = document.getElementById("feed-tagline");
+    controls.newsNav = document.getElementById("news-nav-link");
+    controls.watchlistNav = document.getElementById("watchlist-nav-link");
+    controls.watchlistNavCount = document.getElementById("watchlist-nav-count");
     controls.resultStatus = document.getElementById("result-status");
     controls.pageStatus = document.getElementById("page-status");
     controls.pagination = document.querySelector(".pagination");
@@ -118,9 +142,9 @@
       controls.signal.value = "";
       controls.impact.value = "0";
       controls.sort.value = "latest";
-      state.showAll = false;
+      state.showAll = state.watchlistOnly;
       state.page = 0;
-      controls.material.setAttribute("aria-pressed", "false");
+      controls.material.setAttribute("aria-pressed", String(state.showAll));
       clearJourneyOpen();
       applyFilters();
     });
@@ -143,14 +167,53 @@
     });
   }
 
+  function bindWatchlist() {
+    const store = window.SmallcapsWatchlist;
+    if (!store) return;
+    window.addEventListener(store.changeEvent, (event) => {
+      const next = Array.isArray(event.detail?.tickers) ? event.detail.tickers : store.read();
+      const previous = new Set(state.watchlist);
+      state.watchlist = new Set(next);
+      updateWatchlistNav();
+
+      if (state.watchlistOnly) {
+        const addedTicker = next.some((ticker) => !previous.has(ticker));
+        if (addedTicker) {
+          void reloadWatchlistFeed();
+          return;
+        }
+        state.page = 0;
+        applyFilters();
+        return;
+      }
+      renderRows();
+    });
+  }
+
+  function readWatchlist() {
+    return window.SmallcapsWatchlist ? window.SmallcapsWatchlist.read() : [];
+  }
+
+  function isWatched(ticker) {
+    const cleanTicker = window.SmallcapsWatchlist
+      ? window.SmallcapsWatchlist.normalise(ticker)
+      : clean(ticker).toUpperCase();
+    return state.watchlist.has(cleanTicker);
+  }
+
   function readJourneyRequest() {
     const params = new URLSearchParams(window.location.search);
     const requestedDate = clean(params.get("date"));
     const requestedOpen = clean(params.get("open")).slice(0, 180);
+    const watchlistOnly = params.get("watchlist") === "1";
     if (requestedDate && !validIsoDate(requestedDate)) {
       throw new Error("The requested market day must use YYYY-MM-DD.");
     }
-    return { date: requestedDate, open: requestedOpen };
+    return {
+      date: watchlistOnly ? "" : requestedDate,
+      open: requestedOpen,
+      watchlistOnly,
+    };
   }
 
   async function loadMarketDay(date) {
@@ -180,9 +243,75 @@
     };
   }
 
+  async function loadWatchlistFeed() {
+    const today = londonDateKey(new Date());
+    const from = addDays(today, -WATCHLIST_RANGE_DAYS);
+    const tickers = [...state.watchlist].sort();
+    if (!tickers.length) return { date: today, from, items: [], truncated: false };
+
+    const result = await fetchAllPages({
+      date_from: from,
+      date_to: today,
+      ticker: tickers,
+    });
+    return { date: today, from, items: result.items, truncated: result.truncated };
+  }
+
+  async function reloadWatchlistFeed() {
+    controls.rows.replaceChildren(element("div", "detail-loading", "Refreshing watchlist…"));
+    controls.feedCount.textContent = "Refreshing watchlist…";
+    try {
+      const result = await loadWatchlistFeed();
+      state.rows = result.items;
+      state.activeDate = result.date;
+      state.rangeFrom = result.from;
+      state.watchlistTruncated = result.truncated;
+      state.expanded.clear();
+      state.detailCache.clear();
+      populateFilterOptions();
+      updatePeriodLabel();
+      applyFilters();
+    } catch (error) {
+      renderError(error);
+    }
+  }
+
+  async function fetchAllPages(params) {
+    const items = [];
+    let offset = 0;
+    let truncated = false;
+
+    while (items.length < WATCHLIST_MAX_ROWS) {
+      const payload = await fetchPage({ ...params, offset });
+      const pageItems = Array.isArray(payload.items) ? payload.items : [];
+      items.push(...pageItems);
+      if (!payload.has_more || !pageItems.length) break;
+      offset += pageItems.length;
+      if (items.length >= WATCHLIST_MAX_ROWS) {
+        truncated = true;
+        break;
+      }
+    }
+
+    return {
+      items: items.slice(0, WATCHLIST_MAX_ROWS),
+      truncated,
+    };
+  }
+
   async function fetchPage(params) {
     const query = new URLSearchParams({ limit: String(API_LIMIT), sort: "latest" });
-    Object.entries(params).forEach(([key, value]) => query.set(key, value));
+    Object.entries(params).forEach(([key, value]) => {
+      if (Array.isArray(value)) {
+        value.forEach((item) => {
+          const cleanItem = clean(item);
+          if (cleanItem) query.append(key, cleanItem);
+        });
+        return;
+      }
+      if (value !== undefined && value !== null && value !== "") query.set(key, String(value));
+    });
+
     const response = await fetch(`/api/v1/monitoring?${query.toString()}`, {
       headers: { Accept: "application/json" },
       credentials: "same-origin",
@@ -195,14 +324,66 @@
     return payload;
   }
 
+  function applyModeChrome() {
+    if (state.watchlistOnly) {
+      controls.pageEyebrow.textContent = "WATCHLIST";
+      controls.feedTagline.textContent = "All updates from companies you follow.";
+      controls.periodLabel.textContent = "Coverage";
+      setNavActive(controls.watchlistNav, true);
+      setNavActive(controls.newsNav, false);
+      return;
+    }
+
+    controls.pageEyebrow.textContent = "AIM COMPANY NEWS";
+    controls.feedTagline.textContent = "Every material AIM announcement, reduced to what changed.";
+    controls.periodLabel.textContent = "Market day";
+    setNavActive(controls.newsNav, true);
+    setNavActive(controls.watchlistNav, false);
+  }
+
+  function setNavActive(link, active) {
+    if (!link) return;
+    link.classList.toggle("nav-link-active", active);
+    if (active) link.setAttribute("aria-current", "page");
+    else link.removeAttribute("aria-current");
+  }
+
+  function updatePeriodLabel() {
+    if (!controls.activeDay) return;
+    if (state.watchlistOnly) {
+      controls.activeDay.textContent = state.rangeFrom
+        ? `${formatShortDate(state.rangeFrom)} – ${formatShortDate(state.activeDate)}`
+        : "Last 12 months";
+      return;
+    }
+    controls.activeDay.textContent = formatLongDate(state.activeDate);
+  }
+
+  function updateWatchlistNav() {
+    if (!controls.watchlistNavCount) return;
+    const count = state.watchlist.size;
+    controls.watchlistNavCount.hidden = count === 0;
+    controls.watchlistNavCount.textContent = String(count);
+    controls.watchlistNav?.setAttribute(
+      "aria-label",
+      count ? `Watchlist, ${count} compan${count === 1 ? "y" : "ies"}` : "Watchlist",
+    );
+  }
+
   function populateFilterOptions() {
     const companies = uniqueBy(
       state.rows
+        .filter((row) => !state.watchlistOnly || isWatched(row.ticker))
         .map((row) => ({ value: row.ticker, label: `${row.ticker} · ${row.company}` }))
         .sort((a, b) => a.label.localeCompare(b.label)),
       (item) => item.value,
     );
-    const types = [...new Set(state.rows.map((row) => clean(row.rns_type)).filter(Boolean))]
+    const types = [...new Set(
+      state.rows
+        .filter((row) => !state.watchlistOnly || isWatched(row.ticker))
+        .map((row) => clean(row.rns_type))
+        .filter(Boolean),
+    )]
       .sort((a, b) => a.localeCompare(b))
       .map((value) => ({ value, label: value }));
     fillSelect(controls.company, companies, "All companies");
@@ -224,6 +405,7 @@
     const minimumImpact = Number(controls.impact.value || 0);
 
     let rows = state.rows.filter((row) => {
+      if (state.watchlistOnly && !isWatched(row.ticker)) return false;
       if (ticker && row.ticker !== ticker) return false;
       if (type && row.rns_type !== type) return false;
       if (signal && row.signal !== signal) return false;
@@ -282,15 +464,25 @@
 
   function updateSummary(keyCount) {
     const otherCount = Math.max(0, state.filtered.length - keyCount);
-    controls.feedMode.textContent = state.showAll ? "All News" : "Key News";
-    controls.feedCount.textContent = state.showAll
-      ? `${state.filtered.length} updates · ${keyCount} key`
-      : `${keyCount} material · ${state.filtered.length} updates`;
 
-    if (state.journeyOpen && !state.rows.some((row) => row.source_id === state.journeyOpen)) {
-      controls.resultStatus.textContent = "Requested announcement is not available on this market day";
+    if (state.watchlistOnly) {
+      controls.feedMode.textContent = state.showAll ? "Watchlist" : "Watchlist · Key News";
+      controls.feedCount.textContent = `${state.filtered.length} updates · ${keyCount} key`;
+      const companies = state.watchlist.size;
+      controls.resultStatus.textContent = state.watchlistTruncated
+        ? `${companies} compan${companies === 1 ? "y" : "ies"} · latest ${WATCHLIST_MAX_ROWS} updates`
+        : `${companies} compan${companies === 1 ? "y" : "ies"} · saved on this browser`;
     } else {
-      controls.resultStatus.textContent = `${state.visible.length} shown`;
+      controls.feedMode.textContent = state.showAll ? "All News" : "Key News";
+      controls.feedCount.textContent = state.showAll
+        ? `${state.filtered.length} updates · ${keyCount} key`
+        : `${keyCount} material · ${state.filtered.length} updates`;
+
+      if (state.journeyOpen && !state.rows.some((row) => row.source_id === state.journeyOpen)) {
+        controls.resultStatus.textContent = "Requested announcement is not available on this market day";
+      } else {
+        controls.resultStatus.textContent = `${state.visible.length} shown`;
+      }
     }
 
     controls.material.hidden = otherCount === 0;
@@ -330,8 +522,12 @@
     article.dataset.sourceId = row.source_id;
     article.dataset.signal = row.signal || "NO COLOUR";
     article.dataset.expanded = String(state.expanded.has(row.source_id));
+    article.dataset.watched = String(isWatched(row.ticker));
 
     const head = element("div", "news-row-head");
+    const companyWrap = element("div", "news-company");
+    companyWrap.append(buildWatchToggle(row));
+
     const companyLink = element("a", "company-research-link");
     companyLink.href = `/company/${encodeURIComponent(row.ticker)}`;
     companyLink.setAttribute("aria-label", `Open ${row.ticker} company research`);
@@ -339,15 +535,22 @@
       element("span", "ticker", row.ticker),
       element("span", "company-name", row.company),
     );
+    companyWrap.append(companyLink);
 
     const meta = element("div", "news-meta");
     meta.append(
       buildImpactScale(row),
       element("span", `signal-pill signal-${slug(row.signal)}`, SIGNAL_LABELS[row.signal] || "Neutral"),
       element("span", "type-pill", clean(row.rns_type) || "Company news"),
-      element("span", "news-time", formatTime(row.published_at)),
+      element(
+        "span",
+        state.watchlistOnly ? "news-time news-time-watchlist" : "news-time",
+        state.watchlistOnly
+          ? `${formatShortDate(row.published_at)} · ${formatTime(row.published_at)}`
+          : formatTime(row.published_at),
+      ),
     );
-    head.append(companyLink, meta);
+    head.append(companyWrap, meta);
 
     const toggle = element("button", "row-toggle");
     toggle.type = "button";
@@ -374,6 +577,24 @@
     article.append(head, toggle, chevronWrap, detail);
     if (state.expanded.has(row.source_id)) void ensureDetail(row, detail);
     return article;
+  }
+
+  function buildWatchToggle(row) {
+    const watched = isWatched(row.ticker);
+    const button = element("button", "watch-toggle", watched ? "★" : "☆");
+    button.type = "button";
+    button.setAttribute("aria-pressed", String(watched));
+    button.setAttribute(
+      "aria-label",
+      `${watched ? "Remove" : "Add"} ${row.ticker} ${watched ? "from" : "to"} watchlist`,
+    );
+    button.title = watched ? "Remove from watchlist" : "Add to watchlist";
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      window.SmallcapsWatchlist?.toggle(row.ticker);
+    });
+    return button;
   }
 
   function buildImpactScale(row) {
@@ -570,9 +791,7 @@
       stack.append(item);
     });
 
-    if (!stack.children.length) {
-      return document.createDocumentFragment();
-    }
+    if (!stack.children.length) return document.createDocumentFragment();
     return researchBlock(baseline ? "CURRENT BASELINE" : "WHAT CHANGED", [stack]);
   }
 
@@ -672,7 +891,20 @@
     const wrap = element("div");
     const hasFilteredOthers = !state.showAll && state.filtered.length > 0;
 
-    if (!state.rows.length && state.requestedDate) {
+    if (state.watchlistOnly && state.watchlist.size === 0) {
+      wrap.append(
+        element("h2", "", "Your watchlist is empty."),
+        element("p", "", "Star a company in News to build one combined feed."),
+      );
+      const browse = element("a", "empty-state-action", "Browse company news →");
+      browse.href = "/rns";
+      wrap.append(browse);
+    } else if (state.watchlistOnly && !state.rows.length) {
+      wrap.append(
+        element("h2", "", "No watchlist updates in the last 12 months."),
+        element("p", "", "Your watched companies have no publishable Company News in this coverage window."),
+      );
+    } else if (!state.rows.length && state.requestedDate) {
       wrap.append(
         element("h2", "", `No publishable company news on ${formatLongDate(state.requestedDate)}.`),
         element("p", "", "This dated link does not currently resolve to a public record."),
@@ -687,7 +919,7 @@
       );
     } else {
       wrap.append(
-        element("h2", "", "No company news matches these filters."),
+        element("h2", "", state.watchlistOnly ? "No watchlist updates match these filters." : "No company news matches these filters."),
         element("p", "", "Reset the filters or broaden your search."),
       );
     }
@@ -700,12 +932,12 @@
     const block = element("div", "error-state");
     const wrap = element("div");
     wrap.append(
-      element("h2", "", "Company news is temporarily unavailable."),
+      element("h2", "", state.watchlistOnly ? "Watchlist is temporarily unavailable." : "Company news is temporarily unavailable."),
       element("p", "", error?.message || "Please refresh the page shortly."),
     );
     block.append(wrap);
     controls.rows.append(block);
-    controls.feedCount.textContent = "Live feed unavailable";
+    controls.feedCount.textContent = state.watchlistOnly ? "Watchlist unavailable" : "Live feed unavailable";
     controls.resultStatus.textContent = "Publication-safe data could not be loaded";
   }
 
@@ -729,12 +961,18 @@
 
   function writeJourneyUrl(sourceId) {
     const url = new URL(window.location.href);
-    if (state.activeDate) url.searchParams.set("date", state.activeDate);
+    if (state.watchlistOnly) {
+      url.searchParams.set("watchlist", "1");
+      url.searchParams.delete("date");
+    } else {
+      url.searchParams.delete("watchlist");
+      if (state.activeDate) url.searchParams.set("date", state.activeDate);
+    }
     if (sourceId) url.searchParams.set("open", sourceId);
     else url.searchParams.delete("open");
     const query = url.searchParams.toString();
     window.history.replaceState(
-      { marketDay: state.activeDate, open: sourceId || null },
+      { marketDay: state.watchlistOnly ? null : state.activeDate, watchlist: state.watchlistOnly, open: sourceId || null },
       "",
       `${url.pathname}${query ? `?${query}` : ""}${url.hash}`,
     );
@@ -846,6 +1084,19 @@
       month: "short",
       year: "numeric",
     }).format(new Date(`${iso}T12:00:00Z`));
+  }
+
+  function formatShortDate(value) {
+    if (!value) return "—";
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(String(value))
+      ? new Date(`${value}T12:00:00Z`)
+      : new Date(value);
+    return new Intl.DateTimeFormat("en-GB", {
+      timeZone: LONDON,
+      day: "numeric",
+      month: "short",
+      year: "2-digit",
+    }).format(date);
   }
 
   function formatTime(value) {
