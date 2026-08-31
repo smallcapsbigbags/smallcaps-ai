@@ -70,8 +70,8 @@ def note(**updates) -> AnalystNote:
 
 
 def test_current_analyst_version_is_code_locked() -> None:
-    assert ANALYSIS_VERSION == "aim-intelligence-analyst-3.3"
-    assert DEFAULT_PROMPT_VERSION == "analyst-engine-3.3-scbb-monitoring-sheet"
+    assert ANALYSIS_VERSION == "aim-intelligence-analyst-3.4"
+    assert DEFAULT_PROMPT_VERSION == "analyst-engine-3.4-facts-no-fluff-routing"
 
 
 def test_editorial_contract_is_loaded_into_initial_and_review_prompts() -> None:
