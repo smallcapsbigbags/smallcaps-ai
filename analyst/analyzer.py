@@ -156,14 +156,14 @@ class OpenAIAnalystEngine:
                 "Audit this draft against the exact same evidence, company memory and "
                 "deterministic analyst-intelligence checks. Verify each heuristic finding "
                 "before using it. Correct only real consistency, comparator, Impact, KPI, "
-                "calculation, management-promise, coverage-status, plain-English, editorial "
-                "or Facts. No fluff. output-contract problems. Do not invent a missing "
-                "sector KPI, add outside information or change a defensible judgement merely "
-                "to create a different opinion. The final headline and takeaway must be "
-                "compact investor shorthand; key_facts must retain all decision-useful "
-                "material facts; what_changed must use only supported comparators; and "
-                "unsupported inference or speculation must be removed. Return the complete "
-                "corrected AnalystNote.\n\n"
+                "calculation, management-promise, coverage-status, plain-English or "
+                "editorial-output-contract problems, including Facts. No fluff. contract "
+                "violations. Do not invent a missing sector KPI, add outside information or "
+                "change a defensible judgement merely to create a different opinion. The "
+                "final headline and takeaway must be compact investor shorthand; key_facts "
+                "must retain all decision-useful material facts; what_changed must use only "
+                "supported comparators; and unsupported inference or speculation must be "
+                "removed. Return the complete corrected AnalystNote.\n\n"
                 + json.dumps(review_payload, ensure_ascii=False)
             ),
             text_format=AnalystNote,
