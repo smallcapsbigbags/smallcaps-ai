@@ -1,0 +1,288 @@
+name: scbb-pass8-launch-readiness
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: scbb-pass8-launch-readiness-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  launch-readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DATABASE_URL: sqlite+pysqlite:///data/scbb-pass8-preview.db
+      PRIVATE_BETA_MODE: "false"
+      APP_BETA_PASSWORD: preview-access
+      APP_ADMIN_PASSWORD: preview-admin
+      MARKET_DATA_ENABLED: "true"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install application and browser dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install playwright==1.55.0
+          python -m playwright install --with-deps chromium
+          node --check frontend/assets/research.js
+          node --check frontend/assets/watchlist.js
+          node --check frontend/assets/company.js
+          node --check frontend/assets/company-journey.js
+          node --check frontend/assets/company-launch.js
+          node --check frontend/assets/daily.js
+
+      - name: Seed deterministic launch product
+        run: |
+          rm -f data/scbb-pass8-preview.db
+          python -m jobs.seed_launch_preview
+          python -m jobs.seed_pass1_preview
+
+      - name: Start combined product
+        shell: bash
+        run: |
+          mkdir -p /tmp/scbb-pass8-audit
+          python -m uvicorn web_app:app --host 127.0.0.1 --port 8501 \
+            > /tmp/scbb-pass8-audit/web.log 2>&1 &
+          echo $! > /tmp/scbb-pass8-web.pid
+          for attempt in $(seq 1 90); do
+            if curl --fail --silent http://127.0.0.1:8501/api/v1/health >/dev/null \
+              && curl --fail --silent http://127.0.0.1:8501/api/v1/company/SPR >/dev/null \
+              && curl --fail --silent 'http://127.0.0.1:8501/api/v1/aim-daily/newsroom?date=2026-08-21&state=aim_close' >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/scbb-pass8-audit/web.log
+          exit 1
+
+      - name: Validate launch journey on desktop and mobile
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from urllib.parse import urlparse
+
+          from playwright.sync_api import expect, sync_playwright
+
+          out = Path('/tmp/scbb-pass8-audit')
+          base = 'http://127.0.0.1:8501'
+          legacy_company = (
+              'AI VIEW',
+              'RNS HISTORY',
+              'COMPANY MONITORING SHEET',
+              'VIEW FULL ANALYST NOTE',
+              'READ ANALYSIS →',
+              'ORIGINAL RNS ↗',
+              'OPEN IN RNS FEED →',
+          )
+
+          def attach_error_capture(page):
+              failures = []
+              page.on('pageerror', lambda error: failures.append(f'pageerror: {error}'))
+              page.on('console', lambda message: failures.append(f'console: {message.text}') if message.type == 'error' else None)
+              return failures
+
+          def assert_no_errors(failures, label):
+              if failures:
+                  raise AssertionError(f'{label} browser failures: {failures}')
+
+          def no_overflow(page):
+              dims = page.evaluate(
+                  """
+                  () => ({
+                    client: document.documentElement.clientWidth,
+                    scroll: document.documentElement.scrollWidth,
+                    body: document.body.scrollWidth,
+                  })
+                  """
+              )
+              if dims['scroll'] > dims['client'] + 2 or dims['body'] > dims['client'] + 2:
+                  raise AssertionError(f'Document clips horizontally: {dims}')
+
+          def no_duplicate_ids(page):
+              duplicates = page.evaluate(
+                  """
+                  () => {
+                    const counts = new Map();
+                    document.querySelectorAll('[id]').forEach((node) => counts.set(node.id, (counts.get(node.id) || 0) + 1));
+                    return [...counts.entries()].filter(([, count]) => count > 1);
+                  }
+                  """
+              )
+              if duplicates:
+                  raise AssertionError(f'Duplicate DOM ids: {duplicates}')
+
+          def same_origin_assets_only(page):
+              urls = page.evaluate(
+                  """
+                  () => performance.getEntriesByType('resource').map((entry) => entry.name)
+                  """
+              )
+              external = []
+              for url in urls:
+                  parsed = urlparse(url)
+                  if parsed.scheme in {'data', 'blob'}:
+                      continue
+                  if parsed.netloc and parsed.netloc != '127.0.0.1:8501':
+                      external.append(url)
+              if external:
+                  raise AssertionError(f'Unexpected third-party launch assets: {external}')
+
+          def wait_news(page):
+              page.get_by_role('heading', name='Facts. No fluff.', exact=True).wait_for(timeout=30000)
+              page.locator('article.monitor-row').first.wait_for(timeout=30000)
+
+          def wait_company(page):
+              page.get_by_role('heading', name='SPR', exact=True).wait_for(timeout=30000)
+              page.get_by_text('LATEST COMPANY NEWS', exact=True).wait_for(timeout=30000)
+              page.get_by_text('COMPANY NEWS HISTORY', exact=True).wait_for(timeout=30000)
+              page.wait_for_timeout(250)
+
+          def assert_company(page, *, mobile=False):
+              wait_company(page)
+              body = page.locator('body').inner_text()
+              for retired in legacy_company:
+                  if retired in body:
+                      raise AssertionError(f'Legacy Company Intelligence wording visible: {retired}')
+              for required in ('COMPANY INTELLIGENCE', 'LATEST COMPANY NEWS', 'MATERIALITY', 'COMPANY NEWS HISTORY'):
+                  if required not in body:
+                      raise AssertionError(f'Missing Company Intelligence launch element: {required}')
+
+              expect(page.locator('.company-current-change')).to_have_attribute('data-label', 'WHAT CHANGED')
+              expect(page.locator('.company-ai-view span')).to_have_text('TAKE')
+              take = page.locator('.company-ai-view p').inner_text().strip().split()
+              if not take or len(take) > 45:
+                  raise AssertionError(f'Company take is not terse: {len(take)} words')
+
+              computed = page.evaluate(
+                  """
+                  () => ({
+                    background: getComputedStyle(document.body).backgroundColor,
+                    surface: getComputedStyle(document.querySelector('.company-section')).backgroundColor,
+                    headingSize: parseFloat(getComputedStyle(document.querySelector('.company-hero h1')).fontSize),
+                    accent: getComputedStyle(document.querySelector('.company-hero h1 em')).color,
+                  })
+                  """
+              )
+              if computed['background'] != 'rgb(245, 246, 248)' or computed['surface'] != 'rgb(255, 255, 255)':
+                  raise AssertionError(f'Company Intelligence visual system drifted: {computed}')
+              if computed['accent'] != 'rgb(37, 99, 235)' or not 40 <= computed['headingSize'] <= 70:
+                  raise AssertionError(f'Company Intelligence hierarchy drifted: {computed}')
+
+              watch = page.locator('#company-watch-toggle')
+              watch_box = watch.bounding_box()
+              if watch_box is None or watch_box['height'] < 43.5:
+                  raise AssertionError(f'Company watch target is too small: {watch_box}')
+              watch.focus()
+              page.keyboard.press('Enter')
+              expect(watch).to_have_attribute('aria-pressed', 'true')
+              page.keyboard.press('Enter')
+              expect(watch).to_have_attribute('aria-pressed', 'false')
+
+              if mobile:
+                  grid = page.locator('.company-current-grid').evaluate('(el) => getComputedStyle(el).gridTemplateColumns')
+                  if ' ' in grid.strip():
+                      raise AssertionError(f'Mobile current company view did not collapse: {grid}')
+
+              no_overflow(page)
+              no_duplicate_ids(page)
+              same_origin_assets_only(page)
+
+          with sync_playwright() as p:
+              browser = p.chromium.launch()
+
+              desktop = browser.new_context(viewport={'width': 1440, 'height': 1000})
+              page = desktop.new_page()
+              failures = attach_error_capture(page)
+              page.goto(f'{base}/rns?date=2026-08-21', wait_until='domcontentloaded')
+              wait_news(page)
+              page.get_by_role('link', name='Watchlist', exact=False).wait_for(timeout=30000)
+              springfield = page.locator('a.company-research-link[href="/company/SPR"]').first
+              springfield.click()
+              assert_company(page)
+              page.screenshot(path=out / '01-company-launch-desktop.png', full_page=True)
+
+              page.get_by_text('VIEW EVIDENCE', exact=True).click()
+              page.get_by_text('MATERIAL FACTS', exact=True).first.wait_for(timeout=30000)
+              page.get_by_text('WHAT CHANGED', exact=True).first.wait_for(timeout=30000)
+              evidence_text = page.locator('.company-full-note').inner_text()
+              for retired in ('AI VIEW', 'WHAT TO WATCH', 'SUPPORTS THE CASE', 'CHALLENGES THE CASE', 'READ-THROUGH'):
+                  if retired in evidence_text:
+                      raise AssertionError(f'Legacy analyst-report section visible in evidence: {retired}')
+
+              page.get_by_role('link', name='OPEN IN NEWS →', exact=True).click()
+              page.wait_for_url(f'{base}/rns?date=2026-08-21&open=spr-preview-buyback', timeout=30000)
+              wait_news(page)
+              if urlparse(page.url).path != '/rns':
+                  raise AssertionError(f'Company News deep link is not canonical: {page.url}')
+              no_overflow(page)
+
+              page.goto(f'{base}/?date=2026-08-21&state=aim_close', wait_until='domcontentloaded')
+              page.get_by_role('heading', name='THE AIM DAILY', exact=True).wait_for(timeout=30000)
+              expect(page.locator('#edition-summary')).to_contain_text('full analyses', timeout=30000)
+              daily_text = page.locator('body').inner_text()
+              for required in ('COMPANY NEWS', 'WATCHLIST', 'THE REST OF AIM'):
+                  if required not in daily_text:
+                      raise AssertionError(f'Missing Daily launch navigation: {required}')
+              if 'RNS MONITOR' in daily_text:
+                  raise AssertionError('The AIM Daily still exposes legacy RNS Monitor language')
+              no_overflow(page)
+              assert_no_errors(failures, 'desktop')
+              page.screenshot(path=out / '02-aim-daily-launch-desktop.png', full_page=True)
+              desktop.close()
+
+              mobile = browser.new_context(
+                  viewport={'width': 390, 'height': 844},
+                  device_scale_factor=1,
+                  is_mobile=True,
+              )
+              page = mobile.new_page()
+              failures = attach_error_capture(page)
+              page.goto(f'{base}/company/SPR', wait_until='domcontentloaded')
+              assert_company(page, mobile=True)
+              evidence = page.get_by_text('VIEW EVIDENCE', exact=True)
+              evidence_box = evidence.bounding_box()
+              if evidence_box is None or evidence_box['height'] < 43.5:
+                  raise AssertionError(f'Mobile evidence target is too small: {evidence_box}')
+              page.screenshot(path=out / '03-company-launch-mobile.png', full_page=True)
+
+              page.goto(f'{base}/rns?watchlist=1', wait_until='domcontentloaded')
+              page.get_by_text('Your watchlist is empty.', exact=True).wait_for(timeout=30000)
+              no_overflow(page)
+              page.goto(f'{base}/?date=2026-08-21&state=aim_close', wait_until='domcontentloaded')
+              page.get_by_role('heading', name='THE AIM DAILY', exact=True).wait_for(timeout=30000)
+              no_overflow(page)
+              assert_no_errors(failures, 'mobile')
+              page.screenshot(path=out / '04-aim-daily-launch-mobile.png', full_page=True)
+              mobile.close()
+
+              browser.close()
+          PY
+
+      - name: Reject runtime failures
+        run: |
+          if grep -En 'Traceback \(most recent call last\)|Uncaught app exception|company-api-error|monitoring-api-error|newsroom-api-error' /tmp/scbb-pass8-audit/web.log; then
+            cat /tmp/scbb-pass8-audit/web.log
+            exit 1
+          fi
+
+      - name: Upload launch-readiness evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smallcaps-pass8-launch-readiness
+          path: /tmp/scbb-pass8-audit
+          if-no-files-found: error
+          retention-days: 90
