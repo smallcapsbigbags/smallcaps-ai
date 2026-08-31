@@ -10,6 +10,7 @@ from analyst.intelligence_policy import (
 )
 from analyst.kpi_profiles import infer_kpi_profile
 from analyst.models import AnalystNote, AnnouncementInput
+from analyst.review_policy import ReviewDecision, decide_consistency_review
 
 
 class AnalystEngine(Protocol):
@@ -23,7 +24,7 @@ class AnalystEngine(Protocol):
 
 
 class OpenAIAnalystEngine:
-    """Structured analyst engine with memory, KPI intelligence and review."""
+    """Structured analyst engine with memory, KPI intelligence and routed review."""
 
     def __init__(
         self,
@@ -49,6 +50,9 @@ class OpenAIAnalystEngine:
         self.client = OpenAI(api_key=api_key, timeout=timeout_seconds, max_retries=1)
         self.model_name = model
         self.max_output_tokens = max(2_000, max_output_tokens)
+        self.initial_analysis_calls = 0
+        self.consistency_review_calls = 0
+        self.last_review_decision: ReviewDecision | None = None
         prompts_dir = Path(__file__).resolve().parents[1] / "prompts"
         self.prompt_path = prompt_path or (prompts_dir / "ANALYST_ENGINE_V2.md")
         self.style_prompt_path = style_prompt_path or (
@@ -111,6 +115,22 @@ class OpenAIAnalystEngine:
             )
         )
 
+    @property
+    def analyst_model_calls(self) -> int:
+        return self.initial_analysis_calls + self.consistency_review_calls
+
+    @property
+    def consistency_reviews_avoided(self) -> int:
+        return max(0, self.initial_analysis_calls - self.consistency_review_calls)
+
+    def model_call_stats(self) -> dict[str, int]:
+        return {
+            "initial_calls": self.initial_analysis_calls,
+            "review_calls": self.consistency_review_calls,
+            "reviews_avoided": self.consistency_reviews_avoided,
+            "total_calls": self.analyst_model_calls,
+        }
+
     @staticmethod
     def _expected_coverage_status(
         prior_context: Sequence[dict[str, object]],
@@ -121,6 +141,22 @@ class OpenAIAnalystEngine:
             status = str(record.get("coverage_status") or "building")
             return "established" if status == "established" else "building"
         return "building"
+
+    def _normalise_coverage(
+        self,
+        note: AnalystNote,
+        prior_context: Sequence[dict[str, object]],
+    ) -> AnalystNote:
+        expected_coverage = self._expected_coverage_status(prior_context)
+        if note.what_changed.coverage_status == expected_coverage:
+            return note
+        return note.model_copy(
+            update={
+                "what_changed": note.what_changed.model_copy(
+                    update={"coverage_status": expected_coverage}
+                )
+            }
+        )
 
     def _require_source_id(
         self,
@@ -149,6 +185,7 @@ class OpenAIAnalystEngine:
             "draft_analyst_note": draft.model_dump(mode="json"),
             "deterministic_analyst_intelligence": intelligence.to_review_record(),
         }
+        self.consistency_review_calls += 1
         response = self.client.responses.parse(
             model=self.model_name,
             instructions=self.review_prompt,
@@ -176,18 +213,7 @@ class OpenAIAnalystEngine:
                 "OpenAI returned no structured AnalystNote from consistency review"
             )
         self._require_source_id(reviewed, announcement, stage="consistency review")
-
-        # Coverage status is deterministic product metadata, not a model judgement.
-        expected_coverage = self._expected_coverage_status(prior_context)
-        if reviewed.what_changed.coverage_status != expected_coverage:
-            reviewed = reviewed.model_copy(
-                update={
-                    "what_changed": reviewed.what_changed.model_copy(
-                        update={"coverage_status": expected_coverage}
-                    )
-                }
-            )
-        return reviewed
+        return self._normalise_coverage(reviewed, prior_context)
 
     def analyse(
         self,
@@ -200,6 +226,7 @@ class OpenAIAnalystEngine:
             "eligible_prior_context": list(prior_context),
             "analyst_intelligence_profile": profile.to_context_record(),
         }
+        self.initial_analysis_calls += 1
         response = self.client.responses.parse(
             model=self.model_name,
             instructions=self.system_prompt,
@@ -244,21 +271,43 @@ class OpenAIAnalystEngine:
             profile=profile,
             findings=findings,
         )
-        reviewed = self._review_note(
-            announcement=announcement,
-            prior_context=prior_context,
-            draft=parsed,
-            intelligence=intelligence,
-        )
+
+        try:
+            review_decision = decide_consistency_review(
+                announcement,
+                parsed,
+                prior_context=prior_context,
+                intelligence=intelligence,
+            )
+        except Exception as exc:
+            # Cost optimisation must fail closed. If the deterministic policy itself
+            # cannot prove a single pass is safe, spend the review call.
+            review_decision = ReviewDecision(
+                mode="review",
+                reasons=(
+                    f"review policy failed closed: {type(exc).__name__}",
+                ),
+            )
+        self.last_review_decision = review_decision
+
+        if review_decision.requires_review:
+            final_note = self._review_note(
+                announcement=announcement,
+                prior_context=prior_context,
+                draft=parsed,
+                intelligence=intelligence,
+            )
+        else:
+            final_note = self._normalise_coverage(parsed, prior_context)
 
         references = list(
             dict.fromkeys(
                 [
-                    *reviewed.source_references,
+                    *final_note.source_references,
                     *parsed.source_references,
                     *announcement.source_urls,
                     *([announcement.source_url] if announcement.source_url else []),
                 ]
             )
         )
-        return reviewed.model_copy(update={"source_references": references})
+        return final_note.model_copy(update={"source_references": references})
