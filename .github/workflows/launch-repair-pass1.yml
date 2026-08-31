@@ -141,7 +141,7 @@ jobs:
               page.locator('article.monitor-row').first.wait_for(timeout=30000)
               expect(page.locator('.loading-state')).to_have_count(0)
               expect(page.locator('#feed-count')).not_to_contain_text('Loading', timeout=30000)
-              expect(page.locator('#active-day')).to_contain_text('21 August 2026')
+              expect(page.locator('#active-day')).to_contain_text('21 Aug 2026')
               if not any('/api/v1/monitoring?' in url for url in requests_seen):
                   raise AssertionError('Company News never requested its live read model')
               assert_versioned(requests_seen, '/assets/research.js')
