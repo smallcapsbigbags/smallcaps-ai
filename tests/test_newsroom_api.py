@@ -102,6 +102,7 @@ def test_undated_newsroom_falls_back_to_latest_populated_day(monkeypatch) -> Non
     response = client.get("/api/v1/aim-daily/newsroom?state=morning_note")
 
     assert response.status_code == 200
+    assert response.headers["cache-control"] == "no-store"
     body = response.json()
     assert body["date"] == "2026-08-25"
     assert body["screened_candidate_count"] == 8
@@ -123,6 +124,7 @@ def test_explicit_empty_date_does_not_fall_back() -> None:
     response = client.get("/api/v1/aim-daily/newsroom?date=2026-08-31&state=morning_note")
 
     assert response.status_code == 200
+    assert response.headers["cache-control"].startswith("public, max-age=60")
     body = response.json()
     assert body["date"] == "2026-08-31"
     assert body["screened_candidate_count"] == 0
