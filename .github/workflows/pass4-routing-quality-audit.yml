@@ -1,6 +1,17 @@
 name: pass4-routing-quality-audit
 
 on:
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "analyst/analyzer.py"
+      - "analyst/review_policy.py"
+      - "analyst/routing_benchmark.py"
+      - "analyst/gold_standard.py"
+      - "prompts/**"
+      - "jobs/run_routing_quality_benchmark.py"
+      - "benchmarks/pass4_routing_case_set.json"
+      - ".github/workflows/pass4-routing-quality-audit.yml"
   workflow_dispatch:
     inputs:
       limit:
@@ -41,23 +52,35 @@ jobs:
           python-version: "3.12"
           cache: pip
 
-      - name: Require live benchmark credentials
+      - name: Detect live benchmark credentials
+        id: credentials
+        shell: bash
         run: |
-          if [ -z "$OPENAI_API_KEY" ]; then
-            echo "OPENAI_API_KEY GitHub Actions secret is required for the live Pass 4 benchmark."
-            exit 1
+          mkdir -p /tmp/pass4-routing
+          if [ -n "$OPENAI_API_KEY" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+            echo "Live OpenAI benchmark credential is available." | tee /tmp/pass4-routing/credential-status.txt
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "OPENAI_API_KEY is not available to this workflow; live Pass 4 benchmark was not executed." | tee /tmp/pass4-routing/credential-status.txt
           fi
 
       - name: Install application dependencies
+        if: steps.credentials.outputs.available == 'true'
         run: pip install -r requirements.txt
 
       - name: Run routed versus forced-review benchmark
+        if: steps.credentials.outputs.available == 'true'
+        shell: bash
         run: |
-          mkdir -p /tmp/pass4-routing
+          LIMIT="${{ inputs.limit }}"
+          MIN_SINGLE="${{ inputs.min_single_pass_cases }}"
+          if [ -z "$LIMIT" ]; then LIMIT=0; fi
+          if [ -z "$MIN_SINGLE" ]; then MIN_SINGLE=2; fi
           python -m jobs.run_routing_quality_benchmark \
             --case-set benchmarks/pass4_routing_case_set.json \
-            --limit "${{ inputs.limit }}" \
-            --min-single-pass-cases "${{ inputs.min_single_pass_cases }}" \
+            --limit "$LIMIT" \
+            --min-single-pass-cases "$MIN_SINGLE" \
             --output /tmp/pass4-routing/routing-quality-results.json \
             | tee /tmp/pass4-routing/routing-quality.log
 
