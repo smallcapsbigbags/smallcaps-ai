@@ -94,9 +94,8 @@ jobs:
 
           def wait_daily(page):
               page.get_by_role('heading', name='THE AIM DAILY', exact=True).wait_for(timeout=30000)
-              page.wait_for_function(
-                  "document.getElementById('edition-summary').textContent.includes('full analyses')",
-                  timeout=30000,
+              expect(page.locator('#edition-summary')).to_contain_text(
+                  'full analyses', timeout=30000
               )
               page.locator('article[data-story-key]').first.wait_for(timeout=30000)
 
