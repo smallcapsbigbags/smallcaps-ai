@@ -123,7 +123,7 @@ jobs:
               desktop = browser.new_context(viewport={'width': 1440, 'height': 1000})
               page = desktop.new_page()
               page.goto(f'{base}/rns', wait_until='domcontentloaded')
-              page.get_by_role('heading', name='AIM RNS feed', exact=True).wait_for(timeout=30000)
+              page.get_by_role('heading', name='Facts. No fluff.', exact=True).wait_for(timeout=30000)
               company_link = page.locator('a.company-research-link[href="/company/SPR"]').first
               company_link.wait_for(timeout=30000)
               company_link.click()
