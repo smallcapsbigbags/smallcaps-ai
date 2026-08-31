@@ -11,6 +11,7 @@ def test_feed_uses_facts_no_fluff_company_news_language() -> None:
     assert "Every material AIM announcement, reduced to what changed." in html
     assert 'id="filter-panel"' in html and 'hidden' in html
     assert '/assets/news.css' in html
+    assert '/assets/news-detail.css' in html
     assert "COMPANY / RNS / SIGNAL" not in html
     assert "AI VIEW" not in html
     assert "GROUP BY COMPANY" not in html
@@ -46,7 +47,7 @@ def test_key_news_and_take_limits_are_code_locked() -> None:
     assert 'AMBER: "Mixed"' in js
     assert 'RED: "Negative"' in js
     assert '"NO COLOUR": "Neutral"' in js
-    assert "compactWords(row.ai_view || row.what_changed, 45)" in js
+    assert "compactWords(row.takeaway || row.ai_view || row.what_changed, 45)" in js
     assert "Show key news only" in js
     assert "other update" in js
     assert "PRICE PENDING" in js
