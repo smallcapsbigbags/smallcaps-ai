@@ -74,7 +74,7 @@ def test_the_aim_daily_keeps_its_editorial_identity_but_uses_product_vocabulary(
 
     assert "THE AIM DAILY" in html
     assert "AIM NEWSROOM" in html
-    assert 'href="/rns">COMPANY NEWS</a>' in html
+    assert 'href="/rns">NEWS</a>' in html
     assert 'href="/rns?watchlist=1">WATCHLIST</a>' in html
     assert "VIEW ALL COMPANY NEWS →" in html
     assert "OPEN COMPANY NEWS →" in html
