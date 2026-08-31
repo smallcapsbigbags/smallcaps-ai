@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import uuid
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 from functools import lru_cache
 from typing import Any, Callable
 from zoneinfo import ZoneInfo
@@ -18,6 +18,7 @@ from product.newsroom import NEWSROOM_SCHEMA_VERSION, NEWSROOM_VERSION, Newsroom
 from settings import Settings
 
 LONDON = ZoneInfo("Europe/London")
+LATEST_EDITION_LOOKBACK_DAYS = 45
 RepositoryProvider = Callable[[], NewsroomRepository]
 
 
@@ -55,11 +56,20 @@ def create_newsroom_routes(
     async def newsroom(request: Request) -> Response:
         try:
             day, edition_state, cutoff = _parse_query(request)
-            edition = provider().get_edition(
-                day,
-                edition_state=edition_state,
-                cutoff=cutoff,
-            )
+            repository = provider()
+            if _has_explicit_date(request):
+                edition = repository.get_edition(
+                    day,
+                    edition_state=edition_state,
+                    cutoff=cutoff,
+                )
+            else:
+                edition = _latest_populated_edition(
+                    repository,
+                    on_or_before=day,
+                    edition_state=edition_state,
+                    cutoff=cutoff,
+                )
         except ValueError as exc:
             return _client_error("INVALID_QUERY", str(exc), status_code=400)
         except Exception as exc:  # pragma: no cover - production logging path
@@ -70,6 +80,43 @@ def create_newsroom_routes(
         Route("/api/v1/schemas/aim-daily-newsroom", schema, methods=["GET"]),
         Route("/api/v1/aim-daily/newsroom", newsroom, methods=["GET"]),
     ]
+
+
+def _has_explicit_date(request: Request) -> bool:
+    return bool(str(request.query_params.get("date") or "").strip())
+
+
+def _latest_populated_edition(
+    repository: NewsroomRepository,
+    *,
+    on_or_before: date,
+    edition_state: str | None,
+    cutoff: time | None,
+) -> NewsroomEdition:
+    """Resolve the latest day with at least one publication-safe FULL analysis.
+
+    Empty weekends, market holidays and ingestion outages must not turn the home
+    page into a fabricated "quiet" edition. An explicitly requested date still
+    returns that exact date; this fallback is only used for the undated root page.
+    """
+
+    first = repository.get_edition(
+        on_or_before,
+        edition_state=edition_state,
+        cutoff=cutoff,
+    )
+    if first.screened_candidate_count > 0:
+        return first
+
+    for offset in range(1, LATEST_EDITION_LOOKBACK_DAYS + 1):
+        candidate = repository.get_edition(
+            on_or_before - timedelta(days=offset),
+            edition_state=edition_state,
+            cutoff=cutoff,
+        )
+        if candidate.screened_candidate_count > 0:
+            return candidate
+    return first
 
 
 def _parse_query(request: Request) -> tuple[date, str | None, time | None]:
