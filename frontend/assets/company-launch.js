@@ -150,6 +150,10 @@
       if (SIGNAL_LABELS[current]) setText(node, SIGNAL_LABELS[current]);
     });
 
+    root.querySelectorAll(".company-stat-label").forEach((node) => {
+      if (clean(node.textContent).toUpperCase() === "IMPACT") setText(node, "MATERIALITY");
+    });
+
     root.querySelectorAll(".company-stat-value, .company-history-row small").forEach((node) => {
       const current = clean(node.textContent);
       const next = current
