@@ -102,11 +102,12 @@ jobs:
           def assert_daily(page, *, mobile=False):
               wait_daily(page)
               body = page.locator('body').inner_text()
-              for required in ('THE AIM DAILY', 'NEWS', 'THE VIEW', 'THE REST OF AIM', 'RNS MONITOR'):
+              for required in ('THE AIM DAILY', 'NEWS', 'THE VIEW', 'THE REST OF AIM', 'COMPANY NEWS', 'WATCHLIST'):
                   if required not in body:
                       raise AssertionError(f'Missing publication element: {required}')
-              if 'AI VIEW' in body:
-                  raise AssertionError('Customer-facing AIM Daily still says AI VIEW')
+              for retired in ('AI VIEW', 'RNS MONITOR'):
+                  if retired in body:
+                      raise AssertionError(f'Customer-facing AIM Daily still says {retired}')
               if payload.get('lead') is not None:
                   page.get_by_text('THE LEAD', exact=True).wait_for(timeout=30000)
               if payload.get('also_matters'):
