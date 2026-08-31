@@ -36,6 +36,7 @@ jobs:
           pip install -r requirements.txt
           pip install playwright==1.55.0
           python -m playwright install --with-deps chromium
+          node --check frontend/assets/research.js
 
       - name: Seed deterministic monitoring data
         run: |
@@ -56,71 +57,105 @@ jobs:
           cat /tmp/scbb-pass3-audit/web.log
           exit 1
 
-      - name: Capture and validate monitoring-sheet journey
+      - name: Capture and validate Facts No Fluff feed
         run: |
           python - <<'PY'
           from pathlib import Path
-          from playwright.sync_api import sync_playwright
+          from playwright.sync_api import expect, sync_playwright
 
           out = Path('/tmp/scbb-pass3-audit')
           url = 'http://127.0.0.1:8501/rns'
-          columns = (
-              'COMPANY / RNS / SIGNAL', 'WHAT CHANGED', 'AI VIEW', 'OUTLOOK',
-              'MARKET REACTION', 'BALANCE SHEET', 'IMPACT',
-          )
-          controls = ('UNIVERSE', 'COMPANY', 'RNS TYPE', 'SIGNAL', 'IMPACT', 'SORT', 'IMPACT 3+', 'GROUP BY COMPANY', 'RESET')
-
-          def wait_sheet(page):
-              page.get_by_role('heading', name='AIM RNS feed', exact=True).wait_for(timeout=30000)
-              page.locator('article.monitor-row').first.wait_for(timeout=30000)
-              page.wait_for_function("document.getElementById('feed-count').textContent.includes('announcements')", timeout=30000)
 
           def no_overflow(page):
-              dims = page.evaluate("() => ({client: document.documentElement.clientWidth, scroll: document.documentElement.scrollWidth, body: document.body.scrollWidth})")
+              dims = page.evaluate(
+                  """
+                  () => ({
+                    client: document.documentElement.clientWidth,
+                    scroll: document.documentElement.scrollWidth,
+                    body: document.body.scrollWidth,
+                  })
+                  """
+              )
               if dims['scroll'] > dims['client'] + 2 or dims['body'] > dims['client'] + 2:
                   raise AssertionError(f'Document clips horizontally: {dims}')
 
-          def assert_contract(page, mobile=False):
-              wait_sheet(page)
-              text = page.locator('body').inner_text()
-              for label in controls:
-                  if label not in text: raise AssertionError(f'Missing monitoring control: {label}')
-              if not mobile:
-                  header = page.locator('.sheet-header').inner_text()
-                  for label in columns:
-                      if label not in header: raise AssertionError(f'Missing monitoring column: {label}')
-              rows = page.locator('article.monitor-row')
-              if rows.count() < 5: raise AssertionError(f'Expected at least five rows, got {rows.count()}')
-              first = rows.first
-              if first.locator('.impact-dot').count() != 5: raise AssertionError('Impact scale is malformed')
-              if len(first.locator('.ai-view-cell .cell-copy').inner_text().strip().split()) > 50:
-                  raise AssertionError('Compact AI View exceeds 50 words')
-              first.locator('button.row-toggle').click()
-              first.get_by_text('FULL ANALYST NOTE', exact=True).wait_for(timeout=30000)
-              first.get_by_role('link', name='ORIGINAL RNS ↗', exact=True).wait_for(timeout=30000)
+          def wait_feed(page):
+              page.get_by_role('heading', name='Facts. No fluff.', exact=True).wait_for(timeout=30000)
+              page.locator('article.monitor-row').first.wait_for(timeout=30000)
+              expect(page.locator('#feed-mode')).to_have_text('Key News')
+
+          def assert_key_news(page, *, mobile=False):
+              wait_feed(page)
+              expect(page.locator('article.monitor-row')).to_have_count(5)
+              expect(page.locator('#material-toggle')).to_have_text('Show 1 other update')
+              expect(page.locator('#filter-panel')).to_be_hidden()
+              first = page.locator('article.monitor-row').first
+              expect(first.locator('.impact-dot')).to_have_count(5)
+              expect(first.locator('.signal-pill')).to_have_count(1)
+              expect(first.locator('.news-headline')).not_to_be_empty()
+              words = first.locator('.news-take').inner_text().strip().split()
+              if len(words) > 45:
+                  raise AssertionError(f'Feed take exceeds 45 words: {len(words)}')
+              if mobile:
+                  columns = first.locator('.news-row-head').evaluate('(el) => getComputedStyle(el).gridTemplateColumns')
+                  if ' ' in columns.strip():
+                      raise AssertionError(f'Mobile news row did not collapse: {columns}')
 
           with sync_playwright() as p:
               browser = p.chromium.launch()
+
               desktop = browser.new_context(viewport={'width': 1440, 'height': 1000})
               page = desktop.new_page()
               page.goto(url, wait_until='domcontentloaded')
-              assert_contract(page)
+              assert_key_news(page)
               no_overflow(page)
-              computed = page.evaluate("() => ({background: getComputedStyle(document.body).backgroundColor, accent: getComputedStyle(document.querySelector('h1 span')).color, radius: getComputedStyle(document.querySelector('.filter-shell')).borderRadius})")
-              if computed['background'] != 'rgb(3, 8, 13)' or computed['accent'] != 'rgb(70, 215, 255)' or computed['radius'] not in {'0px', '0'}:
-                  raise AssertionError(f'SCBB visual contract drifted: {computed}')
-              page.screenshot(path=out / '01-scbb-monitoring-desktop.png', full_page=True)
+
+              computed = page.evaluate(
+                  """
+                  () => ({
+                    background: getComputedStyle(document.body).backgroundColor,
+                    surface: getComputedStyle(document.querySelector('article.monitor-row')).backgroundColor,
+                    accent: getComputedStyle(document.querySelector('.wordmark strong')).color,
+                    radius: getComputedStyle(document.querySelector('article.monitor-row')).borderRadius,
+                  })
+                  """
+              )
+              if computed['background'] != 'rgb(245, 246, 248)':
+                  raise AssertionError(f'Wrong light page background: {computed}')
+              if computed['surface'] != 'rgb(255, 255, 255)':
+                  raise AssertionError(f'News row is not white: {computed}')
+              if computed['accent'] != 'rgb(37, 99, 235)':
+                  raise AssertionError(f'Wrong Smallcaps.ai blue: {computed}')
+              if computed['radius'] not in {'9px', '9'}:
+                  raise AssertionError(f'News row radius drifted: {computed}')
+
+              page.locator('#filters-toggle').click()
+              expect(page.locator('#filter-panel')).to_be_visible()
+              for label in ('Company', 'News type', 'Signal', 'Materiality', 'Sort'):
+                  page.get_by_text(label, exact=True).first.wait_for(timeout=30000)
+              page.locator('#filters-toggle').click()
+
+              page.locator('#material-toggle').click()
+              expect(page.locator('#feed-mode')).to_have_text('All News')
+              expect(page.locator('article.monitor-row')).to_have_count(6)
+              expect(page.locator('#material-toggle')).to_have_text('Show key news only')
+
+              first = page.locator('article.monitor-row').first
+              first.locator('button.row-toggle').click()
+              first.get_by_text('COMPANY NEWS DETAIL', exact=True).wait_for(timeout=30000)
+              first.get_by_text('MATERIAL FACTS', exact=True).wait_for(timeout=30000)
+              first.get_by_role('link', name='SOURCE ↗', exact=True).wait_for(timeout=30000)
+              page.screenshot(path=out / '01-facts-no-fluff-desktop.png', full_page=True)
               desktop.close()
 
               mobile = browser.new_context(viewport={'width': 390, 'height': 844}, device_scale_factor=1, is_mobile=True)
               page = mobile.new_page()
               page.goto(url, wait_until='domcontentloaded')
-              assert_contract(page, mobile=True)
+              assert_key_news(page, mobile=True)
               no_overflow(page)
-              columns_value = page.locator('article.monitor-row .monitor-row-grid').first.evaluate('(el) => getComputedStyle(el).gridTemplateColumns')
-              if ' ' in columns_value.strip(): raise AssertionError(f'Mobile monitoring row did not collapse: {columns_value}')
-              page.screenshot(path=out / '02-scbb-monitoring-mobile.png', full_page=True)
+              page.screenshot(path=out / '02-facts-no-fluff-mobile.png', full_page=True)
               mobile.close()
+
               browser.close()
           PY
 
@@ -131,11 +166,11 @@ jobs:
             exit 1
           fi
 
-      - name: Upload Pass 3 visual audit
+      - name: Upload feed visual audit
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: smallcaps-scbb-pass3-visual-audit
+          name: smallcaps-facts-no-fluff-feed-audit
           path: /tmp/scbb-pass3-audit
           if-no-files-found: error
           retention-days: 90

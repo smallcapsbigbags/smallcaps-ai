@@ -3,22 +3,22 @@
 
   const PAGE_SIZE = 50;
   const API_LIMIT = 250;
+  const KEY_NEWS_THRESHOLD = 3;
   const LONDON = "Europe/London";
   const MONITORING_SCHEMA = "scbb-monitoring-v1";
-  const IMPACT_NAMES = {
-    1: "ROUTINE",
-    2: "MINOR",
-    3: "MATERIAL",
-    4: "HIGH",
-    5: "CRITICAL",
+  const SIGNAL_LABELS = {
+    GREEN: "Positive",
+    AMBER: "Mixed",
+    RED: "Negative",
+    "NO COLOUR": "Neutral",
   };
 
   const state = {
     rows: [],
     filtered: [],
+    visible: [],
     page: 0,
-    materialOnly: false,
-    groupByCompany: false,
+    showAll: false,
     activeDate: "",
     requestedDate: "",
     journeyOpen: "",
@@ -46,15 +46,16 @@
         : await loadLatestMarketDay();
       state.rows = result.items;
       state.activeDate = result.date;
-      document.body.dataset.marketDayMode = request.date ? "requested" : "latest";
 
       if (state.journeyOpen && state.rows.some((row) => row.source_id === state.journeyOpen)) {
         state.expanded.add(state.journeyOpen);
+        const journeyRow = state.rows.find((row) => row.source_id === state.journeyOpen);
+        if (Number(journeyRow?.impact?.score || 0) < KEY_NEWS_THRESHOLD) state.showAll = true;
       }
 
       populateFilterOptions();
-      applyFilters();
       controls.activeDay.textContent = formatLongDate(result.date);
+      applyFilters();
     } catch (error) {
       renderError(error);
     }
@@ -63,9 +64,11 @@
   function cacheControls() {
     controls.rows = document.getElementById("sheet-rows");
     controls.feedCount = document.getElementById("feed-count");
+    controls.feedMode = document.getElementById("feed-mode");
     controls.activeDay = document.getElementById("active-day");
     controls.resultStatus = document.getElementById("result-status");
     controls.pageStatus = document.getElementById("page-status");
+    controls.pagination = document.querySelector(".pagination");
     controls.previous = document.getElementById("previous-page");
     controls.next = document.getElementById("next-page");
     controls.search = document.getElementById("search-filter");
@@ -75,8 +78,10 @@
     controls.impact = document.getElementById("impact-filter");
     controls.sort = document.getElementById("sort-filter");
     controls.material = document.getElementById("material-toggle");
-    controls.group = document.getElementById("group-toggle");
     controls.reset = document.getElementById("reset-filters");
+    controls.filtersToggle = document.getElementById("filters-toggle");
+    controls.filterPanel = document.getElementById("filter-panel");
+    controls.filterCount = document.getElementById("filter-count");
   }
 
   function bindControls() {
@@ -90,25 +95,19 @@
     controls.company.addEventListener("change", reapply);
     controls.type.addEventListener("change", reapply);
     controls.signal.addEventListener("change", reapply);
-    controls.impact.addEventListener("change", () => {
-      state.materialOnly = false;
-      controls.material.setAttribute("aria-pressed", "false");
-      reapply();
-    });
+    controls.impact.addEventListener("change", reapply);
     controls.sort.addEventListener("change", reapply);
 
-    controls.material.addEventListener("click", () => {
-      state.materialOnly = !state.materialOnly;
-      controls.material.setAttribute("aria-pressed", String(state.materialOnly));
-      state.page = 0;
-      clearJourneyOpen();
-      applyFilters();
+    controls.filtersToggle.addEventListener("click", () => {
+      const opening = controls.filterPanel.hidden;
+      controls.filterPanel.hidden = !opening;
+      controls.filtersToggle.setAttribute("aria-expanded", String(opening));
     });
 
-    controls.group.addEventListener("click", () => {
-      state.groupByCompany = !state.groupByCompany;
-      controls.group.setAttribute("aria-pressed", String(state.groupByCompany));
+    controls.material.addEventListener("click", () => {
+      state.showAll = !state.showAll;
       state.page = 0;
+      controls.material.setAttribute("aria-pressed", String(state.showAll));
       clearJourneyOpen();
       applyFilters();
     });
@@ -120,11 +119,9 @@
       controls.signal.value = "";
       controls.impact.value = "0";
       controls.sort.value = "latest";
-      state.materialOnly = false;
-      state.groupByCompany = false;
-      controls.material.setAttribute("aria-pressed", "false");
-      controls.group.setAttribute("aria-pressed", "false");
+      state.showAll = false;
       state.page = 0;
+      controls.material.setAttribute("aria-pressed", "false");
       clearJourneyOpen();
       applyFilters();
     });
@@ -138,7 +135,7 @@
     });
 
     controls.next.addEventListener("click", () => {
-      const pages = Math.max(1, Math.ceil(state.filtered.length / PAGE_SIZE));
+      const pages = Math.max(1, Math.ceil(state.visible.length / PAGE_SIZE));
       if (state.page < pages - 1) {
         state.page += 1;
         renderRows();
@@ -159,10 +156,7 @@
 
   async function loadMarketDay(date) {
     const payload = await fetchPage({ date });
-    return {
-      date,
-      items: Array.isArray(payload.items) ? payload.items : [],
-    };
+    return { date, items: Array.isArray(payload.items) ? payload.items : [] };
   }
 
   async function loadLatestMarketDay() {
@@ -175,9 +169,7 @@
     const from = addDays(today, -31);
     const recent = await fetchPage({ date_from: from, date_to: today });
     const items = Array.isArray(recent.items) ? recent.items : [];
-    if (!items.length) {
-      return { date: today, items: [] };
-    }
+    if (!items.length) return { date: today, items: [] };
 
     const latest = items
       .map((item) => londonDateKey(new Date(item.published_at)))
@@ -185,9 +177,7 @@
       .at(-1);
     return {
       date: latest,
-      items: items.filter(
-        (item) => londonDateKey(new Date(item.published_at)) === latest,
-      ),
+      items: items.filter((item) => londonDateKey(new Date(item.published_at)) === latest),
     };
   }
 
@@ -200,11 +190,10 @@
     });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
-      const message = payload?.error?.message || "Monitoring data is unavailable.";
-      throw new Error(message);
+      throw new Error(payload?.error?.message || "Company news is unavailable.");
     }
     if (payload.schema_version !== MONITORING_SCHEMA) {
-      throw new Error("The monitoring-sheet data contract is incompatible.");
+      throw new Error("The company-news data contract is incompatible.");
     }
     return payload;
   }
@@ -219,18 +208,15 @@
     const types = [...new Set(state.rows.map((row) => clean(row.rns_type)).filter(Boolean))]
       .sort((a, b) => a.localeCompare(b))
       .map((value) => ({ value, label: value }));
-
-    fillSelect(controls.company, companies, "ALL COMPANIES");
-    fillSelect(controls.type, types, "ALL TYPES");
+    fillSelect(controls.company, companies, "All companies");
+    fillSelect(controls.type, types, "All types");
   }
 
   function fillSelect(select, options, firstLabel) {
     const current = select.value;
     select.replaceChildren(new Option(firstLabel, ""));
     options.forEach((item) => select.add(new Option(item.label, item.value)));
-    if ([...select.options].some((option) => option.value === current)) {
-      select.value = current;
-    }
+    if ([...select.options].some((option) => option.value === current)) select.value = current;
   }
 
   function applyFilters() {
@@ -238,8 +224,7 @@
     const ticker = controls.company.value;
     const type = controls.type.value;
     const signal = controls.signal.value;
-    const selectedImpact = Number(controls.impact.value || 0);
-    const minimumImpact = state.materialOnly ? Math.max(3, selectedImpact) : selectedImpact;
+    const minimumImpact = Number(controls.impact.value || 0);
 
     let rows = state.rows.filter((row) => {
       if (ticker && row.ticker !== ticker) return false;
@@ -255,212 +240,185 @@
           row.what_changed,
           row.ai_view,
           row.outlook,
-        ]
-          .join(" ")
-          .toLowerCase();
+        ].join(" ").toLowerCase();
         if (!haystack.includes(search)) return false;
       }
       return true;
     });
 
-    const sort = state.groupByCompany ? "company" : controls.sort.value;
-    rows = [...rows].sort((a, b) => compareRows(a, b, sort));
+    rows = [...rows].sort((a, b) => compareRows(a, b, controls.sort.value));
     state.filtered = rows;
 
+    const keyRows = rows.filter((row) => Number(row.impact?.score || 0) >= KEY_NEWS_THRESHOLD);
+    const requested = state.journeyOpen
+      ? rows.find((row) => row.source_id === state.journeyOpen)
+      : null;
+    if (requested && Number(requested.impact?.score || 0) < KEY_NEWS_THRESHOLD) state.showAll = true;
+    state.visible = state.showAll ? rows : keyRows;
+
     if (state.journeyOpen) {
-      const requestedIndex = rows.findIndex((row) => row.source_id === state.journeyOpen);
-      if (requestedIndex >= 0) {
-        state.page = Math.floor(requestedIndex / PAGE_SIZE);
-      }
+      const requestedIndex = state.visible.findIndex((row) => row.source_id === state.journeyOpen);
+      if (requestedIndex >= 0) state.page = Math.floor(requestedIndex / PAGE_SIZE);
     }
 
-    const maxPage = Math.max(0, Math.ceil(rows.length / PAGE_SIZE) - 1);
+    const maxPage = Math.max(0, Math.ceil(state.visible.length / PAGE_SIZE) - 1);
     state.page = Math.min(state.page, maxPage);
     renderRows();
-    updateSummary();
+    updateSummary(keyRows.length);
+    updateFilterCount();
 
-    if (state.pendingReveal) {
-      window.requestAnimationFrame(revealJourneyRow);
-    }
+    if (state.pendingReveal) window.requestAnimationFrame(revealJourneyRow);
   }
 
   function compareRows(a, b, sort) {
     if (sort === "impact") {
-      return (
-        Number(b.impact?.score || 0) - Number(a.impact?.score || 0) ||
-        new Date(b.published_at) - new Date(a.published_at)
-      );
+      return Number(b.impact?.score || 0) - Number(a.impact?.score || 0)
+        || new Date(b.published_at) - new Date(a.published_at);
     }
     if (sort === "company") {
-      return (
-        clean(a.company).localeCompare(clean(b.company)) ||
-        new Date(b.published_at) - new Date(a.published_at)
-      );
+      return clean(a.company).localeCompare(clean(b.company))
+        || new Date(b.published_at) - new Date(a.published_at);
     }
-    return (
-      new Date(b.published_at) - new Date(a.published_at) ||
-      Number(b.impact?.score || 0) - Number(a.impact?.score || 0)
-    );
+    return new Date(b.published_at) - new Date(a.published_at)
+      || Number(b.impact?.score || 0) - Number(a.impact?.score || 0);
   }
 
-  function updateSummary() {
-    const companyCount = new Set(state.rows.map((row) => row.ticker)).size;
-    controls.feedCount.textContent = `${state.rows.length} announcements · ${companyCount} companies`;
+  function updateSummary(keyCount) {
+    const otherCount = Math.max(0, state.filtered.length - keyCount);
+    controls.feedMode.textContent = state.showAll ? "All News" : "Key News";
+    controls.feedCount.textContent = state.showAll
+      ? `${state.filtered.length} updates · ${keyCount} key`
+      : `${keyCount} material · ${state.filtered.length} updates`;
 
     if (state.journeyOpen && !state.rows.some((row) => row.source_id === state.journeyOpen)) {
-      controls.resultStatus.textContent = "The requested announcement is not available on this market day";
-      return;
+      controls.resultStatus.textContent = "Requested announcement is not available on this market day";
+    } else {
+      controls.resultStatus.textContent = `${state.visible.length} shown`;
     }
-    controls.resultStatus.textContent = `${state.filtered.length} of ${state.rows.length} announcements shown`;
+
+    controls.material.hidden = otherCount === 0;
+    controls.material.setAttribute("aria-pressed", String(state.showAll));
+    controls.material.textContent = state.showAll
+      ? "Show key news only"
+      : `Show ${otherCount} other update${otherCount === 1 ? "" : "s"}`;
+  }
+
+  function updateFilterCount() {
+    const count = [
+      controls.company.value,
+      controls.type.value,
+      controls.signal.value,
+      controls.impact.value !== "0" ? controls.impact.value : "",
+      controls.sort.value !== "latest" ? controls.sort.value : "",
+    ].filter(Boolean).length;
+    controls.filterCount.hidden = count === 0;
+    controls.filterCount.textContent = String(count);
   }
 
   function renderRows() {
     controls.rows.replaceChildren();
-    if (!state.filtered.length) {
+    if (!state.visible.length) {
       controls.rows.append(emptyState());
       updatePagination();
       return;
     }
 
     const start = state.page * PAGE_SIZE;
-    const pageRows = state.filtered.slice(start, start + PAGE_SIZE);
-    pageRows.forEach((row) => controls.rows.append(buildRow(row)));
+    state.visible.slice(start, start + PAGE_SIZE).forEach((row) => controls.rows.append(buildRow(row)));
     updatePagination();
   }
 
   function buildRow(row) {
     const article = element("article", "monitor-row");
     article.dataset.sourceId = row.source_id;
+    article.dataset.signal = row.signal || "NO COLOUR";
     article.dataset.expanded = String(state.expanded.has(row.source_id));
 
-    const grid = element("div", "monitor-row-grid");
-    grid.append(
-      buildCompanyCell(row),
-      buildTextCell("what-changed-cell", row.what_changed),
-      buildTextCell("ai-view-cell", row.ai_view),
-      buildOutlookCell(row),
-      buildMarketCell(row),
-      buildBalanceSheetCell(row),
-      buildImpactCell(row),
+    const head = element("div", "news-row-head");
+    const companyLink = element("a", "company-research-link");
+    companyLink.href = `/company/${encodeURIComponent(row.ticker)}`;
+    companyLink.setAttribute("aria-label", `Open ${row.ticker} company research`);
+    companyLink.append(
+      element("span", "ticker", row.ticker),
+      element("span", "company-name", row.company),
     );
-    article.append(grid);
 
-    const detail = element("div", "expanded-research");
-    detail.id = detailId(row.source_id);
-    detail.hidden = !state.expanded.has(row.source_id);
-    article.append(detail);
+    const meta = element("div", "news-meta");
+    meta.append(
+      buildImpactScale(row),
+      element("span", `signal-pill signal-${slug(row.signal)}`, SIGNAL_LABELS[row.signal] || "Neutral"),
+      element("span", "type-pill", clean(row.rns_type) || "Company news"),
+      element("span", "news-time", formatTime(row.published_at)),
+    );
+    head.append(companyLink, meta);
 
-    if (state.expanded.has(row.source_id)) {
-      void ensureDetail(row, detail);
-    }
-    return article;
-  }
-
-  function buildCompanyCell(row) {
-    const cell = element("div", "monitor-cell company-cell");
     const toggle = element("button", "row-toggle");
     toggle.type = "button";
     toggle.setAttribute("aria-expanded", String(state.expanded.has(row.source_id)));
     toggle.setAttribute("aria-controls", detailId(row.source_id));
     toggle.setAttribute(
       "aria-label",
-      `${state.expanded.has(row.source_id) ? "Collapse" : "Expand"} ${row.ticker} ${row.rns_title}`,
+      `${state.expanded.has(row.source_id) ? "Collapse" : "Open"} ${row.ticker}: ${row.rns_title}`,
     );
-    toggle.append(chevron());
-    toggle.addEventListener("click", () => toggleRow(row, cell.closest("article")));
+    toggle.append(
+      element("h2", "news-headline", clean(row.rns_title) || "Company update"),
+      element("p", "news-take", compactWords(row.ai_view || row.what_changed, 45)),
+      buildNewsFooter(row),
+    );
+    toggle.addEventListener("click", () => toggleRow(row, article));
 
-    const tickerLine = element("div", "ticker-line");
-    const companyLink = element("a", "company-research-link");
-    companyLink.href = `/company/${encodeURIComponent(row.ticker)}`;
-    companyLink.setAttribute("aria-label", `Open ${row.ticker} Company Intelligence`);
-    companyLink.append(
-      element("span", "ticker", row.ticker),
-      element("span", "company-name", row.company),
-    );
-    tickerLine.append(companyLink);
+    const chevronWrap = element("span", "row-chevron");
+    chevronWrap.append(chevron());
 
-    const title = element("p", "rns-title", row.rns_title);
-    const meta = element(
-      "p",
-      "rns-meta",
-      `${formatTime(row.published_at)} · ${clean(row.rns_type) || "RNS"}`,
-    );
-    const signal = element(
-      "span",
-      `signal signal-${slug(row.signal)}`,
-      row.signal,
-    );
-    cell.append(toggle, tickerLine, title, meta, signal);
-    return cell;
+    const detail = element("div", "expanded-research");
+    detail.id = detailId(row.source_id);
+    detail.hidden = !state.expanded.has(row.source_id);
+
+    article.append(head, toggle, chevronWrap, detail);
+    if (state.expanded.has(row.source_id)) void ensureDetail(row, detail);
+    return article;
   }
 
-  function buildTextCell(className, text) {
-    const cell = element("div", `monitor-cell ${className}`);
-    cell.append(element("p", "cell-copy", clean(text) || "Not disclosed"));
-    return cell;
-  }
-
-  function buildOutlookCell(row) {
-    const cell = element("div", "monitor-cell outlook-cell");
-    const label = element("span", "outlook-label", row.outlook || "N/A");
-    label.dataset.outlook = row.outlook || "N/A";
-    const context = row.outlook === "N/A" ? "No guidance event" : "Guidance status";
-    cell.append(label, element("span", "cell-subline", context));
-    return cell;
-  }
-
-  function buildMarketCell(row) {
-    const cell = element("div", "monitor-cell market-cell");
-    const reaction = row.market_reaction || {};
-    const change = Number(reaction.change_pct);
-    const available = reaction.status === "available" && Number.isFinite(change);
-    const move = element(
-      "span",
-      `market-move ${available ? (change > 0 ? "positive" : change < 0 ? "negative" : "pending") : "pending"}`,
-      available ? `${change > 0 ? "↑" : change < 0 ? "↓" : "→"} ${formatSigned(change)}%` : "—%",
-    );
-    const close = reaction.close_price ?? reaction.latest_price;
-    const context = available && close != null
-      ? `${reaction.phase === "close" ? "RNS-day close" : "Latest"} ${formatPrice(close, reaction.currency)}`
-      : "Pricing pending";
-    cell.append(move, element("span", "cell-subline", context));
-    return cell;
-  }
-
-  function buildBalanceSheetCell(row) {
-    const balance = row.balance_sheet || {};
-    const status = balance.status || "not-disclosed";
-    const cell = element("div", "monitor-cell balance-sheet-cell");
-    cell.dataset.balanceStatus = status;
-    cell.append(element("span", "balance-value", balance.value || "Not disclosed"));
-
-    let context = "Not disclosed";
-    const dated = balance.as_of_date || balance.source_published_at || balance.period;
-    if (status === "current") {
-      context = dated ? `Reported ${formatContextDate(dated)}` : "Reported in this RNS";
-    } else if (status === "carried") {
-      context = dated ? `Last reported ${formatContextDate(dated)}` : "Carried from latest disclosure";
-    }
-    cell.append(element("span", "cell-subline", context));
-    return cell;
-  }
-
-  function buildImpactCell(row) {
+  function buildImpactScale(row) {
     const score = Math.max(1, Math.min(5, Number(row.impact?.score || 1)));
-    const cell = element("div", "monitor-cell impact-cell");
-    const dots = element("div", "impact-dots");
+    const wrap = element("span", "impact-scale");
+    wrap.setAttribute("aria-label", `Materiality ${score} out of 5`);
     for (let index = 1; index <= 5; index += 1) {
-      dots.append(element("i", `impact-dot${index <= score ? " filled" : ""}`));
+      wrap.append(element("i", `impact-dot${index <= score ? " filled" : ""}`));
     }
-    cell.append(
-      dots,
-      element("span", "impact-label", `${score}/5 · ${IMPACT_NAMES[score]}`),
-    );
-    return cell;
+    wrap.append(element("span", "impact-label", `${score}/5`));
+    return wrap;
+  }
+
+  function buildNewsFooter(row) {
+    const footer = element("div", "news-footer");
+    const reaction = row.market_reaction || {};
+    const previous = Number(reaction.previous_close);
+    const change = Number(reaction.change_pct);
+    const hasPrevious = Number.isFinite(previous);
+    const hasChange = reaction.status === "available" && Number.isFinite(change);
+
+    const price = element("span", "price-line");
+    if (hasPrevious) price.append(element("span", "", `PRE ${formatPrice(previous, reaction.currency)}`));
+    if (hasPrevious && hasChange) price.append(element("span", "dot-separator", "·"));
+    if (hasChange) {
+      price.append(element(
+        "span",
+        change > 0 ? "day-positive" : change < 0 ? "day-negative" : "day-flat",
+        `DAY ${formatSigned(change)}%`,
+      ));
+    }
+    if (!hasPrevious && !hasChange) price.append(element("span", "", "PRICE PENDING"));
+    footer.append(price);
+
+    if (row.outlook && row.outlook !== "N/A") {
+      footer.append(element("span", "dot-separator", "·"));
+      footer.append(element("span", "outlook-inline", `GUIDANCE ${clean(row.outlook)}`));
+    }
+    return footer;
   }
 
   function toggleRow(row, article) {
-    if (!article) return;
     const detail = article.querySelector(".expanded-research");
     const button = article.querySelector(".row-toggle");
     const expanding = !state.expanded.has(row.source_id);
@@ -470,7 +428,7 @@
       article.dataset.expanded = "true";
       detail.hidden = false;
       button.setAttribute("aria-expanded", "true");
-      button.setAttribute("aria-label", `Collapse ${row.ticker} ${row.rns_title}`);
+      button.setAttribute("aria-label", `Collapse ${row.ticker}: ${row.rns_title}`);
       writeJourneyUrl(row.source_id);
       void ensureDetail(row, detail);
     } else {
@@ -478,7 +436,7 @@
       article.dataset.expanded = "false";
       detail.hidden = true;
       button.setAttribute("aria-expanded", "false");
-      button.setAttribute("aria-label", `Expand ${row.ticker} ${row.rns_title}`);
+      button.setAttribute("aria-label", `Open ${row.ticker}: ${row.rns_title}`);
       if (state.journeyOpen === row.source_id) {
         state.journeyOpen = "";
         writeJourneyUrl("");
@@ -491,25 +449,19 @@
       renderDetail(state.detailCache.get(row.source_id), container);
       return;
     }
-    container.replaceChildren(element("div", "detail-loading", "Loading full research…"));
+    container.replaceChildren(element("div", "detail-loading", "Loading material facts…"));
     try {
       const response = await fetch(row.detail_url, {
         headers: { Accept: "application/json" },
         credentials: "same-origin",
       });
       const detail = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(detail?.error?.message || "Full research is unavailable.");
-      }
-      if (detail.schema_version !== MONITORING_SCHEMA) {
-        throw new Error("The Analyst Note data contract is incompatible.");
-      }
+      if (!response.ok) throw new Error(detail?.error?.message || "Company news detail is unavailable.");
+      if (detail.schema_version !== MONITORING_SCHEMA) throw new Error("The company-news detail contract is incompatible.");
       state.detailCache.set(row.source_id, detail);
       renderDetail(detail, container);
     } catch (error) {
-      container.replaceChildren(
-        element("div", "detail-error", error.message || "Full research is unavailable."),
-      );
+      container.replaceChildren(element("div", "detail-error", error.message || "Company news detail is unavailable."));
     }
   }
 
@@ -517,19 +469,19 @@
     const research = detail.research || {};
     const inner = element("div", "expanded-inner");
     const top = element("div", "expanded-topline");
-    top.append(element("p", "", "FULL ANALYST NOTE"));
+    top.append(element("p", "", "COMPANY NEWS DETAIL"));
 
     const actions = element("div", "expanded-top-actions");
     const ticker = clean(detail.ticker);
     if (ticker) {
-      const company = element("a", "company-inline-link", "COMPANY RESEARCH →");
+      const company = element("a", "company-inline-link", "COMPANY →");
       company.href = `/company/${encodeURIComponent(ticker)}`;
-      company.setAttribute("aria-label", `Open ${ticker} Company Intelligence`);
+      company.setAttribute("aria-label", `Open ${ticker} company research`);
       actions.append(company);
     }
     const source = safeExternalLink(
       detail.original_source_url || research.provenance?.source_urls?.[0],
-      "ORIGINAL RNS ↗",
+      "SOURCE ↗",
       "source-link",
     );
     if (source) actions.append(source);
@@ -538,9 +490,9 @@
     const grid = element("div", "expanded-grid");
     const first = element("div", "expanded-column");
     first.append(
-      researchBlock("RNS SUMMARY", [
+      researchBlock("TAKE", [
         element("p", "research-verdict", research.verdict || detail.rns_title),
-        element("p", "", research.takeaway || detail.what_changed),
+        element("p", "", compactWords(research.takeaway || detail.ai_view, 45)),
       ]),
       buildFactBlock(research.evidence || []),
     );
@@ -548,9 +500,7 @@
     const second = element("div", "expanded-column");
     second.append(
       buildWhatChangedBlock(research.what_changed || {}),
-      researchBlock("AI VIEW", [
-        element("p", "", research.analyst_view || detail.ai_view),
-      ]),
+      researchBlock("READ-THROUGH", [element("p", "", research.analyst_view || detail.ai_view)]),
       buildListBlock("WHAT TO WATCH", research.watch_items || []),
     );
 
@@ -576,7 +526,7 @@
 
   function buildFactBlock(facts) {
     const usable = facts.filter((fact) => clean(fact.label) || clean(fact.value));
-    if (!usable.length) return buildListBlock("KEY NUMBERS", ["No structured numbers disclosed."]);
+    if (!usable.length) return buildListBlock("MATERIAL FACTS", ["No structured material facts available."]);
     const table = element("table", "fact-table");
     const body = document.createElement("tbody");
     usable.forEach((fact) => {
@@ -596,22 +546,24 @@
       body.append(row);
     });
     table.append(body);
-    return researchBlock("KEY NUMBERS", [table]);
+    return researchBlock("MATERIAL FACTS", [table]);
   }
 
   function buildWhatChangedBlock(change) {
     const stack = element("div", "change-stack");
+    const baseline = change.coverage_status === "building";
     [
-      ["BEFORE", change.before],
-      ["TODAY", change.today],
+      [baseline ? "BASELINE" : "BEFORE", baseline ? change.today : change.before],
+      [baseline ? "" : "TODAY", baseline ? "" : change.today],
       ["READ-THROUGH", change.read_through],
     ].forEach(([label, value]) => {
       if (!clean(value)) return;
       const item = element("div", "change-item");
-      item.append(element("span", "", label), element("strong", "", value));
+      if (label) item.append(element("span", "", label));
+      item.append(element("strong", "", value));
       stack.append(item);
     });
-    return researchBlock("WHAT CHANGED", [stack]);
+    return researchBlock(baseline ? "CURRENT BASELINE" : "WHAT CHANGED", [stack]);
   }
 
   function buildListBlock(title, values) {
@@ -624,21 +576,18 @@
 
   function buildGuidanceBlock(events) {
     if (!events.length) return document.createDocumentFragment();
-    const lines = events.map((event) => {
+    return buildListBlock("GUIDANCE", events.map((event) => {
       const metric = event.metric || "Guidance";
       const period = event.period ? ` · ${event.period}` : "";
       const value = event.value ? `: ${event.value}` : "";
       return `${metric}${period}${value} (${clean(event.status).toUpperCase()})`;
-    });
-    return buildListBlock("OUTLOOK & GUIDANCE", lines);
+    }));
   }
 
   function buildDisclosureBlock(disclosure, provenance) {
     const items = [];
     (disclosure.missing_items || []).forEach((item) => items.push(`Not disclosed: ${item}`));
-    if (disclosure.management_language_mismatch) {
-      items.push(disclosure.management_language_mismatch);
-    }
+    if (disclosure.management_language_mismatch) items.push(disclosure.management_language_mismatch);
     (provenance.source_warnings || []).forEach((warning) => items.push(`Source warning: ${warning}`));
     if (!items.length && disclosure.status === "complete") return document.createDocumentFragment();
     if (!items.length && disclosure.note) items.push(disclosure.note);
@@ -648,29 +597,36 @@
   }
 
   function updatePagination() {
-    const pages = Math.max(1, Math.ceil(state.filtered.length / PAGE_SIZE));
+    const pages = Math.max(1, Math.ceil(state.visible.length / PAGE_SIZE));
     state.page = Math.min(state.page, pages - 1);
+    controls.pagination.hidden = pages <= 1;
     controls.previous.disabled = state.page === 0;
     controls.next.disabled = state.page >= pages - 1;
-    controls.pageStatus.textContent = `PAGE ${state.page + 1} OF ${pages}`;
+    controls.pageStatus.textContent = `Page ${state.page + 1} of ${pages}`;
   }
 
   function emptyState() {
     const block = element("div", "empty-state");
     const wrap = element("div");
+    const hasFilteredOthers = !state.showAll && state.filtered.length > 0;
 
     if (!state.rows.length && state.requestedDate) {
       wrap.append(
-        element("h2", "", `No publishable announcements on ${formatLongDate(state.requestedDate)}.`),
-        element("p", "", "This dated link does not currently resolve to a public monitoring record."),
+        element("h2", "", `No publishable company news on ${formatLongDate(state.requestedDate)}.`),
+        element("p", "", "This dated link does not currently resolve to a public record."),
       );
-      const latest = element("a", "empty-state-action", "RETURN TO LATEST MARKET DAY →");
-      latest.href = "/";
+      const latest = element("a", "empty-state-action", "Return to latest market day →");
+      latest.href = "/rns";
       wrap.append(latest);
+    } else if (hasFilteredOthers) {
+      wrap.append(
+        element("h2", "", "No Key News matches these filters."),
+        element("p", "", "Other lower-materiality updates are available below."),
+      );
     } else {
       wrap.append(
-        element("h2", "", "No announcements match these filters."),
-        element("p", "", "Reset the monitoring controls or broaden the selected signal and impact range."),
+        element("h2", "", "No company news matches these filters."),
+        element("p", "", "Reset the filters or broaden your search."),
       );
     }
     block.append(wrap);
@@ -682,28 +638,25 @@
     const block = element("div", "error-state");
     const wrap = element("div");
     wrap.append(
-      element("h2", "", "Monitoring data is temporarily unavailable."),
+      element("h2", "", "Company news is temporarily unavailable."),
       element("p", "", error?.message || "Please refresh the page shortly."),
     );
     block.append(wrap);
     controls.rows.append(block);
     controls.feedCount.textContent = "Live feed unavailable";
-    controls.resultStatus.textContent = "The publication-safe API could not be loaded";
+    controls.resultStatus.textContent = "Publication-safe data could not be loaded";
   }
 
   function revealJourneyRow() {
     state.pendingReveal = false;
     if (!state.journeyOpen) return;
-    const article = [...controls.rows.querySelectorAll("article.monitor-row")].find(
-      (row) => row.dataset.sourceId === state.journeyOpen,
-    );
+    const article = [...controls.rows.querySelectorAll("article.monitor-row")]
+      .find((row) => row.dataset.sourceId === state.journeyOpen);
     if (!article) return;
-
     article.classList.add("journey-target");
     article.scrollIntoView({ block: "center" });
-    const toggle = article.querySelector(".row-toggle");
-    toggle?.focus({ preventScroll: true });
-    window.setTimeout(() => article.classList.remove("journey-target"), 2200);
+    article.querySelector(".row-toggle")?.focus({ preventScroll: true });
+    window.setTimeout(() => article.classList.remove("journey-target"), 1800);
   }
 
   function clearJourneyOpen() {
@@ -775,6 +728,13 @@
     });
   }
 
+  function compactWords(value, limit) {
+    const text = clean(value);
+    const words = text.split(" ").filter(Boolean);
+    if (words.length <= limit) return text;
+    return `${words.slice(0, limit).join(" ").replace(/[,:;\-]+$/, "")}…`;
+  }
+
   function clean(value) {
     return String(value ?? "").trim().replace(/\s+/g, " ");
   }
@@ -813,7 +773,7 @@
       day: "numeric",
       month: "short",
       year: "numeric",
-    }).format(new Date(`${iso}T12:00:00Z`)).toUpperCase();
+    }).format(new Date(`${iso}T12:00:00Z`));
   }
 
   function formatTime(value) {
@@ -825,18 +785,6 @@
     }).format(new Date(value));
   }
 
-  function formatContextDate(value) {
-    const cleanValue = clean(value);
-    const parsed = new Date(cleanValue.length === 10 ? `${cleanValue}T12:00:00Z` : cleanValue);
-    if (Number.isNaN(parsed.getTime())) return cleanValue.toUpperCase();
-    return new Intl.DateTimeFormat("en-GB", {
-      timeZone: LONDON,
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    }).format(parsed).toUpperCase();
-  }
-
   function formatSigned(value) {
     return `${value > 0 ? "+" : ""}${value.toFixed(1)}`;
   }
@@ -844,7 +792,7 @@
   function formatPrice(value, currency = "GBp") {
     const number = Number(value);
     if (!Number.isFinite(number)) return "—";
-    if (currency === "GBp") return `${number.toFixed(2)}p`;
+    if (currency === "GBp") return `${number.toFixed(number >= 100 ? 1 : 2)}p`;
     return `${currency || ""} ${number.toFixed(2)}`.trim();
   }
 
