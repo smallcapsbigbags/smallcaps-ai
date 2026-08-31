@@ -1,0 +1,71 @@
+name: pass4-routing-quality-audit
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Optional number of locked cases to run; 0 runs all"
+        required: false
+        default: 0
+        type: number
+      min_single_pass_cases:
+        description: "Minimum one-pass cases required to prove call savings"
+        required: false
+        default: 2
+        type: number
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pass4-routing-quality-audit-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  routing-quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      OPENAI_MODEL: gpt-5.4-mini
+      OPENAI_DEEP_MODEL: gpt-5.4
+      OPENAI_MAX_OUTPUT_TOKENS: "12000"
+      INVESTEGATE_AIM_MAX_PAGES: "12"
+      DEEP_SEARCH_BATCH_SIZE: "5"
+      MAX_DOCUMENT_CHARS: "45000"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Require live benchmark credentials
+        run: |
+          if [ -z "$OPENAI_API_KEY" ]; then
+            echo "OPENAI_API_KEY GitHub Actions secret is required for the live Pass 4 benchmark."
+            exit 1
+          fi
+
+      - name: Install application dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run routed versus forced-review benchmark
+        run: |
+          mkdir -p /tmp/pass4-routing
+          python -m jobs.run_routing_quality_benchmark \
+            --case-set benchmarks/pass4_routing_case_set.json \
+            --limit "${{ inputs.limit }}" \
+            --min-single-pass-cases "${{ inputs.min_single_pass_cases }}" \
+            --output /tmp/pass4-routing/routing-quality-results.json \
+            | tee /tmp/pass4-routing/routing-quality.log
+
+      - name: Upload Pass 4 routing evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smallcaps-pass4-routing-quality-audit
+          path: /tmp/pass4-routing
+          if-no-files-found: error
+          retention-days: 90
