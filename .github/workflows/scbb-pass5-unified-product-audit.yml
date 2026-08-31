@@ -106,7 +106,7 @@ jobs:
               page.get_by_text('PRIVATE BETA ACCESS', exact=True).wait_for(timeout=30000)
               expect(page.locator('input[name="next"]')).to_have_value(destination)
               page.get_by_label('ACCESS CODE', exact=True).fill('preview-access')
-              page.get_by_role('button', name='ENTER SMALLCAPS.AI →', exact=True).click()
+              page.get_by_role('button', name='ENTER SMALLCAPS.AI', exact=True).click()
               page.wait_for_url(f'{base}{destination}', timeout=30000)
 
           def wait_feed(page, source_id=None):
