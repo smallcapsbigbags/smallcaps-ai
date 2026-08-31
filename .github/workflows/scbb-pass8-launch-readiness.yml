@@ -105,7 +105,16 @@ jobs:
 
           def assert_nav(page):
               links = page.locator('nav[aria-label="Primary navigation"] a').evaluate_all(
-                  "els => els.map(el => ({text: el.textContent.trim(), href: el.getAttribute('href')}))"
+                  """
+                  els => els.map(el => ({
+                    text: [...el.childNodes]
+                      .filter(node => node.nodeType === Node.TEXT_NODE)
+                      .map(node => node.textContent.trim())
+                      .filter(Boolean)
+                      .join(' '),
+                    href: el.getAttribute('href'),
+                  }))
+                  """
               )
               if links != expected_nav:
                   raise AssertionError(f'Product navigation drifted: {links}')
