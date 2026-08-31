@@ -1,0 +1,107 @@
+/* Pass 7: watchlist is a personal relevance marker, not a new signal colour. */
+
+.watchlist-nav-count {
+  display: inline-grid;
+  min-width: 17px;
+  height: 17px;
+  margin-left: 5px;
+  place-items: center;
+  border-radius: 999px;
+  background: #eef1f4;
+  color: #616a76;
+  font-size: 9px;
+  font-weight: 750;
+  line-height: 1;
+}
+
+.news-company {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 5px;
+}
+
+.watch-toggle {
+  display: inline-grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  padding: 0;
+  background: transparent;
+  color: #b2b8c1;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.watch-toggle:hover {
+  background: #f4f6f8;
+  color: #707986;
+}
+
+.watch-toggle[aria-pressed="true"] {
+  color: var(--blue, #2563eb);
+}
+
+.watch-toggle[aria-pressed="true"]:hover {
+  background: var(--blue-soft, #eef4ff);
+  color: var(--blue, #2563eb);
+}
+
+.monitor-row[data-watched="true"] .ticker {
+  color: var(--text, #141821);
+}
+
+.news-time-watchlist {
+  min-width: 86px;
+}
+
+.watchlist-saved-note {
+  color: var(--muted-light, #a1a8b2);
+}
+
+.company-watch-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  margin-top: 17px;
+  border: 1px solid rgba(255, 255, 255, .17);
+  border-radius: 999px;
+  padding: 0 12px;
+  background: transparent;
+  color: rgba(255, 255, 255, .64);
+  font-size: 10px;
+  font-weight: 760;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.company-watch-toggle:hover {
+  border-color: rgba(255, 255, 255, .32);
+  color: #fff;
+}
+
+.company-watch-toggle[aria-pressed="true"] {
+  border-color: var(--cyan, #46d7ff);
+  color: var(--cyan, #46d7ff);
+}
+
+@media (max-width: 680px) {
+  .watchlist-nav-count {
+    display: none;
+  }
+
+  .watch-toggle {
+    width: 40px;
+    height: 40px;
+    flex-basis: 40px;
+    margin: -5px 0 -5px -5px;
+  }
+
+  .news-time-watchlist {
+    min-width: 0;
+  }
+}
