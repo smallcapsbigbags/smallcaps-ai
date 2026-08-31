@@ -7,6 +7,7 @@ ROOT = Path(__file__).resolve().parents[1]
 def test_the_aim_daily_uses_the_shared_light_product_shell() -> None:
     html = (ROOT / "frontend" / "daily.html").read_text(encoding="utf-8")
     css = (ROOT / "frontend" / "assets" / "daily.css").read_text(encoding="utf-8")
+    compact_css = "".join(css.split())
 
     assert '<meta name="theme-color" content="#f5f6f8">' in html
     assert html.index('/assets/research.css') < html.index('/assets/news.css')
@@ -23,17 +24,17 @@ def test_the_aim_daily_uses_the_shared_light_product_shell() -> None:
         assert retired_dark_token not in html
         assert retired_dark_token not in css
 
-    assert "width:min(var(--content),calc(100% - 40px))" in css
-    assert "background:var(--page)" in css
-    assert "background:var(--surface)" in css
-    assert "color:var(--blue)" in css
-    assert "border-radius:var(--daily-card-radius)" in css
+    assert "width:min(var(--content),calc(100%-40px))" in compact_css
+    assert "background:var(--page)" in compact_css
+    assert "background:var(--surface)" in compact_css
+    assert "color:var(--blue)" in compact_css
+    assert "border-radius:var(--daily-card-radius)" in compact_css
     assert ".daily-summary-strip" in css
     assert ".lead-layout" in css
     assert ".also-story" in css
     assert ".quick-list" in css
-    assert "min-height:48px" in css
-    assert "@media (prefers-reduced-motion:reduce)" in css
+    assert "min-height:48px" in compact_css
+    assert "@media(prefers-reduced-motion:reduce)" in compact_css
 
 
 def test_the_aim_daily_retains_its_editorial_and_runtime_contract() -> None:
