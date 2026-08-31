@@ -1,500 +1,141 @@
-:root {
-  color-scheme: light;
-  --page: #f5f6f8;
-  --surface: #ffffff;
-  --surface-soft: #fafbfc;
-  --line: #e3e6ea;
-  --line-strong: #d2d7dd;
-  --text: #141821;
-  --text-soft: #444c58;
-  --muted: #747d89;
-  --muted-light: #a1a8b2;
-  --blue: #2563eb;
-  --blue-soft: #eef4ff;
-  --green: #15845c;
-  --green-soft: #e9f7f1;
-  --amber: #9a6812;
-  --amber-soft: #fff5dc;
-  --red: #c43d4f;
-  --red-soft: #fff0f2;
-  --grey: #68717d;
-  --grey-soft: #f0f2f4;
-  --font: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-  --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-  --content: 1120px;
-}
+name: scbb-pass3-visual-audit
 
-* { box-sizing: border-box; }
-html { min-width: 320px; background: var(--page); scroll-behavior: smooth; }
-body {
-  margin: 0;
-  min-height: 100vh;
-  overflow-x: hidden;
-  background: var(--page);
-  color: var(--text);
-  font-family: var(--font);
-  font-size: 14px;
-  line-height: 1.45;
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
-}
-button, input, select { font: inherit; }
-button, a, input, select { -webkit-tap-highlight-color: transparent; }
-button, select { cursor: pointer; }
-a { color: inherit; }
-button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible {
-  outline: 2px solid var(--blue);
-  outline-offset: 2px;
-}
-::selection { background: #cbdcff; color: var(--text); }
-[hidden] { display: none !important; }
-.sr-only {
-  position: absolute !important;
-  width: 1px !important;
-  height: 1px !important;
-  padding: 0 !important;
-  margin: -1px !important;
-  overflow: hidden !important;
-  clip: rect(0, 0, 0, 0) !important;
-  white-space: nowrap !important;
-  border: 0 !important;
-}
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
 
-.skip-link {
-  position: fixed;
-  z-index: 500;
-  top: 10px;
-  left: 10px;
-  transform: translateY(-160%);
-  border-radius: 6px;
-  padding: 9px 12px;
-  background: var(--text);
-  color: white;
-  font-size: 12px;
-  font-weight: 700;
-  text-decoration: none;
-}
-.skip-link:focus { transform: translateY(0); }
+permissions:
+  contents: read
 
-.site-header {
-  position: sticky;
-  z-index: 100;
-  top: 0;
-  border-bottom: 1px solid var(--line);
-  background: rgba(255, 255, 255, .94);
-  backdrop-filter: blur(14px);
-}
-.header-inner {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  width: min(var(--content), calc(100% - 40px));
-  min-height: 58px;
-  margin: 0 auto;
-  gap: 28px;
-}
-.wordmark {
-  color: var(--text);
-  font-size: 20px;
-  font-weight: 780;
-  letter-spacing: -.045em;
-  line-height: 1;
-  text-decoration: none;
-}
-.wordmark strong { color: var(--blue); font-weight: inherit; }
-.primary-nav { display: flex; align-items: stretch; gap: 4px; height: 58px; }
-.nav-link {
-  display: inline-flex;
-  align-items: center;
-  position: relative;
-  padding: 0 12px;
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 650;
-  text-decoration: none;
-}
-.nav-link:hover { color: var(--text); }
-.nav-link-active { color: var(--text); }
-.nav-link-active::after {
-  content: "";
-  position: absolute;
-  right: 12px;
-  bottom: -1px;
-  left: 12px;
-  height: 2px;
-  background: var(--blue);
-}
-.header-meta { display: flex; align-items: center; gap: 18px; }
-.header-meta form { margin: 0; }
-.live-status, .text-action {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 650;
-  text-transform: none;
-}
-.live-status i { width: 7px; height: 7px; border-radius: 50%; background: #2aaf79; }
-.text-action { border: 0; padding: 8px 0; background: transparent; }
-.text-action:hover { color: var(--text); }
-.status-compact { display: none; }
+concurrency:
+  group: scbb-pass3-visual-audit-${{ github.ref }}
+  cancel-in-progress: true
 
-.page-shell {
-  width: min(var(--content), calc(100% - 40px));
-  margin: 0 auto;
-  padding: 42px 0 72px;
-}
-.feed-heading {
-  display: flex;
-  align-items: end;
-  justify-content: space-between;
-  gap: 32px;
-  margin-bottom: 24px;
-}
-.eyebrow {
-  margin: 0 0 7px;
-  color: var(--blue);
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: .12em;
-  text-transform: uppercase;
-}
-.feed-heading h1 {
-  margin: 0;
-  color: var(--text);
-  font-size: clamp(31px, 4vw, 46px);
-  font-weight: 760;
-  letter-spacing: -.045em;
-  line-height: 1.02;
-}
-.feed-tagline {
-  margin: 8px 0 0;
-  color: var(--muted);
-  font-size: 14px;
-}
-.market-day { min-width: 150px; padding-bottom: 4px; text-align: right; }
-.market-day span { display: block; margin-bottom: 3px; color: var(--muted-light); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
-.market-day strong { color: var(--text-soft); font-size: 12px; font-weight: 700; letter-spacing: .02em; }
+jobs:
+  monitoring-sheet:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DATABASE_URL: sqlite+pysqlite:///data/scbb-pass3-preview.db
+      PRIVATE_BETA_MODE: "false"
+      APP_BETA_PASSWORD: preview-access
+      APP_ADMIN_PASSWORD: preview-admin
+      MARKET_DATA_ENABLED: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
 
-.feed-toolbar {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: center;
-  min-height: 48px;
-  border: 1px solid var(--line);
-  border-radius: 9px;
-  background: var(--surface);
-  overflow: hidden;
-}
-.search-control {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-  padding: 0 14px;
-}
-.search-control svg { width: 17px; height: 17px; flex: 0 0 auto; fill: none; stroke: var(--muted-light); stroke-width: 1.6; }
-.search-control input {
-  width: 100%;
-  min-height: 46px;
-  border: 0;
-  padding: 0;
-  outline: 0;
-  background: transparent;
-  color: var(--text);
-  font-size: 13px;
-}
-.search-control input::placeholder { color: #9ca3ad; }
-.toolbar-button {
-  min-height: 46px;
-  border: 0;
-  border-left: 1px solid var(--line);
-  padding: 0 16px;
-  background: transparent;
-  color: var(--text-soft);
-  font-size: 12px;
-  font-weight: 700;
-}
-.toolbar-button:hover, .toolbar-button[aria-expanded="true"] { background: var(--surface-soft); color: var(--blue); }
-.filter-count {
-  display: inline-grid;
-  min-width: 18px;
-  height: 18px;
-  margin-left: 5px;
-  place-items: center;
-  border-radius: 9px;
-  background: var(--blue);
-  color: white;
-  font-size: 10px;
-}
-.filter-panel {
-  margin-top: 8px;
-  border: 1px solid var(--line);
-  border-radius: 9px;
-  background: var(--surface);
-}
-.filter-grid {
-  display: grid;
-  grid-template-columns: 1.15fr 1.15fr .9fr .8fr .9fr auto;
-  gap: 0;
-}
-.filter-control { display: flex; flex-direction: column; justify-content: center; min-width: 0; padding: 11px 12px; border-right: 1px solid var(--line); }
-.filter-control span { margin-bottom: 4px; color: var(--muted-light); font-size: 9px; font-weight: 750; letter-spacing: .07em; text-transform: uppercase; }
-.filter-control select { width: 100%; border: 0; padding: 0 14px 0 0; background: transparent; color: var(--text-soft); font-size: 12px; font-weight: 600; outline: 0; }
-.reset-button { border: 0; padding: 0 16px; background: transparent; color: var(--muted); font-size: 11px; font-weight: 700; white-space: nowrap; }
-.reset-button:hover { color: var(--red); background: #fff8f8; }
+      - name: Install application and browser dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install playwright==1.55.0
+          python -m playwright install --with-deps chromium
 
-.feed-summary {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 20px;
-  padding: 22px 2px 10px;
-  color: var(--muted);
-  font-size: 11px;
-}
-.feed-summary > div { display: flex; align-items: baseline; gap: 9px; }
-.feed-summary strong { color: var(--text); font-size: 13px; }
-#feed-count::before { content: "·"; margin-right: 9px; color: var(--line-strong); }
-#result-status { color: var(--muted-light); }
+      - name: Seed deterministic monitoring data
+        run: |
+          rm -f data/scbb-pass3-preview.db
+          python -m jobs.seed_launch_preview
+          python -m jobs.seed_pass1_preview
 
-.monitoring-sheet { width: 100%; }
-.sheet-rows { display: grid; gap: 8px; min-height: 200px; }
-.monitor-row {
-  --signal: var(--grey);
-  position: relative;
-  border: 1px solid var(--line);
-  border-radius: 9px;
-  background: var(--surface);
-  overflow: hidden;
-  transition: border-color .14s ease, background .14s ease;
-}
-.monitor-row::before {
-  content: "";
-  position: absolute;
-  z-index: 2;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  width: 3px;
-  background: var(--signal);
-}
-.monitor-row[data-signal="GREEN"] { --signal: var(--green); }
-.monitor-row[data-signal="AMBER"] { --signal: #d19426; }
-.monitor-row[data-signal="RED"] { --signal: var(--red); }
-.monitor-row[data-signal="NO COLOUR"] { --signal: #9ba3ad; }
-.monitor-row:hover { border-color: #ccd2d9; }
-.monitor-row[data-expanded="true"] { border-color: #c9d2df; }
-.news-row-head {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 18px;
-  min-height: 38px;
-  padding: 9px 16px 0 19px;
-}
-.company-research-link {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  min-width: 0;
-  text-decoration: none;
-}
-.company-research-link:hover .company-name { color: var(--blue); }
-.ticker { flex: 0 0 auto; color: var(--text); font-family: var(--mono); font-size: 12px; font-weight: 800; letter-spacing: .04em; }
-.company-name { overflow: hidden; color: var(--muted); font-size: 11px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
-.news-meta { display: flex; align-items: center; justify-content: flex-end; gap: 8px; min-width: 0; color: var(--muted); font-size: 10px; white-space: nowrap; }
-.signal-pill, .type-pill {
-  display: inline-flex;
-  align-items: center;
-  min-height: 21px;
-  border-radius: 999px;
-  padding: 0 8px;
-  font-size: 9px;
-  font-weight: 750;
-  letter-spacing: .03em;
-  text-transform: uppercase;
-}
-.signal-pill.signal-green { color: var(--green); background: var(--green-soft); }
-.signal-pill.signal-amber { color: var(--amber); background: var(--amber-soft); }
-.signal-pill.signal-red { color: var(--red); background: var(--red-soft); }
-.signal-pill.signal-no-colour { color: var(--grey); background: var(--grey-soft); }
-.type-pill { color: var(--grey); background: #f3f4f6; }
-.news-time { min-width: 34px; text-align: right; font-family: var(--mono); font-size: 9px; color: var(--muted-light); }
-.row-toggle {
-  display: block;
-  width: 100%;
-  border: 0;
-  padding: 7px 42px 13px 19px;
-  background: transparent;
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-.row-toggle:hover .news-headline { color: var(--blue); }
-.news-headline { margin: 0; color: var(--text); font-size: 15px; font-weight: 720; letter-spacing: -.012em; line-height: 1.3; transition: color .12s ease; }
-.news-take { max-width: 940px; margin: 5px 0 0; color: var(--text-soft); font-size: 12.5px; font-weight: 470; line-height: 1.45; }
-.news-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; margin-top: 9px; color: var(--muted); font-size: 10px; }
-.price-line { display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 9.5px; font-weight: 650; }
-.day-positive { color: var(--green); }
-.day-negative { color: var(--red); }
-.day-flat { color: var(--grey); }
-.dot-separator { color: #c4c9cf; }
-.outlook-inline { color: var(--muted); }
-.impact-scale { display: inline-flex; align-items: center; gap: 4px; }
-.impact-dot { display: inline-block; width: 7px; height: 7px; border: 1px solid #abb2bb; border-radius: 50%; background: transparent; }
-.impact-dot.filled { border-color: #525a65; background: #525a65; }
-.impact-label { color: var(--muted); font-size: 9px; font-weight: 650; }
-.row-chevron {
-  position: absolute;
-  right: 16px;
-  bottom: 24px;
-  width: 18px;
-  height: 18px;
-  display: grid;
-  place-items: center;
-  color: var(--muted-light);
-  pointer-events: none;
-}
-.row-chevron svg { width: 10px; height: 10px; transition: transform .16s ease; }
-.monitor-row[data-expanded="true"] .row-chevron svg { transform: rotate(90deg); }
-.journey-target { box-shadow: 0 0 0 3px rgba(37, 99, 235, .12); }
+      - name: Start combined frontend and API
+        shell: bash
+        run: |
+          mkdir -p /tmp/scbb-pass3-audit
+          python -m uvicorn web_app:app --host 127.0.0.1 --port 8501 > /tmp/scbb-pass3-audit/web.log 2>&1 &
+          echo $! > /tmp/scbb-pass3-web.pid
+          for attempt in $(seq 1 90); do
+            if curl --fail --silent http://127.0.0.1:8501/api/v1/health >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/scbb-pass3-audit/web.log
+          exit 1
 
-.other-news-control { display: flex; justify-content: center; padding-top: 16px; }
-.show-other-button {
-  min-height: 38px;
-  border: 1px solid var(--line-strong);
-  border-radius: 7px;
-  padding: 0 15px;
-  background: var(--surface);
-  color: var(--text-soft);
-  font-size: 11px;
-  font-weight: 700;
-}
-.show-other-button:hover { border-color: #b9c0c9; color: var(--blue); }
+      - name: Capture and validate monitoring-sheet journey
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from playwright.sync_api import sync_playwright
 
-.expanded-research { border-top: 1px solid var(--line); background: var(--surface-soft); }
-.expanded-inner { padding: 18px 19px 20px; }
-.expanded-topline { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
-.expanded-topline > p { margin: 0; color: var(--muted-light); font-size: 9px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
-.expanded-top-actions { display: flex; align-items: center; gap: 14px; }
-.company-inline-link, .source-link { color: var(--blue); font-size: 10px; font-weight: 750; text-decoration: none; text-transform: uppercase; letter-spacing: .04em; }
-.company-inline-link:hover, .source-link:hover { text-decoration: underline; }
-.expanded-grid { display: grid; grid-template-columns: 1.05fr 1fr 1fr; gap: 26px; }
-.expanded-column { min-width: 0; }
-.research-block + .research-block { margin-top: 18px; }
-.research-block h3 { margin: 0 0 7px; color: var(--muted-light); font-size: 9px; font-weight: 800; letter-spacing: .075em; text-transform: uppercase; }
-.research-block p { margin: 0; color: var(--text-soft); font-size: 12px; line-height: 1.48; }
-.research-verdict { margin-bottom: 5px !important; color: var(--text) !important; font-size: 13px !important; font-weight: 700; }
-.fact-table { width: 100%; border-collapse: collapse; }
-.fact-table th, .fact-table td { border-top: 1px solid var(--line); padding: 7px 0; text-align: left; vertical-align: top; font-size: 11px; }
-.fact-table th { width: 44%; padding-right: 12px; color: var(--muted); font-weight: 600; }
-.fact-table td { color: var(--text); font-weight: 650; }
-.fact-note { display: block; margin-top: 2px; color: var(--muted); font-size: 9px; font-weight: 450; }
-.change-stack { display: grid; gap: 7px; }
-.change-item { border-left: 2px solid #cbd2da; padding-left: 9px; }
-.change-item span { display: block; margin-bottom: 2px; color: var(--muted-light); font-size: 8px; font-weight: 800; letter-spacing: .06em; }
-.change-item strong { display: block; color: var(--text-soft); font-size: 11px; font-weight: 600; line-height: 1.4; }
-.research-list { margin: 0; padding: 0 0 0 15px; }
-.research-list li { margin: 0 0 5px; color: var(--text-soft); font-size: 11px; line-height: 1.4; }
-.research-warning { border-left: 2px solid #e4b24f; padding-left: 10px; }
-.detail-loading, .detail-error { padding: 18px; color: var(--muted); font-size: 11px; }
-.detail-error { color: var(--red); }
+          out = Path('/tmp/scbb-pass3-audit')
+          url = 'http://127.0.0.1:8501/rns'
+          columns = (
+              'COMPANY / RNS / SIGNAL', 'WHAT CHANGED', 'AI VIEW', 'OUTLOOK',
+              'MARKET REACTION', 'BALANCE SHEET', 'IMPACT',
+          )
+          controls = ('UNIVERSE', 'COMPANY', 'RNS TYPE', 'SIGNAL', 'IMPACT', 'SORT', 'IMPACT 3+', 'GROUP BY COMPANY', 'RESET')
 
-.pagination { display: flex; justify-content: center; align-items: center; gap: 14px; padding-top: 20px; }
-.pagination button { border: 1px solid var(--line); border-radius: 6px; padding: 7px 10px; background: var(--surface); color: var(--text-soft); font-size: 10px; font-weight: 700; }
-.pagination button:disabled { opacity: .4; cursor: default; }
-#page-status { color: var(--muted); font-size: 10px; }
-.loading-state, .empty-state, .error-state { min-height: 150px; border: 1px solid var(--line); border-radius: 9px; padding: 30px; background: var(--surface); }
-.loading-state { display: grid; align-content: center; gap: 10px; }
-.loading-line { width: 58%; height: 10px; border-radius: 5px; background: #edf0f3; animation: pulse 1.3s ease-in-out infinite alternate; }
-.loading-line-wide { width: 82%; }
-.empty-state, .error-state { display: grid; place-items: center; text-align: center; }
-.empty-state h2, .error-state h2 { margin: 0 0 5px; font-size: 16px; }
-.empty-state p, .error-state p { margin: 0; color: var(--muted); font-size: 12px; }
-.empty-state-action { display: inline-block; margin-top: 12px; color: var(--blue); font-size: 10px; font-weight: 750; text-decoration: none; }
-.noscript-message { color: var(--muted); text-align: center; }
-@keyframes pulse { from { opacity: .55; } to { opacity: 1; } }
+          def wait_sheet(page):
+              page.get_by_role('heading', name='AIM RNS feed', exact=True).wait_for(timeout=30000)
+              page.locator('article.monitor-row').first.wait_for(timeout=30000)
+              page.wait_for_function("document.getElementById('feed-count').textContent.includes('announcements')", timeout=30000)
 
-.site-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: min(var(--content), calc(100% - 40px));
-  min-height: 74px;
-  margin: 0 auto;
-  border-top: 1px solid var(--line);
-  color: var(--muted-light);
-  font-size: 10px;
-}
-.site-footer span { color: var(--text-soft); font-weight: 750; }
-.site-footer p { margin: 0; }
+          def no_overflow(page):
+              dims = page.evaluate("() => ({client: document.documentElement.clientWidth, scroll: document.documentElement.scrollWidth, body: document.body.scrollWidth})")
+              if dims['scroll'] > dims['client'] + 2 or dims['body'] > dims['client'] + 2:
+                  raise AssertionError(f'Document clips horizontally: {dims}')
 
-/* Private beta inherits the same light product language. */
-.access-body { background: var(--page); }
-.access-header { position: static; display: flex; align-items: center; justify-content: space-between; min-height: 62px; padding: 0 max(24px, calc((100vw - var(--content)) / 2)); }
-.access-main { display: grid; grid-template-columns: 1.35fr .65fr; gap: 70px; align-items: center; width: min(var(--content), calc(100% - 40px)); min-height: calc(100vh - 63px); margin: 0 auto; padding: 64px 0 90px; }
-.access-copy h1 { margin: 0; color: var(--text); font-size: clamp(50px, 6.4vw, 88px); font-weight: 770; letter-spacing: -.06em; line-height: .94; }
-.access-copy h1 span { color: var(--blue); }
-.access-intro { max-width: 620px; margin: 22px 0 0; color: var(--muted); font-size: 16px; line-height: 1.5; }
-.access-panel { max-width: 380px; width: 100%; justify-self: end; border: 1px solid var(--line); border-radius: 10px; padding: 24px; background: var(--surface); }
-.access-rule { width: 34px; height: 3px; margin-bottom: 20px; border-radius: 2px; background: var(--blue); }
-.access-label { margin: 0 0 20px; color: var(--text); font-size: 11px; font-weight: 800; letter-spacing: .08em; }
-.access-panel form { display: grid; gap: 8px; }
-.access-panel label { color: var(--muted); font-size: 9px; font-weight: 750; letter-spacing: .07em; }
-.access-panel input[type="password"] { width: 100%; height: 44px; border: 1px solid var(--line-strong); border-radius: 7px; padding: 0 12px; background: white; color: var(--text); outline: 0; }
-.access-panel input[type="password"]:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(37, 99, 235, .09); }
-.access-panel button[type="submit"] { min-height: 44px; margin-top: 8px; border: 0; border-radius: 7px; padding: 0 13px; background: var(--text); color: white; font-size: 11px; font-weight: 750; letter-spacing: .03em; }
-.access-panel button[type="submit"]:hover { background: var(--blue); }
-.access-error, [role="alert"] { color: var(--red); font-size: 11px; }
-.access-note { margin: 16px 0 0; color: var(--muted-light); font-size: 10px; line-height: 1.45; }
+          def assert_contract(page, mobile=False):
+              wait_sheet(page)
+              text = page.locator('body').inner_text()
+              for label in controls:
+                  if label not in text: raise AssertionError(f'Missing monitoring control: {label}')
+              if not mobile:
+                  header = page.locator('.sheet-header').inner_text()
+                  for label in columns:
+                      if label not in header: raise AssertionError(f'Missing monitoring column: {label}')
+              rows = page.locator('article.monitor-row')
+              if rows.count() < 5: raise AssertionError(f'Expected at least five rows, got {rows.count()}')
+              first = rows.first
+              if first.locator('.impact-dot').count() != 5: raise AssertionError('Impact scale is malformed')
+              if len(first.locator('.ai-view-cell .cell-copy').inner_text().strip().split()) > 50:
+                  raise AssertionError('Compact AI View exceeds 50 words')
+              first.locator('button.row-toggle').click()
+              first.get_by_text('FULL ANALYST NOTE', exact=True).wait_for(timeout=30000)
+              first.get_by_role('link', name='ORIGINAL RNS ↗', exact=True).wait_for(timeout=30000)
 
-@media (max-width: 920px) {
-  .filter-grid { grid-template-columns: repeat(2, 1fr); }
-  .filter-control { border-bottom: 1px solid var(--line); }
-  .reset-button { min-height: 48px; }
-  .expanded-grid { grid-template-columns: 1fr 1fr; }
-  .expanded-column:last-child { grid-column: 1 / -1; }
-  .access-main { grid-template-columns: 1fr; gap: 38px; align-items: start; }
-  .access-panel { max-width: 520px; justify-self: start; }
-}
+          with sync_playwright() as p:
+              browser = p.chromium.launch()
+              desktop = browser.new_context(viewport={'width': 1440, 'height': 1000})
+              page = desktop.new_page()
+              page.goto(url, wait_until='domcontentloaded')
+              assert_contract(page)
+              no_overflow(page)
+              computed = page.evaluate("() => ({background: getComputedStyle(document.body).backgroundColor, accent: getComputedStyle(document.querySelector('h1 span')).color, radius: getComputedStyle(document.querySelector('.filter-shell')).borderRadius})")
+              if computed['background'] != 'rgb(3, 8, 13)' or computed['accent'] != 'rgb(70, 215, 255)' or computed['radius'] not in {'0px', '0'}:
+                  raise AssertionError(f'SCBB visual contract drifted: {computed}')
+              page.screenshot(path=out / '01-scbb-monitoring-desktop.png', full_page=True)
+              desktop.close()
 
-@media (max-width: 680px) {
-  .header-inner { width: calc(100% - 28px); grid-template-columns: auto 1fr auto; gap: 12px; min-height: 54px; }
-  .primary-nav { height: 54px; }
-  .nav-link { padding: 0 7px; font-size: 11px; }
-  .nav-link-active::after { right: 7px; left: 7px; }
-  .live-status { display: none; }
-  .header-meta { gap: 0; }
-  .page-shell { width: calc(100% - 24px); padding-top: 28px; }
-  .feed-heading { align-items: start; margin-bottom: 18px; }
-  .feed-heading h1 { font-size: 33px; }
-  .feed-tagline { max-width: 270px; font-size: 12px; }
-  .market-day { min-width: 92px; padding-top: 3px; }
-  .market-day strong { font-size: 10px; }
-  .feed-toolbar { grid-template-columns: 1fr auto; }
-  .toolbar-button { padding: 0 12px; }
-  .filter-grid { grid-template-columns: 1fr; }
-  .filter-control { border-right: 0; border-bottom: 1px solid var(--line); }
-  .feed-summary { align-items: center; padding-top: 17px; }
-  #result-status { display: none; }
-  .sheet-rows { gap: 7px; }
-  .news-row-head { grid-template-columns: 1fr; gap: 6px; padding-top: 10px; }
-  .news-meta { justify-content: flex-start; flex-wrap: wrap; gap: 6px; }
-  .type-pill { display: none; }
-  .row-toggle { padding: 7px 36px 12px 19px; }
-  .news-headline { font-size: 14px; }
-  .news-take { font-size: 12px; }
-  .news-footer { gap: 7px; }
-  .row-chevron { right: 13px; bottom: 23px; }
-  .expanded-inner { padding: 16px 18px 18px; }
-  .expanded-topline { align-items: flex-start; flex-direction: column; }
-  .expanded-grid { grid-template-columns: 1fr; gap: 18px; }
-  .expanded-column:last-child { grid-column: auto; }
-  .site-footer { width: calc(100% - 24px); flex-direction: column; justify-content: center; align-items: flex-start; gap: 3px; }
-  .access-header { padding: 0 18px; }
-  .access-main { width: calc(100% - 32px); padding: 42px 0 64px; }
-  .access-copy h1 { font-size: clamp(42px, 13vw, 60px); }
-  .access-intro { font-size: 14px; }
-}
+              mobile = browser.new_context(viewport={'width': 390, 'height': 844}, device_scale_factor=1, is_mobile=True)
+              page = mobile.new_page()
+              page.goto(url, wait_until='domcontentloaded')
+              assert_contract(page, mobile=True)
+              no_overflow(page)
+              columns_value = page.locator('article.monitor-row .monitor-row-grid').first.evaluate('(el) => getComputedStyle(el).gridTemplateColumns')
+              if ' ' in columns_value.strip(): raise AssertionError(f'Mobile monitoring row did not collapse: {columns_value}')
+              page.screenshot(path=out / '02-scbb-monitoring-mobile.png', full_page=True)
+              mobile.close()
+              browser.close()
+          PY
+
+      - name: Reject frontend and runtime failures
+        run: |
+          if grep -En 'Traceback \(most recent call last\)|Uncaught app exception|monitoring-api-error' /tmp/scbb-pass3-audit/web.log; then
+            cat /tmp/scbb-pass3-audit/web.log
+            exit 1
+          fi
+
+      - name: Upload Pass 3 visual audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smallcaps-scbb-pass3-visual-audit
+          path: /tmp/scbb-pass3-audit
+          if-no-files-found: error
+          retention-days: 90
