@@ -12,4 +12,5 @@
 .row-toggle {
   position: relative;
   z-index: 1;
+  min-height: 44px;
 }
