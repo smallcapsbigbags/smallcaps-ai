@@ -5,6 +5,7 @@ from pathlib import Path
 
 import uvicorn
 from starlette.applications import Starlette
+from starlette.responses import Response
 from starlette.routing import Mount
 from starlette.staticfiles import StaticFiles
 from streamlit.web.server.starlette import App as StreamlitApp
@@ -17,8 +18,23 @@ from api.newsroom import create_newsroom_routes
 
 ROOT = Path(__file__).resolve().parent
 
-# The SmallcapsBigBags-style monitoring sheet and Company Intelligence are the
-# public product. The existing Streamlit implementation remains available under
+
+class RevalidatingStaticFiles(StaticFiles):
+    """Serve assets without allowing an old JavaScript contract to stay fresh.
+
+    Customer HTML uses content-fingerprinted query strings. Revalidation is kept
+    as a second line of defence for direct or previously unversioned asset URLs.
+    """
+
+    async def get_response(self, path: str, scope: dict[str, object]) -> Response:
+        response = await super().get_response(path, scope)
+        response.headers["Cache-Control"] = "public, max-age=0, must-revalidate"
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        return response
+
+
+# The Smallcaps.ai Company News and Company Intelligence surfaces are the public
+# product. The existing Streamlit implementation remains available under
 # /legacy during migration, while every surface uses the same PostgreSQL records.
 legacy_app = StreamlitApp("streamlit_app.py")
 app = Starlette(
@@ -30,7 +46,7 @@ app = Starlette(
         *create_company_routes(),
         Mount(
             "/assets",
-            app=StaticFiles(directory=ROOT / "frontend" / "assets"),
+            app=RevalidatingStaticFiles(directory=ROOT / "frontend" / "assets"),
             name="assets",
         ),
         Mount("/legacy", app=legacy_app, name="legacy"),
