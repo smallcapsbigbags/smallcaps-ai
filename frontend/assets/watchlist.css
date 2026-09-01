@@ -1,4 +1,4 @@
-/* Pass 7: watchlist is a personal relevance marker, not a new signal colour. */
+/* Watchlist is a personal relevance marker, not a new signal colour. */
 
 .watchlist-nav-count {
   display: inline-grid;
@@ -62,38 +62,7 @@
   color: var(--muted-light, #a1a8b2);
 }
 
-.company-watch-toggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 34px;
-  margin-top: 17px;
-  border: 1px solid rgba(255, 255, 255, .17);
-  border-radius: 999px;
-  padding: 0 12px;
-  background: transparent;
-  color: rgba(255, 255, 255, .64);
-  font-size: 10px;
-  font-weight: 760;
-  letter-spacing: .04em;
-  text-transform: uppercase;
-}
-
-.company-watch-toggle:hover {
-  border-color: rgba(255, 255, 255, .32);
-  color: #fff;
-}
-
-.company-watch-toggle[aria-pressed="true"] {
-  border-color: var(--cyan, #46d7ff);
-  color: var(--cyan, #46d7ff);
-}
-
 @media (max-width: 680px) {
-  .watchlist-nav-count {
-    display: none;
-  }
-
   .watch-toggle {
     width: 40px;
     height: 40px;
