@@ -70,6 +70,8 @@
     const store = window.SmallcapsWatchlist;
     const links = [...document.querySelectorAll('[data-product-nav="watchlist"]')];
     const counts = [...document.querySelectorAll("[data-watchlist-count]")];
+    observeWatchlistCounts(counts);
+
     if (!store) {
       counts.forEach((node) => {
         node.textContent = "";
@@ -97,6 +99,25 @@
     });
     render();
     window.requestAnimationFrame(() => render());
+  }
+
+  function observeWatchlistCounts(counts) {
+    counts.forEach((node) => {
+      if (node.dataset.watchCountObserved === "true") return;
+      node.dataset.watchCountObserved = "true";
+
+      const normalise = () => {
+        if (node.hidden && clean(node.textContent) === "0") node.textContent = "";
+      };
+      new MutationObserver(normalise).observe(node, {
+        attributes: true,
+        attributeFilter: ["hidden"],
+        characterData: true,
+        childList: true,
+        subtree: true,
+      });
+      normalise();
+    });
   }
 
   function configureWatchlistHero() {
