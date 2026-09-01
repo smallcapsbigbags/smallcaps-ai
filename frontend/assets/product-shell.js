@@ -18,15 +18,23 @@
     syncWatchlistCount();
 
     if (surface === "watchlist") configureWatchlistHero();
-    if (surface === "company") configureCompanyContext();
-    else decorateCompanyLinks(document, surface);
+    if (surface === "company") {
+      configureCompanyContext();
+      normaliseCurrentEvidence(document);
+    } else {
+      decorateCompanyLinks(document, surface);
+    }
 
     const observer = new MutationObserver((records) => {
       records.forEach((record) => {
         record.addedNodes.forEach((node) => {
           if (!(node instanceof Element)) return;
-          if (surface === "company") rewriteCompanyNewsLinks(node);
-          else decorateCompanyLinks(node, surface);
+          if (surface === "company") {
+            rewriteCompanyNewsLinks(node);
+            normaliseCurrentEvidence(node);
+          } else {
+            decorateCompanyLinks(node, surface);
+          }
         });
       });
     });
@@ -88,6 +96,7 @@
       render(Array.isArray(event.detail?.tickers) ? event.detail.tickers : store.read());
     });
     render();
+    window.requestAnimationFrame(() => render());
   }
 
   function configureWatchlistHero() {
@@ -188,9 +197,36 @@
       const href = `/rns?${next.toString()}`;
       if (anchor.getAttribute("href") !== href) anchor.setAttribute("href", href);
       if (anchor.textContent?.trim() === "Open in News →") {
-        anchor.textContent = "Open in Watchlist →";
+        anchor.textContent = anchor.classList.contains("company-action")
+          ? "Open in Watchlist →"
+          : "Open announcement in Watchlist →";
       }
     });
+  }
+
+  function normaliseCurrentEvidence(root) {
+    const sourceId = clean(new URLSearchParams(window.location.search).get("open")).slice(0, 180);
+    if (!sourceId) return;
+
+    detailsWithin(root).forEach((details) => {
+      const card = details.closest("[data-source-id]");
+      if (clean(card?.dataset.sourceId) !== sourceId) return;
+      if (details.open) details.open = false;
+    });
+  }
+
+  function detailsWithin(root) {
+    const details = [];
+    if (
+      root instanceof HTMLDetailsElement
+      && root.classList.contains("company-current-evidence")
+    ) {
+      details.push(root);
+    }
+    if (root instanceof Document || root instanceof Element) {
+      root.querySelectorAll("details.company-current-evidence").forEach((node) => details.push(node));
+    }
+    return details;
   }
 
   function companyContext() {
