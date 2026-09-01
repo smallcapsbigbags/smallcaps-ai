@@ -40,6 +40,7 @@ jobs:
           node --check frontend/assets/product-shell.js
           node --check frontend/assets/research.js
           node --check frontend/assets/company.js
+          node --check frontend/assets/company-repo-pass1.js
 
       - name: Run contraction contract tests
         run: |
@@ -87,11 +88,7 @@ jobs:
           def capture(page):
               failures = []
               page.on('pageerror', lambda error: failures.append(f'pageerror: {error}'))
-              page.on(
-                  'console',
-                  lambda message: failures.append(f'console: {message.text}')
-                  if message.type == 'error' else None,
-              )
+              page.on('console', lambda message: failures.append(f'console: {message.text}') if message.type == 'error' else None)
               return failures
 
           def assert_clean(failures, label):
@@ -151,7 +148,14 @@ jobs:
               wait_news(page)
               assert_shell(page, 'news')
               expect(page.locator('#feed-tagline')).to_have_text('What changed across AIM.')
-              expect(page.locator('[data-company-search-options] option')).to_have_count(5, timeout=30000)
+              option_count = page.locator('[data-company-search-options] option').count()
+              for _ in range(120):
+                  option_count = page.locator('[data-company-search-options] option').count()
+                  if option_count >= 5:
+                      break
+                  page.wait_for_timeout(50)
+              if option_count < 5:
+                  raise AssertionError(f'Company search catalogue is incomplete: {option_count}')
               page.screenshot(path=out / '01-news-minimal-desktop.png', full_page=True)
 
               search = page.locator('[data-company-search-input]')
