@@ -29,7 +29,6 @@
           else decorateCompanyLinks(node, surface);
         });
       });
-      if (surface === "company") configureCompanyContext();
     });
     observer.observe(body, { childList: true, subtree: true });
   }
@@ -167,8 +166,8 @@
       href = next.toString() ? `/rns?${next.toString()}` : "/rns";
     }
 
-    link.href = href;
-    link.textContent = label;
+    if (link.getAttribute("href") !== href) link.setAttribute("href", href);
+    if (link.textContent !== label) link.textContent = label;
     link.dataset.companyContext = context;
     rewriteCompanyNewsLinks(document);
   }
@@ -186,7 +185,8 @@
       const sourceId = clean(url.searchParams.get("open")).slice(0, 180);
       if (!sourceId) return;
       const next = new URLSearchParams({ watchlist: "1", open: sourceId });
-      anchor.href = `/rns?${next.toString()}`;
+      const href = `/rns?${next.toString()}`;
+      if (anchor.getAttribute("href") !== href) anchor.setAttribute("href", href);
       if (anchor.textContent?.trim() === "Open in News →") {
         anchor.textContent = "Open in Watchlist →";
       }
@@ -209,7 +209,7 @@
 
   function setText(id, value) {
     const node = document.getElementById(id);
-    if (node) node.textContent = value;
+    if (node && node.textContent !== value) node.textContent = value;
   }
 
   function validIsoDate(value) {
