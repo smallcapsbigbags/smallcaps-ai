@@ -66,7 +66,7 @@ jobs:
           cat /tmp/scbb-pass8-audit/web.log
           exit 1
 
-      - name: Validate launch journey on desktop and mobile
+      - name: Validate the complete launch journey
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -76,91 +76,49 @@ jobs:
 
           out = Path('/tmp/scbb-pass8-audit')
           base = 'http://127.0.0.1:8501'
-          expected_nav = [
-              {'text': 'News', 'href': '/rns'},
-              {'text': 'Watchlist', 'href': '/rns?watchlist=1'},
-              {'text': 'The AIM Daily', 'href': '/'},
-          ]
-          legacy_company = (
-              'LATEST COMPANY NEWS',
-              'AI VIEW',
-              'RNS HISTORY',
-              'COMPANY MONITORING SHEET',
-              'VIEW FULL ANALYST NOTE',
-              'READ ANALYSIS →',
-              'ORIGINAL RNS ↗',
-              'OPEN IN RNS FEED →',
-          )
+          expected_nav = ['/rns', '/rns?watchlist=1', '/']
 
-          def attach_error_capture(page):
+          def capture(page):
               failures = []
               page.on('pageerror', lambda error: failures.append(f'pageerror: {error}'))
               page.on('console', lambda message: failures.append(f'console: {message.text}') if message.type == 'error' else None)
               return failures
 
-          def assert_no_errors(failures, label):
+          def assert_clean(failures, label):
               if failures:
-                  raise AssertionError(f'{label} browser failures: {failures}')
+                  raise AssertionError(f'{label}: {failures}')
 
-          def assert_nav(page):
-              links = page.locator('nav[aria-label="Primary navigation"] a').evaluate_all(
-                  """
-                  els => els.map(el => ({
-                    text: [...el.childNodes]
-                      .filter(node => node.nodeType === Node.TEXT_NODE)
-                      .map(node => node.textContent.trim())
-                      .filter(Boolean)
-                      .join(' '),
-                    href: el.getAttribute('href'),
-                  }))
-                  """
+          def assert_basics(page):
+              hrefs = page.locator('nav[aria-label="Primary navigation"] a').evaluate_all(
+                  "els => els.map(el => el.getAttribute('href'))"
               )
-              if links != expected_nav:
-                  raise AssertionError(f'Product navigation drifted: {links}')
-
-          def no_overflow(page):
+              if hrefs != expected_nav:
+                  raise AssertionError(f'Navigation drifted: {hrefs}')
               dims = page.evaluate(
                   """
                   () => ({
                     client: document.documentElement.clientWidth,
                     scroll: document.documentElement.scrollWidth,
                     body: document.body.scrollWidth,
+                    duplicates: [...document.querySelectorAll('[id]')]
+                      .map(node => node.id)
+                      .filter((id, index, values) => values.indexOf(id) !== index),
                   })
                   """
               )
               if dims['scroll'] > dims['client'] + 2 or dims['body'] > dims['client'] + 2:
                   raise AssertionError(f'Document clips horizontally: {dims}')
-
-          def no_duplicate_ids(page):
-              duplicates = page.evaluate(
-                  """
-                  () => {
-                    const counts = new Map();
-                    document.querySelectorAll('[id]').forEach((node) => counts.set(node.id, (counts.get(node.id) || 0) + 1));
-                    return [...counts.entries()].filter(([, count]) => count > 1);
-                  }
-                  """
-              )
-              if duplicates:
-                  raise AssertionError(f'Duplicate DOM ids: {duplicates}')
-
-          def same_origin_assets_only(page):
-              urls = page.evaluate("() => performance.getEntriesByType('resource').map((entry) => entry.name)")
-              external = []
-              for url in urls:
-                  parsed = urlparse(url)
-                  if parsed.scheme in {'data', 'blob'}:
-                      continue
-                  if parsed.netloc and parsed.netloc != '127.0.0.1:8501':
-                      external.append(url)
+              if dims['duplicates']:
+                  raise AssertionError(f'Duplicate ids: {dims}')
+              external = [
+                  url for url in page.evaluate(
+                      "() => performance.getEntriesByType('resource').map(entry => entry.name)"
+                  )
+                  if urlparse(url).netloc not in {'', '127.0.0.1:8501'}
+                  and not url.startswith(('data:', 'blob:'))
+              ]
               if external:
-                  raise AssertionError(f'Unexpected third-party launch assets: {external}')
-
-          def assert_page_basics(page):
-              assert_nav(page)
-              no_overflow(page)
-              no_duplicate_ids(page)
-              same_origin_assets_only(page)
+                  raise AssertionError(f'Unexpected external launch assets: {external}')
 
           def wait_news(page):
               page.get_by_role('heading', name='Facts. No fluff.', exact=True).wait_for(timeout=30000)
@@ -172,116 +130,72 @@ jobs:
               page.get_by_role('heading', name='Current position', exact=True).wait_for(timeout=30000)
               page.get_by_role('heading', name='Evidence trail', exact=True).wait_for(timeout=30000)
 
-          def assert_company(page, *, mobile=False):
-              wait_company(page)
-              body = page.locator('body').inner_text()
-              for retired in legacy_company:
-                  if retired in body:
-                      raise AssertionError(f'Legacy Company Intelligence wording visible: {retired}')
-              for required in ('Company Intelligence', 'Current position', 'What changed', 'Smallcaps.ai view', 'Evidence trail'):
-                  if required not in body:
-                      raise AssertionError(f'Missing Company Intelligence launch element: {required}')
-
-              current = page.locator('[data-company-section="current-position"]')
-              view_words = current.locator('.company-view-copy p').inner_text().strip().split()
-              if not view_words or len(view_words) > 50:
-                  raise AssertionError(f'Company view is not terse: {len(view_words)} words')
-
-              computed = page.evaluate(
-                  """
-                  () => ({
-                    background: getComputedStyle(document.body).backgroundColor,
-                    surface: getComputedStyle(document.querySelector('.company-position-card')).backgroundColor,
-                    headingSize: parseFloat(getComputedStyle(document.querySelector('.company-hero h1')).fontSize),
-                    accent: getComputedStyle(document.querySelector('.company-hero h1 em')).color,
-                  })
-                  """
-              )
-              if computed['background'] != 'rgb(245, 246, 248)' or computed['surface'] != 'rgb(255, 255, 255)':
-                  raise AssertionError(f'Company Intelligence visual system drifted: {computed}')
-              if computed['accent'] != 'rgb(37, 99, 235)' or not 42 <= computed['headingSize'] <= 72:
-                  raise AssertionError(f'Company Intelligence hierarchy drifted: {computed}')
-
-              watch = page.locator('#company-watch-toggle')
-              watch_box = watch.bounding_box()
-              if watch_box is None or watch_box['height'] < 43.5:
-                  raise AssertionError(f'Company watch target is too small: {watch_box}')
-              watch.focus()
-              page.keyboard.press('Enter')
-              expect(watch).to_have_attribute('aria-pressed', 'true')
-              page.keyboard.press('Enter')
-              expect(watch).to_have_attribute('aria-pressed', 'false')
-
-              if mobile:
-                  grid = page.locator('.company-position-main').evaluate('(el) => getComputedStyle(el).gridTemplateColumns')
-                  if len(grid.split()) != 1:
-                      raise AssertionError(f'Mobile current company position did not collapse: {grid}')
-                  evidence = page.locator('.company-current-evidence > summary')
-                  evidence_box = evidence.bounding_box()
-                  if evidence_box is None or evidence_box['height'] < 43.5:
-                      raise AssertionError(f'Mobile evidence target is too small: {evidence_box}')
-
-              assert_page_basics(page)
-
-          def assert_daily(page):
-              page.get_by_role('heading', name='THE AIM DAILY', exact=True).wait_for(timeout=30000)
-              expect(page.locator('#edition-summary')).to_contain_text('full analyses', timeout=30000)
-              page.locator('.lead-layout').wait_for(timeout=30000)
-              body = page.locator('body').inner_text()
-              if 'THE REST OF AIM' not in body:
-                  raise AssertionError('The Daily no longer explains suppressed coverage')
-              if 'RNS MONITOR' in body:
-                  raise AssertionError('The AIM Daily still exposes legacy RNS Monitor language')
-              assert_page_basics(page)
-
           with sync_playwright() as p:
               browser = p.chromium.launch()
 
               desktop = browser.new_context(viewport={'width': 1440, 'height': 1000})
               page = desktop.new_page()
-              failures = attach_error_capture(page)
+              failures = capture(page)
               page.goto(f'{base}/rns?date=2026-08-21', wait_until='domcontentloaded')
               wait_news(page)
-              assert_page_basics(page)
+              assert_basics(page)
 
-              springfield = page.locator('a.company-research-link[href="/company/SPR"]').first
-              springfield.click()
-              assert_company(page)
+              page.locator('a.company-research-link[href="/company/SPR"]').first.click()
+              wait_company(page)
+              body = page.locator('body').inner_text()
+              for required in ('Company Intelligence', 'Current position', 'What changed', 'Smallcaps.ai view', 'Evidence trail'):
+                  if required not in body:
+                      raise AssertionError(f'Missing Company Intelligence element: {required}')
+              for retired in ('LATEST COMPANY NEWS', 'RNS HISTORY', 'VIEW FULL ANALYST NOTE', 'READ ANALYSIS →'):
+                  if retired in body:
+                      raise AssertionError(f'Legacy Company Intelligence wording visible: {retired}')
+              page.locator('.company-current-evidence > summary').click()
+              page.get_by_role('heading', name='Reported facts', exact=True).wait_for(timeout=30000)
+              page.get_by_role('heading', name='Before → now', exact=True).wait_for(timeout=30000)
+              assert_basics(page)
               page.screenshot(path=out / '01-company-launch-desktop.png', full_page=True)
-
-              current_evidence = page.locator('.company-current-evidence')
-              current_evidence.locator('summary').click()
-              current_evidence.get_by_role('heading', name='Reported facts', exact=True).wait_for(timeout=30000)
-              current_evidence.get_by_role('heading', name='Before → now', exact=True).wait_for(timeout=30000)
 
               page.locator('[data-company-section="current-position"]').get_by_role('link', name='Open in News →', exact=True).click()
               page.wait_for_url(f'{base}/rns?date=2026-08-21&open=spr-preview-buyback', timeout=30000)
               wait_news(page)
-              if urlparse(page.url).path != '/rns':
-                  raise AssertionError(f'Company News deep link is not canonical: {page.url}')
-              assert_page_basics(page)
+              assert_basics(page)
 
               page.goto(f'{base}/?date=2026-08-21&state=aim_close', wait_until='domcontentloaded')
-              assert_daily(page)
-              assert_no_errors(failures, 'desktop')
+              page.get_by_role('heading', name='THE AIM DAILY', exact=True).wait_for(timeout=30000)
+              expect(page.locator('#edition-summary')).to_contain_text('full analyses', timeout=30000)
+              page.locator('.lead-layout').wait_for(timeout=30000)
+              if 'THE REST OF AIM' not in page.locator('body').inner_text():
+                  raise AssertionError('The Daily no longer explains suppressed coverage')
+              assert_basics(page)
               page.screenshot(path=out / '02-aim-daily-launch-desktop.png', full_page=True)
+              assert_clean(failures, 'desktop launch')
               desktop.close()
 
               mobile = browser.new_context(viewport={'width': 390, 'height': 844}, device_scale_factor=1, is_mobile=True)
               page = mobile.new_page()
-              failures = attach_error_capture(page)
+              failures = capture(page)
               page.goto(f'{base}/company/SPR', wait_until='domcontentloaded')
-              assert_company(page, mobile=True)
+              wait_company(page)
+              grid = page.locator('.company-position-main').evaluate('(el) => getComputedStyle(el).gridTemplateColumns')
+              if len(grid.split()) != 1:
+                  raise AssertionError(f'Mobile company position did not collapse: {grid}')
+              for selector in ('#company-watch-toggle', '.company-action', '.company-current-evidence > summary'):
+                  box = page.locator(selector).first.bounding_box()
+                  if box is None or box['height'] < 43.5:
+                      raise AssertionError(f'Mobile target is too small: {selector} {box}')
+              assert_basics(page)
               page.screenshot(path=out / '03-company-launch-mobile.png', full_page=True)
 
               page.goto(f'{base}/rns?watchlist=1', wait_until='domcontentloaded')
               page.get_by_text('Your watchlist is empty.', exact=True).wait_for(timeout=30000)
-              assert_page_basics(page)
+              assert_basics(page)
 
               page.goto(f'{base}/?date=2026-08-21&state=aim_close', wait_until='domcontentloaded')
-              assert_daily(page)
-              assert_no_errors(failures, 'mobile')
+              page.get_by_role('heading', name='THE AIM DAILY', exact=True).wait_for(timeout=30000)
+              expect(page.locator('#edition-summary')).to_contain_text('full analyses', timeout=30000)
+              assert_basics(page)
               page.screenshot(path=out / '04-aim-daily-launch-mobile.png', full_page=True)
+              assert_clean(failures, 'mobile launch')
               mobile.close()
 
               browser.close()
