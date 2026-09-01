@@ -20,8 +20,12 @@ def test_company_news_uses_an_isolated_light_asset_stack() -> None:
         assert legacy_asset not in html
 
     assert html.index("/assets/news.css") < html.index("/assets/news-pass3.css")
+    assert html.index("/assets/news-pass3.css") < html.index(
+        "/assets/news-pass3-polish.css"
+    )
     assert html.index("/assets/research.js") < html.index("/assets/news-pass3.js")
     assert "/assets/news-pass3.css?v={{ASSET_VERSION}}" in html
+    assert "/assets/news-pass3-polish.css?v={{ASSET_VERSION}}" in html
     assert "/assets/news-pass3.js?v={{ASSET_VERSION}}" in html
 
 
@@ -29,13 +33,16 @@ def test_company_news_pass3_resets_rows_and_keeps_them_dense() -> None:
     css = (ROOT / "frontend" / "assets" / "news-pass3.css").read_text(
         encoding="utf-8"
     )
+    polish_css = (
+        ROOT / "frontend" / "assets" / "news-pass3-polish.css"
+    ).read_text(encoding="utf-8")
     compact = "".join(css.split())
+    compact_polish = "".join(polish_css.split())
 
     for retired_dark_token in ("#03080d", "#07111a", "#46d7ff", "rgb(3,8,13)"):
         assert retired_dark_token not in compact
+        assert retired_dark_token not in compact_polish
 
-    assert ".company-news-page.monitor-row" not in compact
-    assert ".company-news-page.monitor-row" not in css
     assert ".company-news-page .monitor-row" in css
     assert ".company-news-page .row-toggle" in css
     assert "position:static" in compact
@@ -47,6 +54,12 @@ def test_company_news_pass3_resets_rows_and_keeps_them_dense() -> None:
     assert "grid-template-areas:\"brandmeta\"\"navnav\"" in compact
     assert "min-height:44px" in compact
     assert "@media(prefers-reduced-motion:reduce)" in compact
+
+    assert ".company-news-page .monitor-row" in polish_css
+    assert "border-radius:9px" in compact_polish
+    assert "width:40px" in compact_polish
+    assert "height:40px" in compact_polish
+    assert "flex-basis:40px" in compact_polish
 
 
 def test_company_news_pass3_adds_no_data_or_ai_call() -> None:
