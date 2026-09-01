@@ -1,0 +1,230 @@
+name: company-repo-pass1-contraction
+
+on:
+  pull_request:
+    branches: ["main"]
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: company-repo-pass1-contraction-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  product-contraction:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DATABASE_URL: sqlite+pysqlite:///data/company-repo-pass1.db
+      PRIVATE_BETA_MODE: "false"
+      APP_BETA_PASSWORD: preview-access
+      APP_ADMIN_PASSWORD: preview-admin
+      MARKET_DATA_ENABLED: "true"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install application and browser dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install playwright==1.55.0
+          python -m playwright install --with-deps chromium
+          node --check frontend/assets/product-shell.js
+          node --check frontend/assets/research.js
+          node --check frontend/assets/company.js
+
+      - name: Run contraction contract tests
+        run: |
+          pytest -q \
+            tests/test_repo_pass1_contraction.py \
+            tests/test_frontend_launch_repair.py \
+            tests/test_pass5_unified_product_shell.py \
+            tests/test_unified_product_journey.py \
+            tests/test_scbb_company_frontend.py
+
+      - name: Seed deterministic company repository data
+        run: |
+          rm -f data/company-repo-pass1.db
+          python -m jobs.seed_launch_preview
+          python -m jobs.seed_pass1_preview
+
+      - name: Start product
+        shell: bash
+        run: |
+          mkdir -p /tmp/company-repo-pass1
+          python -m uvicorn web_app:app --host 127.0.0.1 --port 8501 \
+            > /tmp/company-repo-pass1/web.log 2>&1 &
+          echo $! > /tmp/company-repo-pass1/web.pid
+          for attempt in $(seq 1 90); do
+            if curl --fail --silent http://127.0.0.1:8501/api/v1/health >/dev/null \
+              && curl --fail --silent http://127.0.0.1:8501/api/v1/company/SPR >/dev/null \
+              && curl --fail --silent 'http://127.0.0.1:8501/api/v1/monitoring?date=2026-08-21&limit=10' >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/company-repo-pass1/web.log
+          exit 1
+
+      - name: Audit News, Watchlist, search and Company
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          from playwright.sync_api import expect, sync_playwright
+
+          base = 'http://127.0.0.1:8501'
+          out = Path('/tmp/company-repo-pass1')
+
+          def capture(page):
+              failures = []
+              page.on('pageerror', lambda error: failures.append(f'pageerror: {error}'))
+              page.on(
+                  'console',
+                  lambda message: failures.append(f'console: {message.text}')
+                  if message.type == 'error' else None,
+              )
+              return failures
+
+          def assert_clean(failures, label):
+              if failures:
+                  raise AssertionError(f'{label}: {failures}')
+
+          def assert_layout(page):
+              result = page.evaluate(
+                  """
+                  () => ({
+                    client: document.documentElement.clientWidth,
+                    scroll: document.documentElement.scrollWidth,
+                    body: document.body.scrollWidth,
+                    duplicates: [...document.querySelectorAll('[id]')]
+                      .map(node => node.id)
+                      .filter((id, index, values) => values.indexOf(id) !== index),
+                  })
+                  """
+              )
+              if result['scroll'] > result['client'] + 2 or result['body'] > result['client'] + 2:
+                  raise AssertionError(f'Horizontal overflow: {result}')
+              if result['duplicates']:
+                  raise AssertionError(f'Duplicate ids: {result}')
+
+          def assert_shell(page, active):
+              links = page.locator('nav[aria-label="Primary navigation"] a').evaluate_all(
+                  "els => els.map(el => ({text: el.textContent.trim().replace(/\\d+$/, ''), href: el.getAttribute('href')}))"
+              )
+              expected = [
+                  {'text': 'News', 'href': '/rns'},
+                  {'text': 'Watchlist', 'href': '/rns?watchlist=1'},
+              ]
+              if links != expected:
+                  raise AssertionError(f'Product navigation is not minimal: {links}')
+              expect(page.locator(f'[data-product-nav="{active}"]')).to_have_attribute('aria-current', 'page')
+              expect(page.locator('[data-company-search-input]')).to_be_visible()
+              if page.get_by_text('The AIM Daily', exact=True).count():
+                  raise AssertionError('The AIM Daily remains customer-visible')
+              assert_layout(page)
+
+          def wait_news(page, watchlist=False):
+              page.get_by_role(
+                  'heading',
+                  name='Your companies.' if watchlist else 'Facts. No fluff.',
+                  exact=True,
+              ).wait_for(timeout=30000)
+              page.locator('article.monitor-row').first.wait_for(timeout=30000)
+
+          with sync_playwright() as p:
+              browser = p.chromium.launch()
+
+              desktop = browser.new_context(viewport={'width': 1440, 'height': 1000})
+              page = desktop.new_page()
+              failures = capture(page)
+
+              page.goto(f'{base}/?date=2026-08-21', wait_until='domcontentloaded')
+              wait_news(page)
+              assert_shell(page, 'news')
+              expect(page.locator('#feed-tagline')).to_have_text('What changed across AIM.')
+              expect(page.locator('[data-company-search-options] option')).to_have_count(5, timeout=30000)
+              page.screenshot(path=out / '01-news-minimal-desktop.png', full_page=True)
+
+              search = page.locator('[data-company-search-input]')
+              search.fill('SPR')
+              search.press('Enter')
+              page.wait_for_url(f'{base}/company/SPR?from=news', timeout=30000)
+              page.get_by_role('heading', name='SPR', exact=True).wait_for(timeout=30000)
+              assert_shell(page, 'news')
+              expect(page.locator('.company-hero .eyebrow')).to_have_text('Company')
+              expect(page.locator('#company-context-link')).to_have_text('← Back to News')
+              page.screenshot(path=out / '02-company-repository-desktop.png', full_page=True)
+
+              page.locator('#company-context-link').click()
+              page.wait_for_url(f'{base}/rns', timeout=30000)
+              wait_news(page)
+              page.locator('button.watch-toggle').first.click()
+              page.locator('[data-product-nav="watchlist"]').click()
+              page.wait_for_url(f'{base}/rns?watchlist=1', timeout=30000)
+              wait_news(page, watchlist=True)
+              assert_shell(page, 'watchlist')
+              expect(page.locator('#feed-tagline')).to_have_text('What changed. What needs attention.')
+              page.screenshot(path=out / '03-watchlist-minimal-desktop.png', full_page=True)
+              assert_clean(failures, 'desktop product contraction')
+              desktop.close()
+
+              mobile = browser.new_context(
+                  viewport={'width': 390, 'height': 844},
+                  device_scale_factor=1,
+                  is_mobile=True,
+              )
+              page = mobile.new_page()
+              failures = capture(page)
+              page.goto(f'{base}/rns?date=2026-08-21', wait_until='domcontentloaded')
+              wait_news(page)
+              assert_shell(page, 'news')
+              header = page.evaluate(
+                  """
+                  () => {
+                    const brand = document.querySelector('.wordmark').getBoundingClientRect();
+                    const nav = document.querySelector('.primary-nav').getBoundingClientRect();
+                    const search = document.querySelector('.company-search').getBoundingClientRect();
+                    return {
+                      brandBottom: brand.bottom,
+                      navTop: nav.top,
+                      navBottom: nav.bottom,
+                      searchTop: search.top,
+                      searchHeight: search.height,
+                    };
+                  }
+                  """
+              )
+              if header['navTop'] < header['brandBottom'] - 1:
+                  raise AssertionError(f'Mobile navigation overlaps the brand row: {header}')
+              if header['searchTop'] < header['navBottom'] - 1 or header['searchHeight'] < 43.5:
+                  raise AssertionError(f'Mobile search is not a separate usable row: {header}')
+              page.screenshot(path=out / '04-news-minimal-mobile.png', full_page=True)
+              assert_clean(failures, 'mobile product contraction')
+              mobile.close()
+              browser.close()
+          PY
+
+      - name: Reject runtime failures
+        run: |
+          if grep -En 'Traceback \(most recent call last\)|Uncaught app exception|company-api-error|monitoring-api-error' /tmp/company-repo-pass1/web.log; then
+            cat /tmp/company-repo-pass1/web.log
+            exit 1
+          fi
+
+      - name: Upload Pass 1 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: company-repo-pass1-contraction
+          path: /tmp/company-repo-pass1
+          if-no-files-found: error
+          retention-days: 90
