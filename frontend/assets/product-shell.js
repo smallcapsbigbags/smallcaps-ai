@@ -64,14 +64,17 @@
     const links = [...document.querySelectorAll('[data-product-nav="watchlist"]')];
     const counts = [...document.querySelectorAll("[data-watchlist-count]")];
     if (!store) {
-      counts.forEach((node) => { node.hidden = true; });
+      counts.forEach((node) => {
+        node.textContent = "";
+        node.hidden = true;
+      });
       return;
     }
 
     const render = (tickers = store.read()) => {
       const total = Array.isArray(tickers) ? tickers.length : 0;
       counts.forEach((node) => {
-        node.textContent = String(total);
+        node.textContent = total ? String(total) : "";
         node.hidden = total === 0;
       });
       links.forEach((link) => {
