@@ -33,10 +33,13 @@ def test_odd_key_number_sets_do_not_render_a_false_empty_card() -> None:
     css = (ASSETS / "company-repo-polish.css").read_text(encoding="utf-8")
     compact = "".join(css.split())
 
-    assert ":has(>.repo-metric:nth-child(5):last-child)" in compact
     assert "grid-template-columns:repeat(6,minmax(0,1fr))" in compact
-    assert "grid-column:span2" in compact
+    assert ">.repo-metric{grid-column:span2}" in compact
+    assert ".repo-metric:nth-child(4):nth-last-child(2)" in css
+    assert ".repo-metric:nth-child(5):last-child" in css
+    assert ".repo-metric:first-child:nth-last-child(4)" in css
     assert "grid-column:span3" in compact
-    assert ":has(>.repo-metric:nth-child(4):last-child)" in compact
+    assert ":has(" not in css
     assert "@media(max-width:820px)" in compact
+    assert "grid-column:1/-1" in compact
     assert "@media(max-width:680px)" in compact
