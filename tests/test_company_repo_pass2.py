@@ -73,6 +73,7 @@ def test_company_repo_pass2_uses_existing_facts_and_explicit_change_only() -> No
 def test_company_repo_pass2_keeps_every_number_and_event_source_linked() -> None:
     script = (ASSETS / "company-repo.js").read_text(encoding="utf-8")
 
+    assert "metric.points.at(-1)" in script
     assert "latestPoint.source_url" in script
     assert "detail.original_source_url" in script
     assert "item.original_source_url" not in script  # Timeline detail is the canonical source layer.
