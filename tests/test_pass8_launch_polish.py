@@ -69,13 +69,18 @@ def test_company_to_news_links_use_the_canonical_company_news_route() -> None:
     assert 'link.href = `/?date=' not in javascript
 
 
-def test_the_aim_daily_keeps_its_editorial_identity_but_uses_product_vocabulary() -> None:
+def test_the_aim_daily_keeps_its_editorial_identity_inside_the_product_shell() -> None:
     html = (ROOT / "frontend" / "daily.html").read_text(encoding="utf-8")
 
     assert "THE AIM DAILY" in html
-    assert "AIM NEWSROOM" in html
-    assert 'href="/rns">NEWS</a>' in html
-    assert 'href="/rns?watchlist=1">WATCHLIST</a>' in html
+    assert "Preparing edition" in html
+    assert '<meta name="theme-color" content="#f5f6f8">' in html
+    assert '/assets/news.css' in html
+    assert 'class="header-inner"' in html
+    assert 'href="/rns">News</a>' in html
+    assert 'href="/rns?watchlist=1">Watchlist</a>' in html
+    assert 'href="/" aria-current="page">The AIM Daily</a>' in html
+    assert "AIM live" in html
     assert "VIEW ALL COMPANY NEWS →" in html
     assert "OPEN COMPANY NEWS →" in html
     assert "RNS MONITOR" not in html
