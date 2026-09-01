@@ -111,6 +111,7 @@ jobs:
       - name: Validate one coherent investor journey
         run: |
           python - <<'PY'
+          import re
           from pathlib import Path
           from urllib.parse import parse_qs, urlparse
 
@@ -232,12 +233,9 @@ jobs:
               assert_shell(page, 'news', 0)
 
               company_link = row.locator('a.company-research-link')
-              expect(company_link).to_have_attribute('href', lambda value: (
-                  value is not None
-                  and 'from=news' in value
-                  and 'open=spr-preview-buyback' in value
-                  and 'date=2026-08-21' in value
-              ))
+              expect(company_link).to_have_attribute(
+                  'href', re.compile(r'^/company/SPR\?.*from=news.*open=spr-preview-buyback.*date=2026-08-21')
+              )
               row.locator('button.watch-toggle').click()
               expect(row.locator('button.watch-toggle')).to_have_attribute('aria-pressed', 'true')
               assert_shell(page, 'news', 1)
@@ -260,11 +258,9 @@ jobs:
               assert_shell(page, 'watchlist', 1)
               expect(page.locator('#page-eyebrow')).to_have_text('PERSONAL COMPANY NEWS')
               watch_company = watch_row.locator('a.company-research-link')
-              expect(watch_company).to_have_attribute('href', lambda value: (
-                  value is not None
-                  and 'from=watchlist' in value
-                  and 'open=spr-preview-buyback' in value
-              ))
+              expect(watch_company).to_have_attribute(
+                  'href', re.compile(r'^/company/SPR\?.*from=watchlist.*open=spr-preview-buyback')
+              )
               watch_company.click()
               wait_company(page, 'SPR')
               assert_shell(page, 'watchlist', 1)
@@ -277,12 +273,9 @@ jobs:
               wait_daily(page)
               assert_shell(page, 'daily', 1)
               daily_link = page.locator('a[href^="/company/"]').first
-              expect(daily_link).to_have_attribute('href', lambda value: (
-                  value is not None
-                  and 'from=daily' in value
-                  and 'daily_state=aim_close' in value
-                  and 'daily_date=2026-08-21' in value
-              ))
+              expect(daily_link).to_have_attribute(
+                  'href', re.compile(r'^/company/[^?]+\?.*from=daily.*daily_state=aim_close.*daily_date=2026-08-21')
+              )
               ticker = urlparse(daily_link.get_attribute('href')).path.rsplit('/', 1)[-1]
               daily_link.click()
               wait_company(page, ticker)
@@ -294,7 +287,7 @@ jobs:
               }:
                   raise AssertionError(f'Daily return context is incomplete: {back.geturl()}')
               page.locator('#company-context-link').click()
-              page.wait_for_url('**/?state=aim_close&date=2026-08-21', timeout=30000)
+              page.wait_for_url(f'{base}/?state=aim_close&date=2026-08-21', timeout=30000)
               wait_daily(page)
               assert_clean(failures, 'desktop unified product')
               desktop.close()
@@ -314,14 +307,20 @@ jobs:
               assert_shell(page, 'news', 1)
 
               header_shapes = []
-              for destination, active, ready in (
-                  ('/rns?date=2026-08-21', 'news', lambda: wait_news(page)),
-                  ('/rns?watchlist=1', 'watchlist', lambda: wait_news(page, watchlist=True)),
-                  ('/?date=2026-08-21&state=aim_close', 'daily', lambda: wait_daily(page)),
-                  ('/company/SPR', 'news', lambda: wait_company(page, 'SPR')),
-              ):
+              destinations = (
+                  ('/rns?date=2026-08-21', 'news', 'news'),
+                  ('/rns?watchlist=1', 'watchlist', 'watchlist'),
+                  ('/?date=2026-08-21&state=aim_close', 'daily', 'daily'),
+                  ('/company/SPR', 'news', 'company'),
+              )
+              for destination, active, ready in destinations:
                   page.goto(f'{base}{destination}', wait_until='domcontentloaded')
-                  ready()
+                  if ready == 'daily':
+                      wait_daily(page)
+                  elif ready == 'company':
+                      wait_company(page, 'SPR')
+                  else:
+                      wait_news(page, watchlist=ready == 'watchlist')
                   assert_shell(page, active, 1)
                   header_shapes.append(page.evaluate(
                       """
