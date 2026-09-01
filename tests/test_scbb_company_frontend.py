@@ -94,8 +94,10 @@ def test_feed_builds_company_navigation_without_a_mutation_enhancer() -> None:
     html = Path("frontend/index.html").read_text(encoding="utf-8")
     javascript = Path("frontend/assets/research.js").read_text(encoding="utf-8")
 
-    assert "/assets/company.css" in html
-    assert "/assets/company-polish.css" in html
+    assert "/assets/company.css" not in html
+    assert "/assets/company-polish.css" not in html
+    assert "/assets/news-pass3.css" in html
+    assert "/assets/news-pass3-polish.css" in html
     assert "/assets/feed-company.js" not in html
     assert "company-research-link" in javascript
     assert "company-inline-link" in javascript
