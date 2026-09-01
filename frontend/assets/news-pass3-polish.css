@@ -6,7 +6,21 @@
   border-radius: 9px;
 }
 
+.company-news-page .skip-link:not(:focus) {
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  transform: none;
+  white-space: nowrap;
+}
+
 @media (max-width: 760px) {
+  .company-news-page .site-header {
+    position: static;
+  }
+
   .company-news-page .watch-toggle {
     width: 40px;
     height: 40px;
