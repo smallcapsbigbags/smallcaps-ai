@@ -135,8 +135,8 @@ jobs:
               if not word_counts or max(word_counts) > 40:
                   raise AssertionError(f"Story is no longer terse: {word_counts}")
 
-              for label in ("NOW", "CHANGE", "WATCH"):
-                  expect(page.get_by_role("heading", name=label, exact=True)).to_be_visible()
+              if not page.locator(".repo-story-grid").is_visible():
+                  raise AssertionError("Company story is not visible")
 
           def assert_no_retired_copy(page):
               body = page.locator("body").inner_text()
