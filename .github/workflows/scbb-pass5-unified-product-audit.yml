@@ -44,7 +44,7 @@ jobs:
           node --check frontend/assets/daily.js
           node --check frontend/assets/product-shell.js
 
-      - name: Enforce the shared product shell contract
+      - name: Enforce the shared shell contract
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -69,8 +69,7 @@ jobs:
                   if required not in html:
                       raise AssertionError(f'{path} is missing {required}')
 
-          daily = Path('frontend/daily.html').read_text(encoding='utf-8')
-          if '/assets/research.css' in daily:
+          if '/assets/research.css' in Path('frontend/daily.html').read_text(encoding='utf-8'):
               raise AssertionError('The AIM Daily still loads the retired dark stylesheet')
 
           access = Path('frontend/access.html').read_text(encoding='utf-8')
@@ -108,10 +107,9 @@ jobs:
           cat /tmp/scbb-pass5-audit/web.log
           exit 1
 
-      - name: Validate one coherent investor journey
+      - name: Validate the cross-product investor journey
         run: |
           python - <<'PY'
-          import re
           from pathlib import Path
           from urllib.parse import parse_qs, urlparse
 
@@ -191,7 +189,7 @@ jobs:
               page.get_by_role('button', name='ENTER SMALLCAPS.AI', exact=True).click()
               page.wait_for_url(f'{base}{destination}', timeout=30000)
 
-          def wait_news(page, source_id=None, watchlist=False):
+          def wait_news(page, source_id=None, watchlist=False, expanded=False):
               page.get_by_role(
                   'heading',
                   name='Your watchlist.' if watchlist else 'Facts. No fluff.',
@@ -203,7 +201,7 @@ jobs:
               )
               row = page.locator(selector).first
               row.wait_for(timeout=30000)
-              if source_id:
+              if source_id and expanded:
                   expect(row.locator('button.row-toggle')).to_have_attribute(
                       'aria-expanded', 'true'
                   )
@@ -221,6 +219,15 @@ jobs:
               )
               page.locator('.lead-layout').wait_for(timeout=30000)
 
+          def context_href(page, anchor, context):
+              expect(anchor).to_have_attribute('data-product-context', context, timeout=30000)
+              href = anchor.get_attribute('href') or ''
+              parsed = urlparse(href)
+              query = parse_qs(parsed.query)
+              if query.get('from') != [context]:
+                  raise AssertionError(f'Link lost {context} context: {href}')
+              return parsed, query
+
           with sync_playwright() as p:
               browser = p.chromium.launch()
 
@@ -229,13 +236,15 @@ jobs:
               failures = capture(page)
               destination = '/rns?date=2026-08-21&open=spr-preview-buyback'
               authenticate(page, destination)
-              row = wait_news(page, 'spr-preview-buyback')
+              row = wait_news(page, 'spr-preview-buyback', expanded=True)
               assert_shell(page, 'news', 0)
 
               company_link = row.locator('a.company-research-link')
-              expect(company_link).to_have_attribute(
-                  'href', re.compile(r'^/company/SPR\?.*from=news.*open=spr-preview-buyback.*date=2026-08-21')
-              )
+              parsed, query = context_href(page, company_link, 'news')
+              if parsed.path != '/company/SPR' or query.get('open') != ['spr-preview-buyback'] \
+                      or query.get('date') != ['2026-08-21']:
+                  raise AssertionError(f'News company link is incomplete: {parsed.geturl()}')
+
               row.locator('button.watch-toggle').click()
               expect(row.locator('button.watch-toggle')).to_have_attribute('aria-pressed', 'true')
               assert_shell(page, 'news', 1)
@@ -258,9 +267,10 @@ jobs:
               assert_shell(page, 'watchlist', 1)
               expect(page.locator('#page-eyebrow')).to_have_text('PERSONAL COMPANY NEWS')
               watch_company = watch_row.locator('a.company-research-link')
-              expect(watch_company).to_have_attribute(
-                  'href', re.compile(r'^/company/SPR\?.*from=watchlist.*open=spr-preview-buyback')
-              )
+              parsed, query = context_href(page, watch_company, 'watchlist')
+              if parsed.path != '/company/SPR' or query.get('open') != ['spr-preview-buyback']:
+                  raise AssertionError(f'Watchlist company link is incomplete: {parsed.geturl()}')
+
               watch_company.click()
               wait_company(page, 'SPR')
               assert_shell(page, 'watchlist', 1)
@@ -272,11 +282,14 @@ jobs:
               page.goto(f'{base}/?date=2026-08-21&state=aim_close', wait_until='domcontentloaded')
               wait_daily(page)
               assert_shell(page, 'daily', 1)
-              daily_link = page.locator('a[href^="/company/"]').first
-              expect(daily_link).to_have_attribute(
-                  'href', re.compile(r'^/company/[^?]+\?.*from=daily.*daily_state=aim_close.*daily_date=2026-08-21')
-              )
-              ticker = urlparse(daily_link.get_attribute('href')).path.rsplit('/', 1)[-1]
+              daily_link = page.locator('a[data-product-context="daily"]').first
+              daily_link.wait_for(timeout=30000)
+              parsed, query = context_href(page, daily_link, 'daily')
+              if query.get('daily_state') != ['aim_close'] \
+                      or query.get('daily_date') != ['2026-08-21']:
+                  raise AssertionError(f'Daily company link is incomplete: {parsed.geturl()}')
+              ticker = parsed.path.rsplit('/', 1)[-1]
+
               daily_link.click()
               wait_company(page, ticker)
               assert_shell(page, 'daily', 1)
@@ -303,17 +316,14 @@ jobs:
               page = mobile.new_page()
               failures = capture(page)
               authenticate(page, '/rns?date=2026-08-21')
-              wait_news(page)
-              assert_shell(page, 'news', 1)
 
               header_shapes = []
-              destinations = (
+              for destination, active, ready in (
                   ('/rns?date=2026-08-21', 'news', 'news'),
                   ('/rns?watchlist=1', 'watchlist', 'watchlist'),
                   ('/?date=2026-08-21&state=aim_close', 'daily', 'daily'),
                   ('/company/SPR', 'news', 'company'),
-              )
-              for destination, active, ready in destinations:
+              ):
                   page.goto(f'{base}{destination}', wait_until='domcontentloaded')
                   if ready == 'daily':
                       wait_daily(page)
