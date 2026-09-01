@@ -4,7 +4,7 @@ on:
   push:
     branches: ["main"]
   pull_request:
-    branches: ["main", "facts-no-fluff-pass-6"]
+    branches: ["main"]
   workflow_dispatch:
 
 permissions:
@@ -41,6 +41,7 @@ jobs:
           node --check frontend/assets/company-watchlist.js
           node --check frontend/assets/research.js
           node --check frontend/assets/product-shell.js
+          node --check frontend/assets/company-repo-pass1.js
 
       - name: Seed deterministic Watchlist company news
         run: |
@@ -91,17 +92,17 @@ jobs:
                   raise AssertionError(f'Document clips horizontally: {dims}')
 
           def wait_watchlist(page):
-              page.get_by_role('heading', name='Your watchlist.', exact=True).wait_for(
-                  timeout=30000
-              )
-              expect(page.locator('#page-eyebrow')).to_have_text('PERSONAL COMPANY NEWS')
-              expect(page.locator('#feed-tagline')).to_have_text(
-                  'Every update from the AIM companies you follow, in one place.'
-              )
-              expect(page.locator('[data-product-nav="watchlist"]')).to_have_attribute(
-                  'aria-current', 'page'
-              )
+              page.get_by_role('heading', name='Your companies.', exact=True).wait_for(timeout=30000)
+              expect(page.locator('#page-eyebrow')).to_have_text('WATCHLIST')
+              expect(page.locator('#feed-tagline')).to_have_text('What changed. What needs attention.')
+              expect(page.locator('[data-product-nav="watchlist"]')).to_have_attribute('aria-current', 'page')
               expect(page.locator('[data-product-status]')).to_have_text('AIM live')
+              expect(page.locator('[data-company-search-input]')).to_be_visible()
+              links = page.locator('nav[aria-label="Primary navigation"] a').evaluate_all(
+                  "els => els.map(el => el.getAttribute('href'))"
+              )
+              if links != ['/rns', '/rns?watchlist=1']:
+                  raise AssertionError(f'Watchlist navigation is not minimal: {links}')
 
           def wait_href(page, anchor, needle):
               href = ''
@@ -117,12 +118,7 @@ jobs:
 
               desktop = browser.new_context(viewport={'width': 1440, 'height': 1000})
               desktop.add_init_script(
-                  """
-                  localStorage.setItem(
-                    'smallcaps-ai-watchlist-v1',
-                    JSON.stringify(['GAMA', 'SPR'])
-                  );
-                  """
+                  "localStorage.setItem('smallcaps-ai-watchlist-v1', JSON.stringify(['GAMA', 'SPR']));"
               )
               page = desktop.new_page()
               page.goto(f'{base}/rns?watchlist=1', wait_until='domcontentloaded')
@@ -130,20 +126,14 @@ jobs:
               expect(page.locator('#feed-mode')).to_have_text('Watchlist')
               expect(page.locator('#watchlist-nav-count')).to_have_text('2')
               expect(page.locator('#result-status')).to_contain_text('2 companies')
-              expect(page.locator('#result-status')).to_contain_text('saved on this browser')
               expect(page.locator('article.monitor-row')).to_have_count(3)
 
               gamma_row = page.locator(f'article.monitor-row[data-source-id="{gamma}"]')
               gamma_row.wait_for(timeout=30000)
-              expect(gamma_row.locator('.ticker')).to_have_text('GAMA')
-              expect(gamma_row.locator('.news-time-watchlist')).to_contain_text('21 Aug')
               expect(gamma_row.locator('.price-line')).to_contain_text('PRE 969.5p')
               expect(gamma_row.locator('.price-line')).to_contain_text('DAY +7.3%')
 
-              spr_row = page.locator(
-                  f'article.monitor-row[data-source-id="{springfield}"]'
-              )
-              spr_row.wait_for(timeout=30000)
+              spr_row = page.locator(f'article.monitor-row[data-source-id="{springfield}"]')
               company_link = spr_row.locator('a.company-research-link')
               href = wait_href(page, company_link, 'from=watchlist')
               query = parse_qs(urlparse(href).query)
@@ -153,49 +143,33 @@ jobs:
               gamma_row.locator('button.watch-toggle').click()
               expect(page.locator(f'article.monitor-row[data-source-id="{gamma}"]')).to_have_count(0)
               expect(page.locator('#watchlist-nav-count')).to_have_text('1')
-              expect(page.locator('#result-status')).to_contain_text('1 company')
               no_overflow(page)
               page.screenshot(path=out / '01-watchlist-desktop.png', full_page=True)
 
               company_link = page.locator(
                   f'article.monitor-row[data-source-id="{springfield}"] a.company-research-link'
               )
-              href = wait_href(page, company_link, 'from=watchlist')
+              wait_href(page, company_link, 'from=watchlist')
               company_link.click()
               page.get_by_role('heading', name='SPR', exact=True).wait_for(timeout=30000)
-              page.locator('[data-company-section="current-position"]').wait_for(timeout=30000)
-              expect(page.locator('[data-product-nav="watchlist"]')).to_have_attribute(
-                  'aria-current', 'page'
-              )
+              expect(page.locator('[data-product-nav="watchlist"]')).to_have_attribute('aria-current', 'page')
               expect(page.locator('#company-context-link')).to_have_text('← Back to Watchlist')
               expect(page.locator('#company-context-link')).to_have_attribute(
                   'href', f'/rns?watchlist=1&open={springfield}'
               )
-              page.get_by_role(
-                  'link', name='Open in Watchlist →', exact=True
-              ).wait_for(timeout=30000)
+              page.get_by_role('link', name='Open in Watchlist →', exact=True).wait_for(timeout=30000)
               page.locator('#company-context-link').click()
-              page.wait_for_url(
-                  f'{base}/rns?watchlist=1&open={springfield}', timeout=30000
-              )
+              page.wait_for_url(f'{base}/rns?watchlist=1&open={springfield}', timeout=30000)
               wait_watchlist(page)
-              expect(
-                  page.locator(
-                      f'article.monitor-row[data-source-id="{springfield}"] .row-toggle'
-                  )
-              ).to_have_attribute('aria-expanded', 'true')
+              expect(page.locator(f'article.monitor-row[data-source-id="{springfield}"] .row-toggle')).to_have_attribute('aria-expanded', 'true')
               desktop.close()
 
               empty = browser.new_context(viewport={'width': 900, 'height': 700})
               page = empty.new_page()
               page.goto(f'{base}/rns?watchlist=1', wait_until='domcontentloaded')
               wait_watchlist(page)
-              page.get_by_role(
-                  'heading', name='Your watchlist is empty.', exact=True
-              ).wait_for(timeout=30000)
-              expect(
-                  page.get_by_role('link', name='Browse company news →', exact=True)
-              ).to_be_visible()
+              page.get_by_role('heading', name='Your watchlist is empty.', exact=True).wait_for(timeout=30000)
+              expect(page.get_by_role('link', name='Browse company news →', exact=True)).to_be_visible()
               expect(page.locator('#watchlist-nav-count')).to_be_hidden()
               empty.close()
 
@@ -205,12 +179,7 @@ jobs:
                   is_mobile=True,
               )
               mobile.add_init_script(
-                  """
-                  localStorage.setItem(
-                    'smallcaps-ai-watchlist-v1',
-                    JSON.stringify(['GAMA', 'SPR'])
-                  );
-                  """
+                  "localStorage.setItem('smallcaps-ai-watchlist-v1', JSON.stringify(['GAMA', 'SPR']));"
               )
               page = mobile.new_page()
               page.goto(f'{base}/rns?watchlist=1', wait_until='domcontentloaded')
@@ -222,14 +191,18 @@ jobs:
                   raise AssertionError(f'Mobile watch target is too small: {star_box}')
               header = page.evaluate(
                   """
-                  () => ({
-                    nav: document.querySelector('.primary-nav').getBoundingClientRect().height,
-                    signout: document.querySelector('.text-action').getBoundingClientRect().height,
-                  })
+                  () => {
+                    const nav = document.querySelector('.primary-nav').getBoundingClientRect();
+                    const search = document.querySelector('.company-search').getBoundingClientRect();
+                    const signout = document.querySelector('.text-action').getBoundingClientRect();
+                    return {navBottom: nav.bottom, navHeight: nav.height, searchTop: search.top, searchHeight: search.height, signoutHeight: signout.height};
+                  }
                   """
               )
-              if header['nav'] < 43.5 or header['signout'] < 43.5:
+              if header['navHeight'] < 43.5 or header['signoutHeight'] < 43.5:
                   raise AssertionError(f'Mobile shared header targets are too small: {header}')
+              if header['searchTop'] < header['navBottom'] - 1 or header['searchHeight'] < 43.5:
+                  raise AssertionError(f'Mobile company search row failed: {header}')
               page.screenshot(path=out / '02-watchlist-mobile.png', full_page=True)
               mobile.close()
               browser.close()

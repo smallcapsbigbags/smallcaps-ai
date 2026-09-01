@@ -1,4 +1,4 @@
-/* Pass 5: one Smallcaps.ai product shell across News, Watchlist, Daily and Company Intelligence. */
+/* Company-repository Pass 1: one fast shell for News, Watchlist and Company. */
 
 .product-page {
   min-width: 320px;
@@ -11,18 +11,18 @@
   top: 0;
   z-index: 100;
   border-bottom: 1px solid var(--line);
-  background: rgba(255, 255, 255, .94);
+  background: rgba(255, 255, 255, .96);
   backdrop-filter: blur(14px);
 }
 
 .product-page .header-inner {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto auto minmax(190px, 1fr) auto;
   align-items: center;
   width: min(var(--content), calc(100% - 40px));
   min-height: 58px;
   margin: 0 auto;
-  gap: 28px;
+  gap: 20px;
 }
 
 .product-page .wordmark {
@@ -47,7 +47,7 @@
   align-items: stretch;
   min-width: 0;
   height: 58px;
-  gap: 4px;
+  gap: 2px;
 }
 
 .product-page .nav-link {
@@ -55,7 +55,7 @@
   display: inline-flex;
   align-items: center;
   min-height: 44px;
-  padding: 0 12px;
+  padding: 0 10px;
   color: var(--muted);
   font-size: 12px;
   font-weight: 650;
@@ -64,10 +64,7 @@
 }
 
 .product-page .nav-link:hover,
-.product-page .nav-link:focus-visible {
-  color: var(--text);
-}
-
+.product-page .nav-link:focus-visible,
 .product-page .nav-link-active {
   color: var(--text);
 }
@@ -75,11 +72,70 @@
 .product-page .nav-link-active::after {
   content: "";
   position: absolute;
-  right: 12px;
+  right: 10px;
   bottom: -1px;
-  left: 12px;
+  left: 10px;
   height: 2px;
   background: var(--blue);
+}
+
+.product-page .company-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  max-width: 440px;
+  min-height: 38px;
+  justify-self: end;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface-soft);
+  transition: border-color .15s ease, background .15s ease, box-shadow .15s ease;
+}
+
+.product-page .company-search:focus-within {
+  border-color: #9db9f8;
+  background: var(--surface);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, .08);
+}
+
+.product-page .company-search svg {
+  width: 16px;
+  height: 16px;
+  margin-left: 11px;
+  flex: 0 0 16px;
+  fill: none;
+  stroke: var(--muted);
+  stroke-linecap: round;
+  stroke-width: 1.6;
+}
+
+.product-page .company-search input {
+  width: 100%;
+  min-width: 0;
+  height: 36px;
+  border: 0;
+  outline: 0;
+  padding: 0 10px;
+  background: transparent;
+  color: var(--text);
+  font-size: 12px;
+}
+
+.product-page .company-search input::placeholder {
+  color: var(--muted-light);
+}
+
+.product-page .company-search kbd {
+  margin-right: 9px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 1px 5px;
+  background: var(--surface);
+  color: var(--muted-light);
+  font-family: var(--mono);
+  font-size: 9px;
+  line-height: 1.5;
 }
 
 .product-page .header-meta,
@@ -89,7 +145,7 @@
 }
 
 .product-page .header-meta {
-  gap: 18px;
+  gap: 16px;
 }
 
 .product-page .header-meta form {
@@ -107,6 +163,7 @@
   font-weight: 650;
   letter-spacing: 0;
   text-transform: none;
+  white-space: nowrap;
 }
 
 .product-page .live-status i {
@@ -166,6 +223,12 @@
   color: var(--blue);
 }
 
+.product-page .feed-toolbar-compact {
+  display: flex;
+  justify-content: flex-end;
+  min-height: 0;
+}
+
 .product-page .site-footer.product-footer {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
@@ -223,13 +286,23 @@
 
 .product-access-page .access-header {
   border-bottom: 1px solid var(--line);
-  background: rgba(255, 255, 255, .94);
+  background: rgba(255, 255, 255, .96);
 }
 
 .product-access-page .access-header .wordmark {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
+}
+
+@media (max-width: 940px) {
+  .product-page .header-inner {
+    gap: 14px;
+  }
+
+  .product-page .live-status {
+    display: none;
+  }
 }
 
 @media (max-width: 760px) {
@@ -240,10 +313,12 @@
   .product-page .header-inner {
     grid-template-areas:
       "brand meta"
-      "nav nav";
+      "nav nav"
+      "search search";
     grid-template-columns: minmax(0, 1fr) auto;
     width: calc(100% - 24px);
     min-height: 0;
+    padding-bottom: 10px;
     gap: 0 12px;
   }
 
@@ -258,14 +333,9 @@
     gap: 0;
   }
 
-  .product-page .live-status {
-    display: none;
-  }
-
   .product-page .text-action {
     min-height: 44px;
     font-size: 10px;
-    white-space: nowrap;
   }
 
   .product-page .primary-nav {
@@ -274,18 +344,12 @@
     height: 44px;
     border-top: 1px solid var(--line);
     gap: 0;
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-
-  .product-page .primary-nav::-webkit-scrollbar {
-    display: none;
   }
 
   .product-page .nav-link {
     flex: 1 1 0;
     justify-content: center;
-    min-width: max-content;
+    min-width: 0;
     min-height: 44px;
     padding: 0 9px;
     font-size: 10.5px;
@@ -296,6 +360,23 @@
     left: 9px;
   }
 
+  .product-page .company-search {
+    grid-area: search;
+    max-width: none;
+    min-height: 44px;
+    margin-top: 4px;
+    justify-self: stretch;
+  }
+
+  .product-page .company-search input {
+    height: 42px;
+    font-size: 13px;
+  }
+
+  .product-page .company-search kbd {
+    display: none;
+  }
+
   .product-page .watchlist-nav-count {
     display: inline-grid;
   }
@@ -303,6 +384,10 @@
   .product-page .company-context-link {
     min-height: 40px;
     margin-bottom: 7px;
+  }
+
+  .product-page .feed-toolbar-compact {
+    margin-top: -8px;
   }
 
   .product-page .site-footer.product-footer {
@@ -341,7 +426,8 @@
 @media (prefers-reduced-motion: reduce) {
   .product-page .site-header,
   .product-page .nav-link,
-  .product-page .company-context-link {
+  .product-page .company-context-link,
+  .product-page .company-search {
     scroll-behavior: auto;
     transition: none !important;
   }

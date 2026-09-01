@@ -61,6 +61,8 @@ def test_feed_owns_company_data_links_and_shareable_company_news_state() -> None
     assert "company-inline-link" in javascript
     assert "scbb-monitoring-v1" in javascript
     assert "KEY_NEWS_THRESHOLD = 3" in javascript
+    assert 'id="search-filter"' in html
+    assert "data-company-search-input" in html
 
 
 def test_company_evidence_trail_builds_exact_dated_news_links_directly() -> None:
@@ -80,38 +82,41 @@ def test_company_evidence_trail_builds_exact_dated_news_links_directly() -> None
     assert "innerHTML" not in javascript
 
 
-def test_shared_shell_preserves_source_context_without_accepting_an_arbitrary_return_url() -> None:
+def test_shared_shell_preserves_source_context_without_arbitrary_return_urls() -> None:
     shell = Path("frontend/assets/product-shell.js").read_text(encoding="utf-8")
 
-    assert 'const COMPANY_CONTEXTS = new Set(["news", "watchlist", "daily"])' in shell
+    assert 'const COMPANY_CONTEXTS = new Set(["news", "watchlist"])' in shell
     assert 'url.searchParams.set("from", surface)' in shell
     assert 'url.searchParams.set("open", sourceId)' in shell
-    assert 'new URLSearchParams({ watchlist: "1", open: sourceId })' in shell
-    assert 'DAILY_STATES.has(state)' in shell
+    assert 'new URLSearchParams({ watchlist: "1" })' in shell
     assert 'return COMPANY_CONTEXTS.has(value) ? value : "news"' in shell
+    assert "daily_state" not in shell
+    assert "daily_date" not in shell
     assert "return_url" not in shell
     assert "next_url" not in shell
     assert "fetch(" not in shell
 
 
-def test_mobile_product_headers_retain_sign_out_and_use_one_shared_layout() -> None:
+def test_mobile_product_headers_retain_sign_out_search_and_one_shared_layout() -> None:
     feed = Path("frontend/index.html").read_text(encoding="utf-8")
-    daily = Path("frontend/daily.html").read_text(encoding="utf-8")
     company = Path("frontend/company.html").read_text(encoding="utf-8")
     company_css = Path("frontend/assets/company-pass4.css").read_text(encoding="utf-8")
     shell_css = Path("frontend/assets/product-shell.css").read_text(encoding="utf-8")
     compact = "".join(shell_css.split())
 
-    for html in (feed, daily, company):
+    for html in (feed, company):
         assert 'button class="text-action" type="submit">Sign out</button>' in html
         assert "product-page" in html
         assert 'data-product-status>AIM live</span>' in html
         assert '/assets/product-shell.css?v={{ASSET_VERSION}}' in html
+        assert "data-company-search" in html
+        assert 'data-product-nav="daily"' not in html
 
     assert ".company-watch-toggle" in company_css
     assert ".company-position-main" in company_css
     assert ".company-matters-grid" in company_css
     assert "@media (max-width:680px)" in company_css
-    assert 'grid-template-areas:"brandmeta""navnav"' in compact
+    assert 'grid-template-areas:"brandmeta""navnav""searchsearch"' in compact
+    assert ".product-page .company-search" in shell_css
     assert ".product-page .live-status" in shell_css
     assert "min-height:44px" in compact

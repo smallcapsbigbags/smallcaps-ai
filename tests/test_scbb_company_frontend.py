@@ -8,12 +8,14 @@ from starlette.testclient import TestClient
 from api.frontend import create_frontend_routes
 
 
-def test_company_frontend_uses_the_pass4_investor_decision_contract() -> None:
+def test_company_frontend_uses_the_repository_contract() -> None:
     html = Path("frontend/company.html").read_text(encoding="utf-8")
     javascript = Path("frontend/assets/company.js").read_text(encoding="utf-8")
     css = Path("frontend/assets/company-pass4.css").read_text(encoding="utf-8")
 
-    assert "COMPANY INTELLIGENCE" in html.upper()
+    assert '<p class="eyebrow">Company</p>' in html
+    assert "company-repository-page" in html
+    assert "Company Intelligence" not in html
     assert '<meta name="theme-color" content="#f5f6f8">' in html
     assert '<meta name="color-scheme" content="light">' in html
     for asset in (
@@ -39,10 +41,12 @@ def test_company_frontend_uses_the_pass4_investor_decision_contract() -> None:
 
     assert 'data-product-nav="news"' in html
     assert 'data-product-nav="watchlist"' in html
-    assert 'data-product-nav="daily"' in html
+    assert 'data-product-nav="daily"' not in html
+    assert "data-company-search" in html
     assert 'id="company-context-link"' in html
     assert "Independent AIM research. Facts first." in html
     assert "COMPANY MONITORING SHEET" not in html
+    assert "The AIM Daily" not in html
 
     assert 'const COMPANY_SCHEMA = "scbb-company-v1"' in javascript
     assert 'const MONITORING_SCHEMA = "scbb-monitoring-v1"' in javascript
@@ -124,4 +128,5 @@ def test_feed_renderer_and_shared_shell_have_separate_navigation_responsibilitie
     assert "company-inline-link" in research
     assert 'url.searchParams.set("from", surface)' in shell
     assert 'url.searchParams.set("open", sourceId)' in shell
+    assert "initialiseCompanySearch" in shell
     assert "fetch(" not in shell

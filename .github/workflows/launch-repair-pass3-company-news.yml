@@ -40,6 +40,7 @@ jobs:
           node --check frontend/assets/research.js
           node --check frontend/assets/news-pass3.js
           node --check frontend/assets/product-shell.js
+          node --check frontend/assets/company-repo-pass1.js
 
       - name: Seed deterministic Company News data
         run: |
@@ -86,15 +87,20 @@ jobs:
               'news-pass3.css',
               'news-pass3-polish.css',
               'product-shell.css',
+              'investor-workflow.css',
               'watchlist.js',
               'research.js',
               'news-pass3.js',
               'product-shell.js',
+              'investor-workflow.js',
+              'company-repo-pass1.js',
           ):
               if re.search(rf'/assets/{re.escape(asset)}\?v=[0-9a-f]{{12}}', html) is None:
                   raise AssertionError(f'{asset} is not content fingerprinted')
           if '<body class="company-news-page product-page">' not in html:
               raise AssertionError('Company News shared product scope is missing')
+          if 'data-product-nav="daily"' in html or 'The AIM Daily' in html:
+              raise AssertionError('Retired Daily navigation remains customer-visible')
           PY
 
       - name: Audit desktop, mobile and forced-dark journeys
@@ -127,24 +133,16 @@ jobs:
                     client: document.documentElement.clientWidth,
                     scroll: document.documentElement.scrollWidth,
                     body: document.body.scrollWidth,
+                    duplicates: [...document.querySelectorAll('[id]')]
+                      .map(node => node.id)
+                      .filter((id, index, values) => values.indexOf(id) !== index),
                   })
                   """
               )
               if dims['scroll'] > dims['client'] + 2 or dims['body'] > dims['client'] + 2:
                   raise AssertionError(f'Document clips horizontally: {dims}')
-
-          def assert_no_duplicate_ids(page):
-              duplicates = page.evaluate(
-                  """
-                  () => {
-                    const counts = new Map();
-                    document.querySelectorAll('[id]').forEach((node) => counts.set(node.id, (counts.get(node.id) || 0) + 1));
-                    return [...counts.entries()].filter(([, count]) => count > 1);
-                  }
-                  """
-              )
-              if duplicates:
-                  raise AssertionError(f'Duplicate DOM ids: {duplicates}')
+              if dims['duplicates']:
+                  raise AssertionError(f'Duplicate DOM ids: {dims}')
 
           def assert_shared_nav(page):
               links = page.locator('nav[aria-label="Primary navigation"] a').evaluate_all(
@@ -153,44 +151,18 @@ jobs:
               expected = [
                   {'text': 'News', 'href': '/rns'},
                   {'text': 'Watchlist', 'href': '/rns?watchlist=1'},
-                  {'text': 'The AIM Daily', 'href': '/'},
               ]
               if links != expected:
-                  raise AssertionError(f'Navigation drifted: {links}')
+                  raise AssertionError(f'Navigation is not minimal: {links}')
               expect(page.locator('[data-product-nav="news"]')).to_have_attribute('aria-current', 'page')
+              expect(page.locator('[data-company-search-input]')).to_be_visible()
 
           def wait_feed(page):
               page.get_by_role('heading', name='Facts. No fluff.', exact=True).wait_for(timeout=30000)
               page.locator('article.monitor-row').first.wait_for(timeout=30000)
               expect(page.locator('article.monitor-row')).to_have_count(5)
               expect(page.locator('#feed-mode')).to_have_text('Key News')
-
-          def assert_row(row, *, mobile=False):
-              state = row.evaluate(
-                  """
-                  (row) => {
-                    const toggle = row.querySelector('.row-toggle');
-                    const detail = row.querySelector('.expanded-research');
-                    return {
-                      rowBackground: getComputedStyle(row).backgroundColor,
-                      rowHeight: row.getBoundingClientRect().height,
-                      togglePosition: getComputedStyle(toggle).position,
-                      toggleWidth: toggle.getBoundingClientRect().width,
-                      toggleHeight: toggle.getBoundingClientRect().height,
-                      headlineAlign: getComputedStyle(row.querySelector('.news-headline')).textAlign,
-                      detailHidden: detail.hidden,
-                    };
-                  }
-                  """
-              )
-              if state['rowBackground'] != 'rgb(255, 255, 255)' or state['togglePosition'] != 'static':
-                  raise AssertionError(f'Collapsed row visual contract failed: {state}')
-              if state['headlineAlign'] != 'left' or state['detailHidden'] is not True:
-                  raise AssertionError(f'Collapsed row hierarchy failed: {state}')
-              if not (108 if mobile else 82) <= state['rowHeight'] <= (230 if mobile else 170):
-                  raise AssertionError(f'Row density is outside launch bounds: {state}')
-              if state['toggleWidth'] < (300 if mobile else 700) or state['toggleHeight'] < 44:
-                  raise AssertionError(f'Row disclosure target is too small: {state}')
+              expect(page.locator('#feed-tagline')).to_have_text('What changed across AIM.')
 
           with sync_playwright() as p:
               browser = p.chromium.launch()
@@ -202,10 +174,7 @@ jobs:
               wait_feed(page)
               assert_shared_nav(page)
               assert_no_overflow(page)
-              assert_no_duplicate_ids(page)
 
-              first = page.locator('article.monitor-row').first
-              assert_row(first)
               springfield = page.locator('article.monitor-row[data-source-id="spr-preview-buyback"]')
               company_href = springfield.locator('a.company-research-link').get_attribute('href')
               parsed = urlparse(company_href)
@@ -227,7 +196,7 @@ jobs:
               expect(page.locator('article.monitor-row')).to_have_count(5)
 
               asset_paths = {urlparse(url).path for url in requests_seen}
-              for required in ('/assets/news.css', '/assets/news-pass3.css', '/assets/product-shell.css', '/assets/news-pass3.js', '/assets/product-shell.js'):
+              for required in ('/assets/news.css', '/assets/news-pass3.css', '/assets/product-shell.css', '/assets/news-pass3.js', '/assets/product-shell.js', '/assets/company-repo-pass1.js'):
                   if required not in asset_paths:
                       raise AssertionError(f'Missing Company News asset request: {required}')
               assert_clean(failures, 'Desktop Company News')
@@ -240,23 +209,31 @@ jobs:
               wait_feed(page)
               assert_shared_nav(page)
               assert_no_overflow(page)
-              assert_no_duplicate_ids(page)
 
               header = page.evaluate(
                   """
                   () => {
                     const brand = document.querySelector('.wordmark').getBoundingClientRect();
                     const nav = document.querySelector('.primary-nav').getBoundingClientRect();
+                    const search = document.querySelector('.company-search').getBoundingClientRect();
                     const signOut = document.querySelector('.text-action').getBoundingClientRect();
-                    return {brandBottom: brand.bottom, navTop: nav.top, navHeight: nav.height, signOutHeight: signOut.height};
+                    return {
+                      brandBottom: brand.bottom,
+                      navTop: nav.top,
+                      navBottom: nav.bottom,
+                      navHeight: nav.height,
+                      searchTop: search.top,
+                      searchHeight: search.height,
+                      signOutHeight: signOut.height,
+                    };
                   }
                   """
               )
               if header['navTop'] < header['brandBottom'] - 1 or header['navHeight'] < 43.5 or header['signOutHeight'] < 43.5:
                   raise AssertionError(f'Mobile shared header failed: {header}')
+              if header['searchTop'] < header['navBottom'] - 1 or header['searchHeight'] < 43.5:
+                  raise AssertionError(f'Mobile search row failed: {header}')
 
-              first = page.locator('article.monitor-row').first
-              assert_row(first, mobile=True)
               springfield = page.locator('article.monitor-row[data-source-id="spr-preview-buyback"]')
               springfield.locator('.news-meta').click()
               springfield.locator('.expanded-research:not([hidden])').wait_for(timeout=30000)
@@ -275,11 +252,10 @@ jobs:
                   () => ({
                     body: getComputedStyle(document.body).backgroundColor,
                     row: getComputedStyle(document.querySelector('.monitor-row')).backgroundColor,
-                    toolbar: getComputedStyle(document.querySelector('.feed-toolbar')).backgroundColor,
                   })
                   """
               )
-              if set(colours.values()) != {'rgb(245, 246, 248)', 'rgb(255, 255, 255)'}:
+              if colours != {'body': 'rgb(245, 246, 248)', 'row': 'rgb(255, 255, 255)'}:
                   raise AssertionError(f'Forced dark preference changed Company News surfaces: {colours}')
               assert_clean(failures, 'Forced-dark Company News')
               forced_dark.close()

@@ -1,10 +1,15 @@
 from pathlib import Path
 
+from starlette.applications import Starlette
+from starlette.testclient import TestClient
+
+from api.frontend import create_frontend_routes
+
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_company_intelligence_uses_one_isolated_light_asset_stack() -> None:
+def test_company_repository_uses_one_isolated_light_asset_stack() -> None:
     html = (ROOT / "frontend" / "company.html").read_text(encoding="utf-8")
     css = (ROOT / "frontend" / "assets" / "company-pass4.css").read_text(
         encoding="utf-8"
@@ -28,10 +33,13 @@ def test_company_intelligence_uses_one_isolated_light_asset_stack() -> None:
     ):
         assert retired not in html
 
-    assert "COMPANY INTELLIGENCE" in html.upper()
+    assert '<p class="eyebrow">Company</p>' in html
+    assert "company-repository-page" in html
+    assert "Company Intelligence" not in html
     assert 'data-product-nav="news"' in html
     assert 'data-product-nav="watchlist"' in html
-    assert 'data-product-nav="daily"' in html
+    assert 'data-product-nav="daily"' not in html
+    assert "data-company-search" in html
     assert 'id="company-context-link"' in html
     assert "COMPANY MONITORING SHEET" not in html
 
@@ -44,7 +52,7 @@ def test_company_intelligence_uses_one_isolated_light_asset_stack() -> None:
     assert "@media (prefers-reduced-motion:reduce)" in css
 
 
-def test_company_page_renders_final_language_directly_without_report_rewriting() -> None:
+def test_company_page_renders_existing_evidence_without_report_rewriting() -> None:
     javascript = (ROOT / "frontend" / "assets" / "company.js").read_text(
         encoding="utf-8"
     )
@@ -90,25 +98,30 @@ def test_company_to_news_links_use_the_canonical_company_news_route() -> None:
     assert 'return query ? `/?${query}`' not in javascript
 
 
-def test_the_aim_daily_keeps_its_editorial_identity_inside_the_product_shell() -> None:
-    html = (ROOT / "frontend" / "daily.html").read_text(encoding="utf-8")
+def test_the_aim_daily_is_not_a_customer_surface_or_home_route(monkeypatch) -> None:
+    monkeypatch.setenv("PRIVATE_BETA_MODE", "false")
+    for name in (
+        "RAILWAY_ENVIRONMENT",
+        "RAILWAY_ENVIRONMENT_ID",
+        "RAILWAY_PROJECT_ID",
+        "RAILWAY_SERVICE_ID",
+    ):
+        monkeypatch.delenv(name, raising=False)
+    client = TestClient(Starlette(routes=create_frontend_routes()))
 
-    assert "THE AIM DAILY" in html
-    assert "Preparing edition" in html
-    assert '<meta name="theme-color" content="#f5f6f8">' in html
-    assert '/assets/news.css' in html
-    assert '/assets/product-shell.css' in html
-    assert '/assets/product-shell.js' in html
-    assert '/assets/research.css' not in html
-    assert 'class="header-inner"' in html
-    assert 'data-product-nav="news"' in html
-    assert 'data-product-nav="watchlist"' in html
-    assert 'data-product-nav="daily"' in html
-    assert "AIM live" in html
-    assert "VIEW ALL COMPANY NEWS →" in html
-    assert "OPEN COMPANY NEWS →" in html
-    assert "RNS MONITOR" not in html
-    assert "OPEN RNS MONITOR" not in html
+    home = client.get("/")
+    assert home.status_code == 200
+    assert "AIM COMPANY NEWS" in home.text
+    assert "THE AIM DAILY" not in home.text
+    assert 'data-product-nav="daily"' not in home.text
+
+    # Historical assets remain until the final migration/cleanup pass, but no
+    # customer-facing page links to them.
+    assert (ROOT / "frontend" / "daily.html").exists()
+    for name in ("index.html", "company.html", "access.html"):
+        html = (ROOT / "frontend" / name).read_text(encoding="utf-8")
+        assert "The AIM Daily" not in html
+        assert 'data-product-nav="daily"' not in html
 
 
 def test_company_pass4_is_presentation_not_a_new_ai_or_database_feature() -> None:

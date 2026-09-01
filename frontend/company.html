@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Smallcaps.ai Company Intelligence — the current position, what matters now and the evidence trail.">
+  <meta name="description" content="Smallcaps.ai company repository — current position, key changes and company news history.">
   <meta name="theme-color" content="#f5f6f8">
   <meta name="color-scheme" content="light">
-  <title>Smallcaps.ai · Company Intelligence</title>
+  <title>Smallcaps.ai · Company</title>
   <link rel="icon" href="/favicon.svg?v={{ASSET_VERSION}}" type="image/svg+xml">
   <link rel="stylesheet" href="/assets/news.css?v={{ASSET_VERSION}}">
   <link rel="stylesheet" href="/assets/watchlist.css?v={{ASSET_VERSION}}">
@@ -19,19 +19,25 @@
   <script src="/assets/product-shell.js?v={{ASSET_VERSION}}" defer></script>
   <script src="/assets/investor-workflow.js?v={{ASSET_VERSION}}" defer></script>
 </head>
-<body class="company-intelligence-page product-page">
-  <a class="skip-link" href="#company-research">Skip to company intelligence</a>
+<body class="company-intelligence-page company-repository-page product-page">
+  <a class="skip-link" href="#company-research">Skip to company</a>
 
   <header class="site-header">
     <div class="header-inner">
-      <a class="wordmark" href="/" aria-label="Smallcaps.ai home">
+      <a class="wordmark" href="/rns" aria-label="Smallcaps.ai company news">
         <span>smallcaps</span><strong>.ai</strong>
       </a>
       <nav class="primary-nav" aria-label="Primary navigation">
         <a id="news-nav-link" class="nav-link nav-link-active" data-product-nav="news" href="/rns" aria-current="page">News</a>
         <a id="watchlist-nav-link" class="nav-link" data-product-nav="watchlist" href="/rns?watchlist=1">Watchlist<span id="watchlist-nav-count" class="watchlist-nav-count" data-watchlist-count hidden>0</span></a>
-        <a id="daily-nav-link" class="nav-link" data-product-nav="daily" href="/">The AIM Daily</a>
       </nav>
+      <div class="company-search" role="search" data-company-search>
+        <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5"></circle><path d="m13 13 4 4"></path></svg>
+        <label class="sr-only" for="company-search-input">Open company by ticker</label>
+        <input id="company-search-input" data-company-search-input list="company-search-options" type="search" autocomplete="off" placeholder="Company or ticker">
+        <datalist id="company-search-options" data-company-search-options></datalist>
+        <span class="sr-only" data-company-search-status aria-live="polite"></span>
+      </div>
       <div class="header-meta">
         <span class="live-status"><i aria-hidden="true"></i><span data-product-status>AIM live</span></span>
         <form action="/logout" method="post">
@@ -44,26 +50,26 @@
   <main class="company-shell" id="company-research">
     <section class="company-hero" aria-labelledby="company-title">
       <div class="company-hero-copy">
-        <a id="company-context-link" class="company-context-link" href="/rns">← Back to Company News</a>
-        <p class="eyebrow">Company Intelligence</p>
+        <a id="company-context-link" class="company-context-link" href="/rns">← Back to News</a>
+        <p class="eyebrow">Company</p>
         <h1 id="company-title"><span id="company-ticker">—</span><em aria-hidden="true">.</em></h1>
         <div class="company-identity">
-          <strong id="company-name">Loading company intelligence…</strong>
+          <strong id="company-name">Loading company…</strong>
           <span id="company-market">AIM</span>
         </div>
-        <p id="company-coverage" class="company-coverage" aria-live="polite">Preparing the company record…</p>
+        <p id="company-coverage" class="company-coverage" aria-live="polite">Building company history…</p>
       </div>
       <button id="company-watch-toggle" class="company-watch-toggle" type="button" aria-pressed="false">☆ Watch</button>
     </section>
 
     <div id="company-content" class="company-content" aria-live="polite">
-      <div class="company-loading" role="status" aria-label="Loading company intelligence">
+      <div class="company-loading" role="status" aria-label="Loading company">
         <span></span><span></span><span></span>
       </div>
     </div>
 
     <noscript>
-      <p class="noscript-message">JavaScript is required to load live Company Intelligence.</p>
+      <p class="noscript-message">JavaScript is required to load this company repository.</p>
     </noscript>
   </main>
 
@@ -71,8 +77,8 @@
     <span class="product-footer-brand">smallcaps.ai</span>
     <p class="product-footer-copy">Independent AIM research. Facts first. Not personal investment advice.</p>
     <nav class="product-footer-links" aria-label="Footer navigation">
-      <a href="/">The AIM Daily</a>
-      <a href="/rns">Company News</a>
+      <a href="/rns">News</a>
+      <a href="/rns?watchlist=1">Watchlist</a>
     </nav>
   </footer>
 </body>
