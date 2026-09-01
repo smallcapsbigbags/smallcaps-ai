@@ -8,7 +8,7 @@ def test_feed_uses_facts_no_fluff_company_news_language() -> None:
     html = (ROOT / "frontend" / "index.html").read_text(encoding="utf-8")
     assert "AIM COMPANY NEWS" in html
     assert "Facts. No fluff." in html
-    assert "Every material AIM announcement, reduced to what changed." in html
+    assert "What changed across AIM." in html
     assert 'id="filter-panel"' in html and 'hidden' in html
     assert '/assets/news.css' in html
     assert '/assets/news-detail.css' in html
