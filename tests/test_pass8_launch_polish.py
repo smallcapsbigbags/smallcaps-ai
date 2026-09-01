@@ -32,7 +32,7 @@ def test_company_intelligence_uses_one_isolated_light_asset_stack() -> None:
     assert 'href="/">The AIM Daily</a>' in html
     assert "COMPANY MONITORING SHEET" not in html
 
-    assert "color-scheme: light" in css
+    assert "color-scheme:light" in css
     assert ".company-position-card" in css
     assert ".company-position-snapshot" in css
     assert ".company-matter-card" in css
