@@ -1,4 +1,4 @@
-/* Pass 2 visual hardening: honest signal borders and balanced odd metric rows. */
+/* Pass 2 visual hardening: honest signal borders and balanced metric rows. */
 
 .company-repository-page .repo-news-item.tone-positive {
   --tone: var(--green);
@@ -16,51 +16,58 @@
   --tone: var(--grey);
 }
 
-.company-repository-page .repo-metric-grid:has(> .repo-metric:only-child) {
-  grid-template-columns: 1fr;
-}
-
-.company-repository-page .repo-metric-grid:has(> .repo-metric:nth-child(2):last-child),
-.company-repository-page .repo-metric-grid:has(> .repo-metric:nth-child(4):last-child) {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.company-repository-page .repo-metric-grid:has(> .repo-metric:nth-child(5):last-child) {
+/* Six tracks allow three equal cards, two equal cards or a full-width card
+   without relying on relational selectors in the production browser path. */
+.company-repository-page .repo-metric-grid {
   grid-template-columns: repeat(6, minmax(0, 1fr));
 }
 
-.company-repository-page .repo-metric-grid:has(> .repo-metric:nth-child(5):last-child) > .repo-metric {
+.company-repository-page .repo-metric-grid > .repo-metric {
   grid-column: span 2;
 }
 
-.company-repository-page .repo-metric-grid:has(> .repo-metric:nth-child(5):last-child) > .repo-metric:nth-child(n + 4) {
+.company-repository-page .repo-metric-grid > .repo-metric:only-child {
+  grid-column: span 6;
+}
+
+.company-repository-page .repo-metric-grid > .repo-metric:first-child:nth-last-child(2),
+.company-repository-page .repo-metric-grid > .repo-metric:nth-child(2):last-child {
+  grid-column: span 3;
+}
+
+.company-repository-page .repo-metric-grid > .repo-metric:first-child:nth-last-child(4),
+.company-repository-page .repo-metric-grid > .repo-metric:nth-child(2):nth-last-child(3),
+.company-repository-page .repo-metric-grid > .repo-metric:nth-child(3):nth-last-child(2),
+.company-repository-page .repo-metric-grid > .repo-metric:nth-child(4):last-child {
+  grid-column: span 3;
+}
+
+.company-repository-page .repo-metric-grid > .repo-metric:nth-child(4):nth-last-child(2),
+.company-repository-page .repo-metric-grid > .repo-metric:nth-child(5):last-child {
   grid-column: span 3;
 }
 
 @media (max-width: 820px) {
-  .company-repository-page .repo-metric-grid:has(> .repo-metric:nth-child(5):last-child) {
+  .company-repository-page .repo-metric-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .company-repository-page .repo-metric-grid:has(> .repo-metric:nth-child(5):last-child) > .repo-metric {
+  .company-repository-page .repo-metric-grid > .repo-metric {
     grid-column: auto;
   }
 
-  .company-repository-page .repo-metric-grid:has(> .repo-metric:nth-child(5):last-child) > .repo-metric:last-child {
+  .company-repository-page .repo-metric-grid > .repo-metric:nth-child(odd):last-child {
     grid-column: 1 / -1;
   }
 }
 
 @media (max-width: 680px) {
-  .company-repository-page .repo-metric-grid:has(> .repo-metric:only-child),
-  .company-repository-page .repo-metric-grid:has(> .repo-metric:nth-child(2):last-child),
-  .company-repository-page .repo-metric-grid:has(> .repo-metric:nth-child(4):last-child),
-  .company-repository-page .repo-metric-grid:has(> .repo-metric:nth-child(5):last-child) {
+  .company-repository-page .repo-metric-grid {
     grid-template-columns: 1fr;
   }
 
-  .company-repository-page .repo-metric-grid:has(> .repo-metric:nth-child(5):last-child) > .repo-metric,
-  .company-repository-page .repo-metric-grid:has(> .repo-metric:nth-child(5):last-child) > .repo-metric:last-child {
+  .company-repository-page .repo-metric-grid > .repo-metric,
+  .company-repository-page .repo-metric-grid > .repo-metric:nth-child(odd):last-child {
     grid-column: auto;
   }
 }
