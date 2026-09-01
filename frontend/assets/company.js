@@ -3,28 +3,37 @@
 
   const COMPANY_SCHEMA = "scbb-company-v1";
   const MONITORING_SCHEMA = "scbb-monitoring-v1";
-  const LONDON = "Europe/London";
+  const INITIAL_HISTORY_COUNT = 8;
   const IMPACT_NAMES = {
-    1: "ROUTINE",
-    2: "MINOR",
-    3: "MATERIAL",
-    4: "HIGH",
-    5: "CRITICAL",
+    1: "Low",
+    2: "Low",
+    3: "Medium",
+    4: "High",
+    5: "Critical",
   };
-  const VISIBLE_HISTORY = 12;
+  const SIGNAL_LABELS = {
+    GREEN: "Positive",
+    AMBER: "Mixed",
+    RED: "Negative",
+    "NO COLOUR": "Neutral",
+  };
 
   const state = {
     company: null,
     detailCache: new Map(),
-    showAllHistory: false,
+    historyExpanded: false,
   };
 
   document.addEventListener("DOMContentLoaded", initialise);
 
   async function initialise() {
+    syncWatchlistNavigation();
     const ticker = pathTicker();
+    const tickerNode = document.getElementById("company-ticker");
+    if (tickerNode) tickerNode.textContent = ticker || "—";
+
     if (!ticker) {
-      renderError(new Error("A company ticker is required."));
+      renderError(new Error("A company ticker was not supplied."));
       return;
     }
 
@@ -35,838 +44,887 @@
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(payload?.error?.message || "Company research is unavailable.");
+        throw new Error(payload?.error?.message || "Company Intelligence is unavailable.");
       }
       if (payload.schema_version !== COMPANY_SCHEMA) {
         throw new Error("The Company Intelligence data contract is incompatible.");
       }
       state.company = payload;
       renderCompany(payload);
+      await activateRequestedEvidence(payload);
     } catch (error) {
       renderError(error);
     }
   }
 
-  function pathTicker() {
-    const parts = window.location.pathname.split("/").filter(Boolean);
-    if (parts[0] !== "company" || !parts[1]) return "";
-    return clean(decodeURIComponent(parts[1])).toUpperCase().replace(/\.L$/, "");
-  }
-
   function renderCompany(company) {
-    document.title = `${company.ticker} · ${company.company} · Smallcaps.ai`;
-    document.getElementById("company-ticker").textContent = company.ticker;
-    document.getElementById("company-name").textContent = company.company;
-    document.getElementById("company-market").textContent = [company.market, company.isin]
-      .map(clean)
-      .filter(Boolean)
-      .join(" · ") || "AIM";
-    document.getElementById("company-coverage").textContent = coverageText(company.coverage || {});
+    document.title = `${clean(company.ticker)} · Company Intelligence · Smallcaps.ai`;
+    setText("company-ticker", company.ticker || pathTicker() || "—");
+    setText("company-name", company.company || company.ticker || "Company");
+    setText("company-market", identityMeta(company));
+    setText("company-coverage", coverageText(company.coverage));
 
-    const root = document.getElementById("company-content");
-    root.replaceChildren();
+    const content = document.getElementById("company-content");
+    if (!content) return;
+    content.replaceChildren();
 
-    if (company.current_position) {
-      root.append(renderCurrentPosition(company.current_position));
-    }
-    if ((company.guidance || []).length) {
-      root.append(renderGuidance(company.guidance));
-    }
-    if ((company.metrics || []).length) {
-      root.append(renderMetrics(company.metrics));
-    }
-    if (
-      (company.open_management_claims || []).length ||
-      (company.resolved_management_claims || []).length
-    ) {
-      root.append(
-        renderClaims(
-          company.open_management_claims || [],
-          company.resolved_management_claims || [],
-        ),
-      );
-    }
-    if ((company.disclosure_gaps || []).length) {
-      root.append(renderGaps(company.disclosure_gaps));
-    }
-    if ((company.history || []).length) {
-      root.append(renderHistory(company.history));
-    }
+    const current = buildCurrentPosition(company.current_position);
+    if (current) content.append(current);
 
-    if (!root.children.length) {
-      root.append(
+    const matters = buildWhatMatters(company);
+    if (matters) content.append(matters);
+
+    content.append(buildEvidenceTrail(company));
+  }
+
+  function buildCurrentPosition(detail) {
+    if (!detail) {
+      return section(
+        "Current position",
+        "The latest decision-useful company view will appear here once a material announcement has been analysed.",
         emptyState(
-          "Company research is still building.",
-          "The first publishable RNS analysis will establish this monitoring sheet.",
+          "No current position yet",
+          "Company coverage is active, but no publishable material announcement is available for this record.",
         ),
+        "current-position",
       );
     }
-  }
 
-  function coverageText(coverage) {
-    const count = Number(coverage.announcement_count || 0);
-    const noun = count === 1 ? "ANALYSED ANNOUNCEMENT" : "ANALYSED ANNOUNCEMENTS";
-    const parts = [];
-    if (coverage.coverage_since) {
-      parts.push(`COVERAGE SINCE ${formatDate(coverage.coverage_since)}`);
-    }
-    parts.push(`${count} ${noun}`);
-    parts.push(
-      coverage.status === "established"
-        ? "ESTABLISHED HISTORY"
-        : "HISTORY STILL BUILDING",
-    );
-    return parts.join(" · ");
-  }
+    const card = element("article", `company-position-card tone-${signalTone(detail.signal)}`);
+    card.dataset.sourceId = clean(detail.source_id);
 
-  function renderCurrentPosition(current) {
-    const body = element("div");
-    const grid = element("div", "company-current-grid");
-    const main = element("div", "company-current-main");
-    const meta = element("div", "company-current-meta");
+    const narrative = element("div", "company-position-narrative");
+    const meta = element("div", "company-position-meta");
     meta.append(
-      signalBadge(current.signal),
-      element("span", "", formatDate(current.published_at)),
-      element("span", "", formatTime(current.published_at)),
-      element("span", "", clean(current.rns_type) || "RNS"),
+      signalBadge(detail.signal),
+      element("span", "company-meta-separator", "·"),
+      element("span", "", formatDateTime(detail.published_at)),
     );
-    main.append(meta);
-    main.append(element("h2", "", current.research?.verdict || current.rns_title));
-    main.append(
-      element(
-        "p",
-        "company-current-change",
-        current.what_changed ||
-          current.research?.what_changed?.today ||
-          "No decision-useful change was identified.",
-      ),
+    if (clean(detail.rns_type)) {
+      meta.append(
+        element("span", "company-meta-separator", "·"),
+        element("span", "", detail.rns_type),
+      );
+    }
+
+    const headline = element(
+      "h3",
+      "company-position-headline",
+      detail.research?.verdict || detail.rns_title || detail.what_changed || "Latest company update",
     );
 
-    const ai = element("div", "company-ai-view");
-    ai.append(
-      element("span", "", "AI VIEW"),
-      element("p", "", current.ai_view || current.research?.analyst_view || ""),
+    const change = labelledCopy(
+      "What changed",
+      detail.research?.what_changed?.today || detail.what_changed,
+      "company-change-copy",
     );
-    main.append(ai);
+    const view = labelledCopy(
+      "Smallcaps.ai view",
+      detail.research?.analyst_view || detail.ai_view,
+      "company-view-copy",
+    );
 
     const actions = element("div", "company-actions");
-    const source = safeLink(
-      current.original_source_url || current.research?.provenance?.source_urls?.[0],
-      "ORIGINAL RNS ↗",
-      "company-action",
+    const source = safeExternalLink(
+      detail.original_source_url,
+      "Source RNS ↗",
+      "company-action company-action-primary",
     );
     if (source) actions.append(source);
-
-    const feed = element(
-      "a",
-      "company-action company-action-primary",
-      "OPEN IN RNS FEED →",
-    );
-    feed.href = `/?date=${dateKey(current.published_at)}&open=${encodeURIComponent(
-      current.source_id,
-    )}`;
-    actions.append(feed);
-    main.append(actions);
-
-    const side = element("aside", "company-current-side");
-    side.append(
-      stat(
-        "OUTLOOK",
-        current.outlook || "N/A",
-        current.outlook === "N/A"
-          ? "No guidance event"
-          : "Latest structured guidance status",
-      ),
-      marketStat(current.market_reaction || {}),
-      balanceStat(current.balance_sheet || {}),
-      impactStat(current.impact || {}),
-    );
-
-    grid.append(main, side);
-    body.append(grid);
-
-    const detail = document.createElement("details");
-    detail.className = "company-full-note";
-    detail.append(element("summary", "", "VIEW FULL ANALYST NOTE"));
-    detail.append(renderNote(current));
-    body.append(detail);
-
-    return section(
-      "CURRENT VIEW",
-      "Latest publication-safe Smallcaps.ai judgement.",
-      body,
-      "current-view",
-    );
-  }
-
-  function stat(label, value, note) {
-    const block = element("div", "company-stat");
-    block.append(
-      element("span", "company-stat-label", label),
-      element("strong", "company-stat-value", clean(value) || "N/A"),
-      element("span", "company-stat-note", clean(note)),
-    );
-    return block;
-  }
-
-  function marketStat(reaction) {
-    const change = Number(reaction.change_pct);
-    const available = reaction.status === "available" && Number.isFinite(change);
-    const arrow = available ? (change > 0 ? "↑" : change < 0 ? "↓" : "→") : "—";
-    const value = available ? `${arrow} ${signed(change)}%` : "—%";
-    const close = reaction.close_price ?? reaction.latest_price;
-    const note =
-      available && close != null
-        ? `${reaction.phase === "close" ? "RNS-day close" : "Latest"} ${formatPrice(
-            close,
-            reaction.currency,
-          )}`
-        : "Pricing pending";
-    return stat("MARKET REACTION", value, note);
-  }
-
-  function balanceStat(balance) {
-    let note = "Not disclosed";
-    const dated = balance.as_of_date || balance.period || balance.source_published_at;
-    if (balance.status === "current") {
-      note = dated ? `Reported ${formatDate(dated)}` : "Reported in latest RNS";
-    } else if (balance.status === "carried") {
-      note = dated
-        ? `Last reported ${formatDate(dated)}`
-        : "Carried from latest disclosure";
-    }
-    return stat("BALANCE SHEET", balance.value || "Not disclosed", note);
-  }
-
-  function impactStat(impact) {
-    const score = clampImpact(impact.score);
-    const block = element("div", "company-stat");
-    block.append(element("span", "company-stat-label", "IMPACT"));
-    block.append(impactDots(score));
-    block.append(
-      element("strong", "company-stat-value", `${score}/5 · ${IMPACT_NAMES[score]}`),
-      element(
-        "span",
-        "company-stat-note",
-        "Materiality is independent from signal direction",
-      ),
-    );
-    return block;
-  }
-
-  function renderGuidance(items) {
-    const table = element("div", "company-data-table");
-    table.append(
-      tableHead("company-guidance-grid", [
-        "METRIC",
-        "PERIOD",
-        "CURRENT",
-        "PREVIOUS",
-        "STATUS",
-        "SOURCE",
-      ]),
-    );
-    items.forEach((item) => {
-      const previous = clean(item.previous_value || item.comparator) || "—";
-      table.append(
-        tableRow("company-guidance-grid", [
-          cell(item.metric, item.title),
-          cell(item.period || "—"),
-          cell(item.value || "Not quantified"),
-          cell(previous),
-          statusCell(item.status),
-          sourceCell(item.source_url),
-        ]),
-      );
-    });
-    return section(
-      "GUIDANCE",
-      "Current forward-looking statements retained from Company Memory.",
-      table,
-      "guidance",
-    );
-  }
-
-  function renderMetrics(items) {
-    const table = element("div", "company-data-table");
-    table.append(
-      tableHead("company-metrics-grid", [
-        "METRIC",
-        "LATEST",
-        "PREVIOUS",
-        "CHANGE",
-        "PERIOD",
-        "SOURCE",
-      ]),
-    );
-    items.forEach((item) => {
-      const latestPoint = (item.points || []).at(-1) || {};
-      table.append(
-        tableRow("company-metrics-grid", [
-          cell(
-            item.label || item.metric,
-            item.basis === "calculated" ? "Smallcaps.ai calculation" : "Reported",
-          ),
-          cell(item.latest_value || "—"),
-          cell(item.previous_value || "—"),
-          cell(metricChange(item)),
-          cell(item.period_family || latestPoint.period || latestPoint.as_of_date || "—"),
-          sourceCell(latestPoint.source_url),
-        ]),
-      );
-    });
-    return section(
-      "METRICS THAT MATTER",
-      "The most decision-useful comparable or genuinely numerical series.",
-      table,
-      "metrics",
-    );
-  }
-
-  function metricChange(item) {
-    if (item.change_direction === "flat") return "UNCHANGED";
-    if (
-      ["up", "down"].includes(item.change_direction) &&
-      Number.isFinite(Number(item.change_percent))
-    ) {
-      const value = Math.abs(Number(item.change_percent)).toFixed(1);
-      return `${item.change_direction === "up" ? "↑" : "↓"} ${value}%`;
-    }
-    if (["up", "down"].includes(item.change_direction)) {
-      return item.change_direction.toUpperCase();
-    }
-    return "—";
-  }
-
-  function renderClaims(openItems, resolvedItems) {
-    const body = element("div");
-    if (openItems.length) {
-      body.append(claimTable(openItems));
-    }
-    if (resolvedItems.length) {
-      const details = document.createElement("details");
-      details.className = "company-resolved";
-      details.append(
-        element(
-          "summary",
-          "",
-          `DELIVERED, MISSED OR SUPERSEDED · ${resolvedItems.length}`,
-        ),
-        claimTable(resolvedItems),
-      );
-      body.append(details);
-    }
-    return section(
-      "MANAGEMENT PROMISES",
-      "Open commitments and their eventual outcomes.",
-      body,
-      "promises",
-    );
-  }
-
-  function claimTable(items) {
-    const table = element("div", "company-data-table");
-    table.append(
-      tableHead("company-claims-grid", [
-        "PROMISE",
-        "TARGET",
-        "DATE",
-        "STATUS",
-        "SOURCE",
-      ]),
-    );
-    items.forEach((item) => {
-      table.append(
-        tableRow("company-claims-grid", [
-          cell(item.claim, item.metric),
-          cell(item.target_value || "—"),
-          cell(item.target_date || "—"),
-          statusCell(item.status, item.outcome),
-          sourceCell(item.source_url),
-        ]),
-      );
-    });
-    return table;
-  }
-
-  function renderGaps(items) {
-    const list = element("div", "company-gap-list");
-    items.forEach((item) => {
-      const row = element("div", "company-gap-row");
-      row.append(element("strong", "", item.item));
-      const source = safeLink(
-        item.source_url,
-        "LAST RELEVANT RNS ↗",
-        "company-source-link",
-      );
-      if (source) row.append(source);
-      list.append(row);
-    });
-    return section(
-      "WHAT REMAINS UNCLEAR",
-      "Material information the company record still does not answer.",
-      list,
-      "gaps",
-    );
-  }
-
-  function renderHistory(items) {
-    const body = element("div", "company-history-table");
-    body.append(
-      tableHead("company-history-head", [
-        "DATE / RNS",
-        "ANALYST VIEW",
-        "SIGNAL",
-        "MARKET",
-        "IMPACT",
-        "ACTIONS",
-      ]),
-    );
-
-    const visible = state.showAllHistory ? items : items.slice(0, VISIBLE_HISTORY);
-    visible.forEach((item) => body.append(historyRow(item)));
-
-    if (!state.showAllHistory && items.length > VISIBLE_HISTORY) {
-      const more = element(
-        "button",
-        "company-history-more",
-        `SHOW EARLIER ANNOUNCEMENTS · ${items.length - VISIBLE_HISTORY}`,
-      );
-      more.type = "button";
-      more.addEventListener("click", () => {
-        state.showAllHistory = true;
-        const replacement = renderHistory(items);
-        body.closest("section")?.replaceWith(replacement);
-      });
-      body.append(more);
-    }
-
-    return section(
-      "RNS HISTORY",
-      "How the investment case has developed through published announcements.",
-      body,
-      "history",
-    );
-  }
-
-  function historyRow(item) {
-    const article = element("article", "company-history-row");
-    article.dataset.sourceId = item.source_id;
-    const grid = element("div", "company-history-grid");
-
-    const date = element("div", "company-history-date");
-    date.append(
-      element("strong", "", formatDate(item.published_at)),
-      element(
-        "small",
-        "",
-        `${formatTime(item.published_at)} · ${clean(item.rns_type) || "RNS"}`,
+    actions.append(
+      internalLink(
+        newsHref(detail.published_at, detail.source_id),
+        "Open in News →",
+        "company-action",
       ),
     );
 
-    const copy = element("div", "company-history-copy");
-    copy.append(
-      element("strong", "", item.headline),
-      element("p", "", item.takeaway || ""),
+    narrative.append(meta, headline);
+    if (change) narrative.append(change);
+    if (view) narrative.append(view);
+    narrative.append(actions);
+
+    const snapshot = element("aside", "company-position-snapshot", "");
+    snapshot.setAttribute("aria-label", "Current company snapshot");
+    snapshot.append(
+      snapshotItem(
+        "Guidance",
+        outlookLabel(detail.outlook),
+        "Latest disclosed outlook",
+        `outlook-${slug(detail.outlook || "na")}`,
+      ),
+      snapshotItem(
+        "Balance sheet",
+        detail.balance_sheet?.value || "Not disclosed",
+        balanceMeta(detail.balance_sheet),
+      ),
+      snapshotItem(
+        "Market reaction",
+        detail.market_reaction?.label || "Pricing pending",
+        marketMeta(detail.market_reaction),
+      ),
+      snapshotItem(
+        "Materiality",
+        `${clampImpact(detail.impact?.score)}/5`,
+        `${titleCase(detail.impact?.level || IMPACT_NAMES[clampImpact(detail.impact?.score)])} impact`,
+      ),
     );
 
-    const signal = element("div");
-    signal.append(signalBadge(item.signal));
+    const main = element("div", "company-position-main");
+    main.append(narrative, snapshot);
+    card.append(main);
 
-    const market = element("div");
-    const reaction = item.market_reaction || {};
-    const change = Number(reaction.change_pct);
-    if (reaction.status === "available" && Number.isFinite(change)) {
-      market.append(
-        element(
-          "strong",
-          "",
-          `${change > 0 ? "↑" : change < 0 ? "↓" : "→"} ${signed(change)}%`,
-        ),
-        element(
-          "small",
-          "",
-          reaction.phase === "close" ? "RNS-DAY CLOSE" : "LATEST",
+    const evidence = evidenceDisclosure(detail, "Show supporting evidence");
+    evidence.classList.add("company-current-evidence");
+    card.append(evidence);
+
+    return section(
+      "Current position",
+      "The latest material change, the investor read-through and the reported evidence behind it.",
+      card,
+      "current-position",
+    );
+  }
+
+  function buildWhatMatters(company) {
+    const cards = [];
+
+    const guidance = (company.guidance || []).slice(0, 5).map(guidanceRow);
+    if (guidance.length) {
+      cards.push(matterCard(
+        "guidance",
+        "Guidance",
+        "The latest forward-looking statements management has put on record.",
+        guidance,
+      ));
+    }
+
+    const metrics = (company.metrics || []).slice(0, 6).map(metricRow);
+    if (metrics.length) {
+      cards.push(matterCard(
+        "metrics",
+        "Metrics that matter",
+        "Comparable reported or calculated company measures, with provenance.",
+        metrics,
+      ));
+    }
+
+    const commitments = (company.open_management_claims || []).slice(0, 5).map(claimRow);
+    if (commitments.length) {
+      cards.push(matterCard(
+        "commitments",
+        "Management commitments",
+        "Open promises and targets that future announcements can confirm or break.",
+        commitments,
+      ));
+    }
+
+    const gaps = (company.disclosure_gaps || []).slice(0, 5).map(gapRow);
+    if (gaps.length) {
+      cards.push(matterCard(
+        "open-questions",
+        "Open questions",
+        "Decision-useful information the published record still does not answer.",
+        gaps,
+      ));
+    }
+
+    if (!cards.length) return null;
+    const grid = element("div", "company-matters-grid");
+    cards.forEach((card) => grid.append(card));
+    return section(
+      "What matters now",
+      "The live monitoring sheet: guidance, key metrics, management commitments and unresolved questions.",
+      grid,
+      "what-matters",
+    );
+  }
+
+  function buildEvidenceTrail(company) {
+    const history = Array.isArray(company.history) ? company.history : [];
+    const body = element("div", "company-evidence-trail");
+
+    if (!history.length) {
+      body.append(
+        emptyState(
+          "No evidence trail yet",
+          "Analysed company announcements will appear here in chronological order.",
         ),
       );
     } else {
-      market.append(
-        element("strong", "", "—%"),
-        element("small", "", "PRICING PENDING"),
-      );
+      history.forEach((item, index) => {
+        const event = historyEvent(item, index === 0);
+        if (index >= INITIAL_HISTORY_COUNT) event.hidden = true;
+        body.append(event);
+      });
+
+      if (history.length > INITIAL_HISTORY_COUNT) {
+        const more = element(
+          "button",
+          "company-more-button",
+          `Show ${history.length - INITIAL_HISTORY_COUNT} older announcement${history.length - INITIAL_HISTORY_COUNT === 1 ? "" : "s"}`,
+        );
+        more.type = "button";
+        more.addEventListener("click", () => {
+          state.historyExpanded = !state.historyExpanded;
+          body.querySelectorAll(".company-event").forEach((event, index) => {
+            event.hidden = !state.historyExpanded && index >= INITIAL_HISTORY_COUNT;
+          });
+          more.textContent = state.historyExpanded
+            ? "Show latest announcements only"
+            : `Show ${history.length - INITIAL_HISTORY_COUNT} older announcement${history.length - INITIAL_HISTORY_COUNT === 1 ? "" : "s"}`;
+          more.setAttribute("aria-expanded", String(state.historyExpanded));
+        });
+        more.setAttribute("aria-expanded", "false");
+        body.append(more);
+      }
+
+      if (company.has_more_history) {
+        const note = element(
+          "p",
+          "company-history-note",
+          "This compact record shows the latest covered announcements. Use Company News for the wider archive.",
+        );
+        note.append(
+          document.createTextNode(" "),
+          internalLink("/rns", "Open Company News →", "company-inline-link"),
+        );
+        body.append(note);
+      }
     }
 
-    const impact = element("div");
-    const score = clampImpact(item.impact?.score);
-    impact.append(
-      impactDots(score),
-      element("small", "", `${score}/5 · ${IMPACT_NAMES[score]}`),
+    return section(
+      "Evidence trail",
+      "Every analysed company announcement in this record, newest first, with the source and supporting research one step away.",
+      body,
+      "evidence-trail",
+    );
+  }
+
+  function historyEvent(item, latest) {
+    const article = element("article", `company-event tone-${signalTone(item.signal)}`);
+    article.dataset.sourceId = clean(item.source_id);
+
+    const top = element("div", "company-event-top");
+    const meta = element("div", "company-event-meta");
+    meta.append(element("time", "", formatDate(item.published_at)));
+    if (clean(item.rns_type)) {
+      meta.append(element("span", "company-meta-separator", "·"), element("span", "", item.rns_type));
+    }
+    if (latest) meta.append(element("span", "company-latest-label", "Latest"));
+    top.append(meta, signalBadge(item.signal));
+
+    const headline = element("h3", "company-event-headline", item.headline || item.rns_type || "Company announcement");
+    const takeaway = clean(item.takeaway)
+      ? element("p", "company-event-takeaway", item.takeaway)
+      : null;
+
+    const foot = element("div", "company-event-foot");
+    const facts = element("div", "company-event-facts");
+    facts.append(
+      compactFact(
+        "Market",
+        item.market_reaction?.label || "Pricing pending",
+      ),
+      compactFact(
+        "Materiality",
+        `${clampImpact(item.impact?.score)}/5 · ${titleCase(item.impact?.level || IMPACT_NAMES[clampImpact(item.impact?.score)])}`,
+      ),
     );
 
-    const actions = element("div", "company-history-actions");
-    const read = element("button", "company-history-action", "READ ANALYSIS →");
-    read.type = "button";
-    read.setAttribute("aria-expanded", "false");
-    read.addEventListener("click", () => toggleHistory(item, article, read));
-    actions.append(read);
-
-    const source = safeLink(
-      item.original_source_url,
-      "ORIGINAL RNS ↗",
-      "company-history-action",
+    const actions = element("div", "company-event-actions");
+    actions.append(
+      internalLink(
+        newsHref(item.published_at, item.source_id),
+        "Open in News →",
+        "company-event-link",
+      ),
     );
+    const source = safeExternalLink(item.original_source_url, "Source ↗", "company-event-link");
     if (source) actions.append(source);
+    foot.append(facts, actions);
 
-    grid.append(date, copy, signal, market, impact, actions);
-    article.append(grid);
+    const details = element("details", "company-event-evidence");
+    const summary = element("summary", "", "Show evidence");
+    const panel = element("div", "company-event-evidence-body");
+    details.append(summary, panel);
+    details.addEventListener("toggle", () => {
+      summary.textContent = details.open ? "Hide evidence" : "Show evidence";
+      if (details.open) loadEventEvidence(item, panel);
+    });
 
-    const detail = element("div", "company-history-detail");
-    detail.hidden = true;
-    article.append(detail);
+    article.append(top, headline);
+    if (takeaway) article.append(takeaway);
+    article.append(foot, details);
     return article;
   }
 
-  async function toggleHistory(item, article, button) {
-    const detail = article.querySelector(".company-history-detail");
-    const opening = detail.hidden;
-    detail.hidden = !opening;
-    button.setAttribute("aria-expanded", String(opening));
-    button.textContent = opening ? "CLOSE ANALYSIS ↑" : "READ ANALYSIS →";
-    if (!opening) return;
+  async function loadEventEvidence(item, panel) {
+    if (panel.dataset.loaded === "true" || panel.dataset.loading === "true") return;
+    panel.dataset.loading = "true";
 
     if (state.detailCache.has(item.source_id)) {
-      detail.replaceChildren(renderNote(state.detailCache.get(item.source_id)));
+      panel.replaceChildren(renderEvidence(state.detailCache.get(item.source_id)));
+      panel.dataset.loaded = "true";
+      panel.dataset.loading = "false";
       return;
     }
 
-    const loading = element("div", "company-loading");
-    loading.append(element("span"), element("span"), element("span"));
-    detail.replaceChildren(loading);
-
+    panel.replaceChildren(loadingState("Loading supporting research…"));
     try {
-      const response = await fetch(item.detail_url, {
+      const detailUrl = sameOriginPath(item.detail_url);
+      if (!detailUrl) throw new Error("The supporting research link is invalid.");
+      const response = await fetch(detailUrl, {
         headers: { Accept: "application/json" },
         credentials: "same-origin",
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(payload?.error?.message || "Full research is unavailable.");
+        throw new Error(payload?.error?.message || "Supporting research is unavailable.");
       }
       if (payload.schema_version !== MONITORING_SCHEMA) {
-        throw new Error("The Analyst Note data contract is incompatible.");
+        throw new Error("The supporting research data contract is incompatible.");
       }
       state.detailCache.set(item.source_id, payload);
-      detail.replaceChildren(renderNote(payload));
+      panel.replaceChildren(renderEvidence(payload));
+      panel.dataset.loaded = "true";
     } catch (error) {
-      detail.replaceChildren(
-        emptyState(
-          "Full research is temporarily unavailable.",
+      panel.replaceChildren(
+        inlineError(
+          "Supporting research is temporarily unavailable.",
           error?.message || "Please try again shortly.",
         ),
       );
+    } finally {
+      panel.dataset.loading = "false";
     }
   }
 
-  function renderNote(detail) {
-    const research = detail.research || {};
-    const grid = element("div", "company-note-grid");
+  function evidenceDisclosure(detail, label) {
+    const details = element("details", "company-evidence-disclosure");
+    const summary = element("summary", "", label);
+    const body = element("div", "company-evidence-body");
+    body.append(renderEvidence(detail));
+    details.append(summary, body);
+    details.addEventListener("toggle", () => {
+      summary.textContent = details.open ? "Hide supporting evidence" : label;
+    });
+    return details;
+  }
 
-    const first = element("div");
-    first.append(
-      noteBlock("RNS SUMMARY", [
-        element("p", "", research.verdict || detail.rns_title || ""),
-        element("p", "", research.takeaway || detail.what_changed || ""),
-      ]),
-      factsBlock(research.evidence || []),
-    );
+  function renderEvidence(detail) {
+    const research = detail?.research || {};
+    const grid = element("div", "company-evidence-grid");
 
-    const second = element("div");
-    second.append(
-      changedBlock(research.what_changed || {}),
-      noteBlock("AI VIEW", [
-        element("p", "", research.analyst_view || detail.ai_view || ""),
-      ]),
-      listBlock("WHAT TO WATCH", research.watch_items || []),
-    );
+    const facts = evidenceFacts(research.evidence || []);
+    if (facts) grid.append(facts);
 
-    const third = element("div");
-    third.append(
-      guidanceBlock(research.guidance_events || []),
-      listBlock("SUPPORTS THE CASE", research.supports_case || []),
-      listBlock("CHALLENGES THE CASE", research.challenges_case || []),
-      disclosureBlock(research.disclosure || {}, research.provenance || {}),
-    );
+    const changed = evidenceChange(research.what_changed || {});
+    if (changed) grid.append(changed);
 
-    grid.append(first, second, third);
+    const gaps = evidenceGaps(research.disclosure || {}, research.provenance || {});
+    if (gaps) grid.append(gaps);
+
+    if (!grid.childElementCount) {
+      return inlineError(
+        "No structured evidence is available.",
+        "Use the source RNS to verify the underlying announcement.",
+      );
+    }
     return grid;
   }
 
-  function noteBlock(title, children) {
-    const usable = children.filter((child) => child && clean(child.textContent));
-    if (!usable.length) return document.createDocumentFragment();
-    const block = element("section", "company-note-block");
-    block.append(element("h3", "", title));
-    usable.forEach((child) => block.append(child));
-    return block;
-  }
-
-  function factsBlock(facts) {
-    const usable = facts.filter((item) => clean(item.label) || clean(item.value));
-    if (!usable.length) {
-      return listBlock("KEY NUMBERS", ["No structured numbers disclosed."]);
-    }
-    const list = element("ul");
-    usable.forEach((fact) => {
-      const comparison = fact.previous_value ? `; previous ${fact.previous_value}` : "";
-      list.append(
-        element(
-          "li",
-          "",
-          `${fact.label || fact.metric}: ${fact.value || "Not disclosed"}${comparison}`,
-        ),
+  function evidenceFacts(items) {
+    const usable = items.filter((item) => clean(item.label) || clean(item.metric) || clean(item.value));
+    if (!usable.length) return null;
+    const group = evidenceGroup("Reported facts", "Numbers and statements extracted from the announcement.");
+    const list = element("div", "company-fact-list");
+    usable.slice(0, 6).forEach((fact) => {
+      const row = element("div", "company-fact-row");
+      const copy = element("div");
+      copy.append(
+        element("span", "company-fact-label", fact.label || fact.metric || "Fact"),
+        element("strong", "company-fact-value", fact.value || "Not disclosed"),
       );
+      const notes = [];
+      if (clean(fact.previous_value)) notes.push(`Previously ${fact.previous_value}`);
+      if (clean(fact.period)) notes.push(fact.period);
+      if (clean(fact.basis) && clean(fact.basis).toLowerCase() !== "reported") {
+        notes.push(titleCase(fact.basis));
+      }
+      if (notes.length) copy.append(element("small", "", notes.join(" · ")));
+      row.append(copy);
+      list.append(row);
     });
-    return noteBlock("KEY NUMBERS", [list]);
+    group.append(list);
+    return group;
   }
 
-  function changedBlock(change) {
-    const values = [
-      ["BEFORE", change.before],
-      ["TODAY", change.today],
-      ["READ-THROUGH", change.read_through],
-    ].filter(([, value]) => clean(value));
-    if (!values.length) return document.createDocumentFragment();
-    const list = element("ul");
-    values.forEach(([label, value]) => {
-      list.append(element("li", "", `${label}: ${value}`));
+  function evidenceChange(change) {
+    const before = clean(change.before);
+    const today = clean(change.today);
+    if (!before && !today) return null;
+    const group = evidenceGroup("Before → now", "The explicit movement in the covered company record.");
+    const list = element("div", "company-change-list");
+    if (before) list.append(changeRow("Before", before));
+    if (today) list.append(changeRow("Now", today));
+    group.append(list);
+    return group;
+  }
+
+  function evidenceGaps(disclosure, provenance) {
+    const values = [];
+    (disclosure.missing_items || []).forEach((item) => {
+      const value = clean(item);
+      if (value) values.push(`Not disclosed: ${value}`);
     });
-    return noteBlock("WHAT CHANGED", [list]);
+    if (clean(disclosure.management_language_mismatch)) {
+      values.push(disclosure.management_language_mismatch);
+    }
+    (provenance.source_warnings || []).forEach((item) => {
+      const value = clean(item);
+      if (value) values.push(`Source check: ${value}`);
+    });
+    if (!values.length && clean(disclosure.note)) values.push(disclosure.note);
+    if (!values.length) return null;
+
+    const group = evidenceGroup("Not disclosed / source checks", "Limits in the announcement or source material.");
+    const list = element("ul", "company-evidence-list");
+    values.slice(0, 6).forEach((value) => list.append(element("li", "", value)));
+    group.append(list);
+    return group;
   }
 
-  function listBlock(title, values) {
-    const items = values.map(clean).filter(Boolean);
-    if (!items.length) return document.createDocumentFragment();
-    const list = element("ul");
-    items.forEach((value) => list.append(element("li", "", value)));
-    return noteBlock(title, [list]);
+  function guidanceRow(item) {
+    const row = element("div", "company-matter-row");
+    const copy = element("div", "company-matter-copy");
+    copy.append(
+      element("span", "company-matter-label", item.metric || "Guidance"),
+      element("strong", "company-matter-value", item.value || "No value disclosed"),
+    );
+    const meta = [item.period, statusLabel(item.status), item.previous_value ? `Previously ${item.previous_value}` : ""]
+      .map(clean)
+      .filter(Boolean);
+    if (meta.length) copy.append(element("small", "", meta.join(" · ")));
+    row.append(copy, provenanceLink(item));
+    return row;
   }
 
-  function guidanceBlock(items) {
-    if (!items.length) return document.createDocumentFragment();
-    return listBlock(
-      "OUTLOOK & GUIDANCE",
-      items.map(
-        (item) =>
-          `${item.metric}${item.period ? ` · ${item.period}` : ""}${
-            item.value ? `: ${item.value}` : ""
-          } (${clean(item.status).toUpperCase()})`,
-      ),
+  function metricRow(item) {
+    const row = element("div", "company-matter-row");
+    const copy = element("div", "company-matter-copy");
+    copy.append(
+      element("span", "company-matter-label", item.label || item.metric || "Metric"),
+      element("strong", "company-matter-value company-matter-number", item.latest_value || "Not disclosed"),
+    );
+    const meta = [];
+    if (clean(item.previous_value)) meta.push(`Previously ${item.previous_value}`);
+    const movement = metricMovement(item);
+    if (movement) meta.push(movement);
+    if (clean(item.period_family)) meta.push(item.period_family);
+    if (meta.length) copy.append(element("small", "", meta.join(" · ")));
+    row.append(copy, provenanceLink((item.points || [])[0] || {}));
+    return row;
+  }
+
+  function claimRow(item) {
+    const row = element("div", "company-matter-row");
+    const copy = element("div", "company-matter-copy");
+    copy.append(
+      element("span", "company-matter-label", statusLabel(item.status) || "Open commitment"),
+      element("strong", "company-matter-value company-matter-prose", item.claim || "Management commitment"),
+    );
+    const meta = [];
+    if (clean(item.target_value)) meta.push(`Target ${item.target_value}`);
+    if (clean(item.target_date)) meta.push(`Due ${item.target_date}`);
+    if (meta.length) copy.append(element("small", "", meta.join(" · ")));
+    row.append(copy, provenanceLink(item));
+    return row;
+  }
+
+  function gapRow(item) {
+    const row = element("div", "company-matter-row");
+    const copy = element("div", "company-matter-copy");
+    copy.append(
+      element("span", "company-matter-label", "Unresolved"),
+      element("strong", "company-matter-value company-matter-prose", item.item || "Information not disclosed"),
+    );
+    const sourceDate = formatDate(item.published_at);
+    if (sourceDate) copy.append(element("small", "", `Raised from ${sourceDate}`));
+    row.append(copy, provenanceLink(item, "Relevant source ↗"));
+    return row;
+  }
+
+  function matterCard(key, title, copy, rows) {
+    const card = element("article", "company-matter-card");
+    card.dataset.matterCard = key;
+    const head = element("header", "company-matter-head");
+    head.append(element("h3", "", title), element("p", "", copy));
+    const list = element("div", "company-matter-list");
+    rows.forEach((row) => list.append(row));
+    card.append(head, list);
+    return card;
+  }
+
+  function provenanceLink(item, label = "Source ↗") {
+    const container = element("div", "company-matter-source");
+    const link = safeExternalLink(item?.source_url, label, "company-inline-link");
+    if (link) container.append(link);
+    return container;
+  }
+
+  function snapshotItem(label, value, note, modifier = "") {
+    const item = element("div", `company-snapshot-item ${modifier}`.trim());
+    item.append(
+      element("span", "company-snapshot-label", label),
+      element("strong", "company-snapshot-value", clean(value) || "Not disclosed"),
+    );
+    if (clean(note)) item.append(element("small", "", note));
+    return item;
+  }
+
+  function compactFact(label, value) {
+    const item = element("span", "company-event-fact");
+    item.append(element("b", "", label), document.createTextNode(` ${clean(value) || "—"}`));
+    return item;
+  }
+
+  function signalBadge(signal) {
+    const value = clean(signal).toUpperCase() || "NO COLOUR";
+    return element(
+      "span",
+      `company-signal company-signal-${signalTone(value)}`,
+      SIGNAL_LABELS[value] || titleCase(value),
     );
   }
 
-  function disclosureBlock(disclosure, provenance) {
-    const items = [];
-    (disclosure.missing_items || []).forEach((item) => {
-      items.push(`Not disclosed: ${item}`);
-    });
-    if (disclosure.management_language_mismatch) {
-      items.push(disclosure.management_language_mismatch);
-    }
-    (provenance.source_warnings || []).forEach((item) => {
-      items.push(`Source warning: ${item}`);
-    });
-    if (!items.length && disclosure.note) items.push(disclosure.note);
-    return listBlock("DISCLOSURE GAPS / SOURCE WARNINGS", items);
+  function labelledCopy(label, value, className) {
+    const copy = clean(value);
+    if (!copy) return null;
+    const block = element("div", className);
+    block.append(element("span", "company-copy-label", label), element("p", "", copy));
+    return block;
+  }
+
+  function evidenceGroup(title, copy) {
+    const group = element("section", "company-evidence-group");
+    const head = element("header", "company-evidence-group-head");
+    head.append(element("h4", "", title));
+    if (copy) head.append(element("p", "", copy));
+    group.append(head);
+    return group;
+  }
+
+  function changeRow(label, value) {
+    const row = element("div", "company-change-row");
+    row.append(element("span", "", label), element("p", "", value));
+    return row;
   }
 
   function section(title, description, body, key) {
     const block = element("section", "company-section");
-    block.dataset.companySection = key || slug(title);
+    block.dataset.companySection = key;
     const head = element("header", "company-section-head");
-    head.append(element("h2", "", title));
-    if (description) head.append(element("p", "", description));
+    const copy = element("div");
+    copy.append(element("h2", "", title));
+    if (description) copy.append(element("p", "", description));
+    head.append(copy);
     block.append(head, body);
     return block;
   }
 
-  function tableHead(className, labels) {
-    const classes =
-      className === "company-history-head"
-        ? className
-        : `company-data-head ${className}`;
-    const head = element("div", classes);
-    labels.forEach((label) => head.append(element("span", "", label)));
-    return head;
+  function emptyState(title, copy) {
+    const block = element("div", "company-empty");
+    block.append(element("h3", "", title), element("p", "", copy));
+    return block;
   }
 
-  function tableRow(className, cells) {
-    const row = element("div", `company-data-row ${className}`);
-    cells.forEach((cellNode) => row.append(cellNode));
-    return row;
+  function inlineError(title, copy) {
+    const block = element("div", "company-inline-error");
+    block.append(element("strong", "", title), element("p", "", copy));
+    return block;
   }
 
-  function cell(value, note = "") {
-    const node = element("div");
-    node.append(element("strong", "", clean(value) || "—"));
-    if (clean(note)) node.append(element("small", "", note));
-    return node;
+  function loadingState(label) {
+    const block = element("div", "company-inline-loading");
+    block.setAttribute("role", "status");
+    block.append(element("span"), element("span"), element("span"), element("p", "", label));
+    return block;
   }
 
-  function statusCell(value, note = "") {
-    const node = element("div");
-    node.append(
-      element(
-        "span",
-        "company-status",
-        clean(value).replace(/-/g, " ") || "N/A",
-      ),
+  function renderError(error) {
+    const ticker = pathTicker() || "—";
+    setText("company-ticker", ticker);
+    setText("company-name", "Company Intelligence unavailable");
+    setText("company-market", "AIM");
+    setText("company-coverage", "The company record could not be loaded.");
+
+    const content = document.getElementById("company-content");
+    if (!content) return;
+    const block = element("div", "company-error");
+    block.append(
+      element("p", "eyebrow", "Company Intelligence"),
+      element("h2", "", "This company record is temporarily unavailable."),
+      element("p", "", error?.message || "Please try again shortly."),
     );
-    if (clean(note)) node.append(element("small", "", note));
-    return node;
+    const retry = element("button", "company-action company-action-primary", "Try again");
+    retry.type = "button";
+    retry.addEventListener("click", () => window.location.reload());
+    block.append(retry);
+    content.replaceChildren(block);
   }
 
-  function sourceCell(url) {
-    const node = element("div");
-    const link = safeLink(url, "SOURCE RNS ↗", "company-source-link");
-    if (link) node.append(link);
-    else node.append(element("span", "", "—"));
-    return node;
-  }
+  async function activateRequestedEvidence(company) {
+    const sourceId = clean(new URLSearchParams(window.location.search).get("open"));
+    if (!sourceId) return;
 
-  function signalBadge(value) {
-    return element(
-      "span",
-      `signal signal-${slug(value)}`,
-      clean(value) || "NO COLOUR",
-    );
-  }
-
-  function impactDots(score) {
-    const dots = element("div", "company-impact-dots");
-    for (let index = 1; index <= 5; index += 1) {
-      dots.append(
-        element("i", `company-impact-dot${index <= score ? " filled" : ""}`),
-      );
+    if (clean(company.current_position?.source_id) === sourceId) {
+      const current = document.querySelector(".company-current-evidence");
+      if (current instanceof HTMLDetailsElement) {
+        current.open = true;
+        current.scrollIntoView({ block: "center", behavior: reducedMotion() ? "auto" : "smooth" });
+        return;
+      }
     }
-    return dots;
+
+    const event = Array.from(document.querySelectorAll(".company-event"))
+      .find((node) => node.dataset.sourceId === sourceId);
+    if (!event) return;
+    event.hidden = false;
+    const details = event.querySelector(".company-event-evidence");
+    if (details instanceof HTMLDetailsElement) {
+      details.open = true;
+      const item = (company.history || []).find((candidate) => clean(candidate.source_id) === sourceId);
+      const panel = details.querySelector(".company-event-evidence-body");
+      if (item && panel) await loadEventEvidence(item, panel);
+    }
+    event.classList.add("company-event-requested");
+    event.scrollIntoView({ block: "center", behavior: reducedMotion() ? "auto" : "smooth" });
   }
 
-  function safeLink(value, label, className) {
+  function syncWatchlistNavigation() {
+    const store = window.SmallcapsWatchlist;
+    const count = document.getElementById("watchlist-nav-count");
+    const link = document.getElementById("watchlist-nav-link");
+    if (!store || !count || !link) return;
+
+    const sync = (tickers = store.read()) => {
+      const total = Array.isArray(tickers) ? tickers.length : 0;
+      count.textContent = String(total);
+      count.hidden = total === 0;
+      link.setAttribute("aria-label", total ? `Watchlist, ${total} companies` : "Watchlist");
+    };
+    window.addEventListener(store.changeEvent, (event) => {
+      sync(Array.isArray(event.detail?.tickers) ? event.detail.tickers : store.read());
+    });
+    sync();
+  }
+
+  function identityMeta(company) {
+    const parts = [clean(company.market) || "AIM"];
+    if (clean(company.isin)) parts.push(`ISIN ${clean(company.isin)}`);
+    return parts.join(" · ");
+  }
+
+  function coverageText(coverage = {}) {
+    const count = Number(coverage.announcement_count || 0);
+    const parts = [];
+    const since = formatCoverageDate(coverage.coverage_since);
+    if (since) parts.push(`Coverage since ${since}`);
+    parts.push(`${count} analysed announcement${count === 1 ? "" : "s"}`);
+    if (coverage.status === "building") parts.push("history still building");
+    return parts.join(" · ");
+  }
+
+  function balanceMeta(balance = {}) {
+    const parts = [];
+    if (balance.status === "carried") parts.push("Carried from an earlier RNS");
+    else if (balance.status === "current") parts.push("Reported in the latest RNS");
+    else parts.push("No balance-sheet figure disclosed");
+    const date = clean(balance.as_of_date) || clean(balance.period) || formatDate(balance.source_published_at);
+    if (date) parts.push(date);
+    return parts.join(" · ");
+  }
+
+  function marketMeta(reaction = {}) {
+    if (reaction.status !== "available") return "Pricing pending";
+    const parts = [];
+    if (clean(reaction.phase)) parts.push(titleCase(reaction.phase));
+    if (clean(reaction.reaction_session)) parts.push(reaction.reaction_session);
+    return parts.join(" · ") || "Observed market move";
+  }
+
+  function metricMovement(item) {
+    if (Number.isFinite(item.change_percent)) {
+      const direction = item.change_percent > 0 ? "Up" : item.change_percent < 0 ? "Down" : "Flat";
+      return `${direction} ${Math.abs(item.change_percent).toFixed(1)}%`;
+    }
+    const direction = clean(item.change_direction).toLowerCase();
+    if (["up", "down", "flat"].includes(direction)) return titleCase(direction);
+    return "";
+  }
+
+  function outlookLabel(value) {
+    const cleanValue = clean(value).toUpperCase();
+    if (!cleanValue || cleanValue === "N/A") return "No guidance event";
+    return titleCase(cleanValue);
+  }
+
+  function statusLabel(value) {
+    const cleanValue = clean(value).replace(/[-_]+/g, " ");
+    return cleanValue ? titleCase(cleanValue) : "";
+  }
+
+  function formatDate(value) {
+    const date = parseDate(value);
+    if (!date) return "";
+    return new Intl.DateTimeFormat("en-GB", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      timeZone: "Europe/London",
+    }).format(date);
+  }
+
+  function formatDateTime(value) {
+    const date = parseDate(value);
+    if (!date) return clean(value);
+    const day = formatDate(value);
+    const time = new Intl.DateTimeFormat("en-GB", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+      timeZone: "Europe/London",
+    }).format(date);
+    return `${day} · ${time}`;
+  }
+
+  function formatCoverageDate(value) {
+    const cleanValue = clean(value);
+    if (!cleanValue) return "";
+    const date = parseDate(cleanValue.length === 10 ? `${cleanValue}T12:00:00Z` : cleanValue);
+    if (!date) return cleanValue;
+    return new Intl.DateTimeFormat("en-GB", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      timeZone: "UTC",
+    }).format(date);
+  }
+
+  function newsHref(publishedAt, sourceId) {
+    const date = parseDate(publishedAt);
+    const dateValue = date
+      ? new Intl.DateTimeFormat("en-CA", {
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          timeZone: "Europe/London",
+        }).format(date)
+      : "";
+    const params = new URLSearchParams();
+    if (dateValue) params.set("date", dateValue);
+    if (clean(sourceId)) params.set("open", clean(sourceId));
+    const query = params.toString();
+    return query ? `/rns?${query}` : "/rns";
+  }
+
+  function sameOriginPath(value) {
+    const cleanValue = clean(value);
+    if (!cleanValue) return "";
+    try {
+      const origin = window.location.origin === "null" ? "https://smallcaps.local" : window.location.origin;
+      const url = new URL(cleanValue, origin);
+      if (url.origin !== origin) return "";
+      if (!["http:", "https:"].includes(url.protocol)) return "";
+      return `${url.pathname}${url.search}`;
+    } catch (_error) {
+      return "";
+    }
+  }
+
+  function safeExternalLink(value, label, className) {
     const cleanValue = clean(value);
     if (!cleanValue) return null;
     try {
-      const url = new URL(cleanValue, window.location.origin);
+      const origin = window.location.origin === "null" ? "https://smallcaps.local" : window.location.origin;
+      const url = new URL(cleanValue, origin);
       if (!["http:", "https:"].includes(url.protocol)) return null;
-      const link = element("a", className, label);
-      link.href = url.href;
-      link.target = "_blank";
-      link.rel = "noopener noreferrer";
+      const link = internalLink(url.href, label, className);
+      if (url.origin !== origin) {
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+      }
       return link;
     } catch (_error) {
       return null;
     }
   }
 
-  function emptyState(title, copy) {
-    const block = element("div", "company-empty");
-    block.append(element("h2", "", title), element("p", "", copy));
-    return block;
+  function internalLink(href, label, className) {
+    const link = element("a", className, label);
+    link.href = href;
+    return link;
   }
 
-  function renderError(error) {
-    const ticker = pathTicker() || "—";
-    document.getElementById("company-ticker").textContent = ticker;
-    document.getElementById("company-name").textContent = "Company research unavailable";
-    document.getElementById("company-coverage").textContent =
-      "NO PUBLICATION-SAFE COMPANY RECORD WAS RETURNED";
-    const root = document.getElementById("company-content");
-    root.replaceChildren();
-    const block = element("div", "company-error");
-    block.append(
-      element("h2", "", "Company Intelligence is temporarily unavailable."),
-      element(
-        "p",
-        "",
-        error?.message || "Return to the AIM RNS feed and try again shortly.",
-      ),
-    );
-    root.append(block);
+  function setText(id, value) {
+    const node = document.getElementById(id);
+    if (node) node.textContent = clean(value);
+  }
+
+  function pathTicker() {
+    const parts = window.location.pathname.split("/").filter(Boolean);
+    const companyIndex = parts.lastIndexOf("company");
+    if (companyIndex < 0 || !parts[companyIndex + 1]) return "";
+    return clean(decodeURIComponent(parts[companyIndex + 1]))
+      .toUpperCase()
+      .replace(/\.L$/, "")
+      .replace(/[^A-Z0-9.-]/g, "")
+      .slice(0, 24);
   }
 
   function element(tag, className = "", text = "") {
     const node = document.createElement(tag);
     if (className) node.className = className;
-    if (text !== undefined && text !== null && text !== "") {
-      node.textContent = String(text);
-    }
+    if (text !== "") node.textContent = clean(text);
     return node;
   }
 
   function clean(value) {
-    return String(value ?? "")
-      .trim()
-      .replace(/\s+/g, " ");
+    return String(value ?? "").trim().replace(/\s+/g, " ");
+  }
+
+  function titleCase(value) {
+    return clean(value)
+      .toLowerCase()
+      .replace(/\b\w/g, (letter) => letter.toUpperCase());
   }
 
   function slug(value) {
-    return clean(value)
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-|-$/g, "");
+    return clean(value).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  }
+
+  function signalTone(value) {
+    const signal = clean(value).toUpperCase();
+    if (signal === "GREEN") return "positive";
+    if (signal === "AMBER") return "mixed";
+    if (signal === "RED") return "negative";
+    return "neutral";
   }
 
   function clampImpact(value) {
-    return Math.max(1, Math.min(5, Number(value || 1)));
+    const score = Number.parseInt(value, 10);
+    return Number.isFinite(score) ? Math.min(5, Math.max(1, score)) : 1;
   }
 
-  function dateKey(value) {
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return "";
-    const parts = new Intl.DateTimeFormat("en-CA", {
-      timeZone: LONDON,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).formatToParts(date);
-    const map = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-    return `${map.year}-${map.month}-${map.day}`;
-  }
-
-  function formatDate(value) {
+  function parseDate(value) {
     const cleanValue = clean(value);
-    const date = new Date(
-      cleanValue.length === 10 ? `${cleanValue}T12:00:00Z` : cleanValue,
-    );
-    if (Number.isNaN(date.getTime())) return cleanValue.toUpperCase();
-    return new Intl.DateTimeFormat("en-GB", {
-      timeZone: LONDON,
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    })
-      .format(date)
-      .toUpperCase();
+    if (!cleanValue) return null;
+    const date = new Date(cleanValue);
+    return Number.isNaN(date.getTime()) ? null : date;
   }
 
-  function formatTime(value) {
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return "";
-    return new Intl.DateTimeFormat("en-GB", {
-      timeZone: LONDON,
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    }).format(date);
-  }
-
-  function signed(value) {
-    return `${value > 0 ? "+" : ""}${Number(value).toFixed(1)}`;
-  }
-
-  function formatPrice(value, currency = "GBp") {
-    const number = Number(value);
-    if (!Number.isFinite(number)) return "—";
-    if (currency === "GBp") return `${number.toFixed(2)}p`;
-    return `${currency || ""} ${number.toFixed(2)}`.trim();
+  function reducedMotion() {
+    return window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches === true;
   }
 })();
