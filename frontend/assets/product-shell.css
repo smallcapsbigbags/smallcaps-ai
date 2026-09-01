@@ -1,0 +1,348 @@
+/* Pass 5: one Smallcaps.ai product shell across News, Watchlist, Daily and Company Intelligence. */
+
+.product-page {
+  min-width: 320px;
+  background: var(--page);
+  color: var(--text);
+}
+
+.product-page .site-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  border-bottom: 1px solid var(--line);
+  background: rgba(255, 255, 255, .94);
+  backdrop-filter: blur(14px);
+}
+
+.product-page .header-inner {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  width: min(var(--content), calc(100% - 40px));
+  min-height: 58px;
+  margin: 0 auto;
+  gap: 28px;
+}
+
+.product-page .wordmark {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--text);
+  font-size: 20px;
+  font-weight: 780;
+  letter-spacing: -.045em;
+  line-height: 1;
+  text-decoration: none;
+}
+
+.product-page .wordmark strong {
+  color: var(--blue);
+  font-weight: inherit;
+}
+
+.product-page .primary-nav {
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+  height: 58px;
+  gap: 4px;
+}
+
+.product-page .nav-link {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 12px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.product-page .nav-link:hover,
+.product-page .nav-link:focus-visible {
+  color: var(--text);
+}
+
+.product-page .nav-link-active {
+  color: var(--text);
+}
+
+.product-page .nav-link-active::after {
+  content: "";
+  position: absolute;
+  right: 12px;
+  bottom: -1px;
+  left: 12px;
+  height: 2px;
+  background: var(--blue);
+}
+
+.product-page .header-meta,
+.product-page .header-meta form {
+  display: flex;
+  align-items: center;
+}
+
+.product-page .header-meta {
+  gap: 18px;
+}
+
+.product-page .header-meta form {
+  margin: 0;
+}
+
+.product-page .live-status,
+.product-page .text-action {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.product-page .live-status i {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  border-radius: 50%;
+  background: #2aaf79;
+}
+
+.product-page .text-action {
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+
+.product-page .text-action:hover,
+.product-page .text-action:focus-visible {
+  color: var(--text);
+}
+
+.product-page .watchlist-nav-count {
+  display: inline-grid;
+  min-width: 17px;
+  height: 17px;
+  margin-left: 5px;
+  place-items: center;
+  border-radius: 999px;
+  background: #eef1f4;
+  color: #616a76;
+  font-size: 9px;
+  font-weight: 750;
+  line-height: 1;
+}
+
+.product-page .company-context-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 720;
+  text-decoration: none;
+}
+
+.product-page .company-context-link:hover,
+.product-page .company-context-link:focus-visible {
+  color: var(--blue);
+}
+
+.company-news-page[data-product-surface="watchlist"] .feed-heading h1 {
+  letter-spacing: -.05em;
+}
+
+.company-news-page[data-product-surface="watchlist"] .market-day span {
+  color: var(--blue);
+}
+
+.product-page .site-footer.product-footer {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  width: min(var(--content), calc(100% - 40px));
+  min-height: 82px;
+  margin: 0 auto;
+  gap: 28px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.product-page .product-footer-brand {
+  color: var(--text-soft);
+  font-size: 12px;
+  font-weight: 780;
+  letter-spacing: -.02em;
+}
+
+.product-page .product-footer-copy {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
+  text-align: center;
+}
+
+.product-page .product-footer-links {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+}
+
+.product-page .product-footer-links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--blue);
+  font-size: 10px;
+  font-weight: 720;
+  text-decoration: none;
+}
+
+.product-page .product-footer-links a:hover,
+.product-page .product-footer-links a:focus-visible {
+  text-decoration: underline;
+}
+
+.product-access-page {
+  color-scheme: light;
+  background: var(--page);
+  color: var(--text);
+}
+
+.product-access-page .access-header {
+  border-bottom: 1px solid var(--line);
+  background: rgba(255, 255, 255, .94);
+}
+
+.product-access-page .access-header .wordmark {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+
+@media (max-width: 760px) {
+  .product-page .site-header {
+    position: static;
+  }
+
+  .product-page .header-inner {
+    grid-template-areas:
+      "brand meta"
+      "nav nav";
+    grid-template-columns: minmax(0, 1fr) auto;
+    width: calc(100% - 24px);
+    min-height: 0;
+    gap: 0 12px;
+  }
+
+  .product-page .wordmark {
+    grid-area: brand;
+    min-height: 50px;
+  }
+
+  .product-page .header-meta {
+    grid-area: meta;
+    justify-self: end;
+    gap: 0;
+  }
+
+  .product-page .live-status {
+    display: none;
+  }
+
+  .product-page .text-action {
+    min-height: 44px;
+    font-size: 10px;
+    white-space: nowrap;
+  }
+
+  .product-page .primary-nav {
+    grid-area: nav;
+    width: 100%;
+    height: 44px;
+    border-top: 1px solid var(--line);
+    gap: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .product-page .primary-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .product-page .nav-link {
+    flex: 1 1 0;
+    justify-content: center;
+    min-width: max-content;
+    min-height: 44px;
+    padding: 0 9px;
+    font-size: 10.5px;
+  }
+
+  .product-page .nav-link-active::after {
+    right: 9px;
+    left: 9px;
+  }
+
+  .product-page .watchlist-nav-count {
+    display: inline-grid;
+  }
+
+  .product-page .company-context-link {
+    min-height: 40px;
+    margin-bottom: 7px;
+  }
+
+  .product-page .site-footer.product-footer {
+    grid-template-columns: 1fr;
+    align-items: start;
+    width: calc(100% - 24px);
+    min-height: 0;
+    padding: 23px 0 28px;
+    gap: 7px;
+  }
+
+  .product-page .product-footer-copy {
+    max-width: 420px;
+    text-align: left;
+  }
+
+  .product-page .product-footer-links {
+    justify-content: flex-start;
+    gap: 18px;
+  }
+}
+
+@media (max-width: 390px) {
+  .product-page .nav-link {
+    padding-right: 7px;
+    padding-left: 7px;
+    font-size: 10px;
+  }
+
+  .product-page .nav-link-active::after {
+    right: 7px;
+    left: 7px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .product-page .site-header,
+  .product-page .nav-link,
+  .product-page .company-context-link {
+    scroll-behavior: auto;
+    transition: none !important;
+  }
+}
