@@ -1,0 +1,15 @@
+/* Pass 3 compatibility and accessibility refinements. */
+
+.company-news-page .monitor-row,
+.company-news-page .monitor-row:hover,
+.company-news-page .monitor-row[data-expanded="true"] {
+  border-radius: 9px;
+}
+
+@media (max-width: 760px) {
+  .company-news-page .watch-toggle {
+    width: 40px;
+    height: 40px;
+    flex-basis: 40px;
+  }
+}
