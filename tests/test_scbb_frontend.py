@@ -20,36 +20,31 @@ def _local_runtime(monkeypatch, *, private_beta: bool) -> None:
     monkeypatch.setenv("APP_BETA_PASSWORD", "preview-access")
 
 
-def test_public_root_serves_the_aim_daily_and_company_news_stays_available(monkeypatch) -> None:
+def test_public_root_and_rns_alias_serve_company_news(monkeypatch) -> None:
     _local_runtime(monkeypatch, private_beta=False)
     with TestClient(app) as client:
-        daily = client.get("/")
+        home = client.get("/")
         news = client.get("/rns")
         shared_css = client.get("/assets/research.css")
         news_css = client.get("/assets/news.css")
         news_detail_css = client.get("/assets/news-detail.css")
-        daily_css = client.get("/assets/daily.css")
-        daily_javascript = client.get("/assets/daily.js")
         research_javascript = client.get("/assets/research.js")
+        product_shell_javascript = client.get("/assets/product-shell.js")
 
-    assert daily.status_code == 200
-    assert "THE AIM DAILY" in daily.text
-    assert "THE AIM MARKET, EDITED FOR YOU" in daily.text
-    assert "THE LEAD" in daily.text
-    assert "ALSO THIS MORNING" in daily.text
-    assert "QUICK TAKES" in daily.text
-    assert "THE REST OF AIM" in daily.text
-    assert 'href="/rns"' in daily.text
+    for response in (home, news):
+        assert response.status_code == 200
+        assert "AIM COMPANY NEWS" in response.text
+        assert "Facts. No fluff." in response.text
+        assert "What changed across AIM." in response.text
+        assert 'id="filters-toggle"' in response.text
+        assert 'id="filter-panel"' in response.text
+        assert 'id="material-toggle"' in response.text
+        assert 'id="feed-mode">Key News' in response.text
+        assert '/assets/news-detail.css' in response.text
+        assert "data-company-search" in response.text
+        assert 'data-product-nav="daily"' not in response.text
+        assert "THE AIM DAILY" not in response.text
 
-    assert news.status_code == 200
-    assert "AIM COMPANY NEWS" in news.text
-    assert "Facts. No fluff." in news.text
-    assert "Every material AIM announcement, reduced to what changed." in news.text
-    assert 'id="filters-toggle"' in news.text
-    assert 'id="filter-panel"' in news.text
-    assert 'id="material-toggle"' in news.text
-    assert 'id="feed-mode">Key News' in news.text
-    assert '/assets/news-detail.css' in news.text
     for heading in (
         "Company",
         "News type",
@@ -72,18 +67,16 @@ def test_public_root_serves_the_aim_daily_and_company_news_stays_available(monke
     assert news_css.headers["content-type"].startswith("text/css")
     assert news_detail_css.status_code == 200
     assert news_detail_css.headers["content-type"].startswith("text/css")
-    assert daily_css.status_code == 200
-    assert daily_css.headers["content-type"].startswith("text/css")
-    assert daily_javascript.status_code == 200
-    assert daily_javascript.headers["content-type"].startswith(
-        ("text/javascript", "application/javascript")
-    )
     assert research_javascript.status_code == 200
     assert research_javascript.headers["content-type"].startswith(
         ("text/javascript", "application/javascript")
     )
-    assert daily.headers["x-content-type-options"] == "nosniff"
-    assert "frame-ancestors 'none'" in daily.headers["content-security-policy"]
+    assert product_shell_javascript.status_code == 200
+    assert product_shell_javascript.headers["content-type"].startswith(
+        ("text/javascript", "application/javascript")
+    )
+    assert home.headers["x-content-type-options"] == "nosniff"
+    assert "frame-ancestors 'none'" in home.headers["content-security-policy"]
 
 
 def test_legacy_open_deep_link_still_resolves_to_company_news(monkeypatch) -> None:
@@ -117,7 +110,8 @@ def test_private_beta_uses_a_server_validated_httponly_cookie(monkeypatch) -> No
     assert "httponly" in accepted.headers["set-cookie"].lower()
     assert "samesite=lax" in accepted.headers["set-cookie"].lower()
     assert unlocked.status_code == 200
-    assert "THE AIM DAILY" in unlocked.text
+    assert "AIM COMPANY NEWS" in unlocked.text
+    assert "THE AIM DAILY" not in unlocked.text
     assert unlocked_news.status_code == 200
     assert "Facts. No fluff." in unlocked_news.text
     assert logged_out.status_code == 303
@@ -130,7 +124,7 @@ def test_frontend_source_freezes_the_facts_no_fluff_visual_and_output_contract()
     detail_css = Path("frontend/assets/news-detail.css").read_text(encoding="utf-8")
     javascript = Path("frontend/assets/research.js").read_text(encoding="utf-8")
 
-    # Shared publication styling stays dark for The AIM Daily and Company pages.
+    # The historical editorial stylesheet remains internal until final cleanup.
     assert "--page: #03080d" in shared_css
     assert "--cyan: #46d7ff" in shared_css
 
@@ -146,7 +140,7 @@ def test_frontend_source_freezes_the_facts_no_fluff_visual_and_output_contract()
     assert "border-radius: 9px" in news_css
     assert "@media (max-width: 680px)" in news_css
 
-    # Pass 6 forensic detail is a separate compact layer.
+    # Forensic detail remains a separate compact layer.
     assert ".forensic-grid" in detail_css
     assert ".market-reaction-grid" in detail_css
     assert "grid-template-columns: minmax(0, 1.55fr)" in detail_css
@@ -184,11 +178,13 @@ def test_frontend_source_freezes_the_facts_no_fluff_visual_and_output_contract()
         assert retired_detail not in javascript
 
 
-def test_aim_daily_source_uses_newsroom_contract_and_journalistic_labels() -> None:
+def test_retired_daily_source_remains_dormant_until_final_cleanup() -> None:
     html = Path("frontend/daily.html").read_text(encoding="utf-8")
     css = Path("frontend/assets/daily.css").read_text(encoding="utf-8")
     javascript = Path("frontend/assets/daily.js").read_text(encoding="utf-8")
 
+    # The historical implementation remains testable while no customer route or
+    # navigation exposes it. It will be deleted during the migration pass.
     for label in (
         "THE AIM DAILY",
         "THE LEAD",
@@ -210,6 +206,11 @@ def test_aim_daily_source_uses_newsroom_contract_and_journalistic_labels() -> No
     assert ".innerHTML" not in javascript
     assert "border-radius" in css
     assert "background: var(--page)" in css
+
+    for public_page in ("frontend/index.html", "frontend/company.html", "frontend/access.html"):
+        public_html = Path(public_page).read_text(encoding="utf-8")
+        assert "The AIM Daily" not in public_html
+        assert 'data-product-nav="daily"' not in public_html
 
 
 def test_frontend_does_not_reintroduce_the_old_streamlit_card_language() -> None:
