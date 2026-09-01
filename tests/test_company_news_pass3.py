@@ -10,7 +10,8 @@ def test_company_news_uses_an_isolated_light_asset_stack() -> None:
     assert '<meta name="color-scheme" content="light">' in html
     assert '<body class="company-news-page product-page">' in html
     assert 'role="search"' in html
-    assert 'class="search-shortcut"' in html
+    assert "data-company-search" in html
+    assert "data-company-search-input" in html
 
     for legacy_asset in (
         "/assets/research.css",
