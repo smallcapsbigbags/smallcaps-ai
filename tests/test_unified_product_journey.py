@@ -63,29 +63,34 @@ def test_feed_owns_company_navigation_and_shareable_company_news_state() -> None
     assert "KEY_NEWS_THRESHOLD = 3" in javascript
 
 
-def test_company_history_builds_exact_dated_feed_links_and_table_semantics() -> None:
+def test_company_evidence_trail_builds_exact_dated_news_links_without_a_mutation_layer() -> None:
     html = Path("frontend/company.html").read_text(encoding="utf-8")
-    javascript = Path("frontend/assets/company-journey.js").read_text(encoding="utf-8")
+    javascript = Path("frontend/assets/company.js").read_text(encoding="utf-8")
 
-    assert "/assets/company-journey.js" in html
-    assert "company-feed-link" in javascript
-    assert "data-source-id" not in javascript
-    assert "row.dataset.sourceId" in javascript
-    assert "parseDisplayDate" in javascript
-    assert 'setAttribute("role", "table")' in javascript
+    assert "/assets/company.js" in html
+    assert "/assets/company-journey.js" not in html
+    assert "/assets/company-launch.js" not in html
+    assert "function newsHref" in javascript
+    assert 'params.set("date", dateValue)' in javascript
+    assert 'params.set("open", clean(sourceId))' in javascript
+    assert 'return query ? `/rns?${query}` : "/rns";' in javascript
+    assert "article.dataset.sourceId" in javascript
+    assert "new URLSearchParams(window.location.search)" in javascript
+    assert 'element("details", "company-event-evidence")' in javascript
     assert "innerHTML" not in javascript
 
 
-def test_mobile_product_headers_retain_sign_out_and_responsive_status() -> None:
+def test_mobile_product_headers_retain_sign_out_and_compact_company_layout() -> None:
     feed = Path("frontend/index.html").read_text(encoding="utf-8")
     company = Path("frontend/company.html").read_text(encoding="utf-8")
-    shared_css = Path("frontend/assets/company-polish.css").read_text(encoding="utf-8")
+    company_css = Path("frontend/assets/company-pass4.css").read_text(encoding="utf-8")
     news_css = Path("frontend/assets/news.css").read_text(encoding="utf-8")
 
     assert 'button class="text-action" type="submit">Sign out</button>' in feed
     assert "status-full" in company and "status-compact" in company
-    assert "display: inline-flex" in shared_css
-    assert ".text-action" in shared_css
-    assert ".status-compact" in shared_css
+    assert ".company-watch-toggle" in company_css
+    assert ".company-position-main" in company_css
+    assert ".company-matters-grid" in company_css
+    assert "@media (max-width:680px)" in company_css
     assert "@media (max-width: 680px)" in news_css
     assert ".live-status { display: none; }" in news_css

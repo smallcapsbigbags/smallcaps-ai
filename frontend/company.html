@@ -3,23 +3,19 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Smallcaps.ai Company Intelligence — material facts, what changed and company history.">
+  <meta name="description" content="Smallcaps.ai Company Intelligence — the current position, what matters now and the evidence trail.">
   <meta name="theme-color" content="#f5f6f8">
+  <meta name="color-scheme" content="light">
   <title>Smallcaps.ai · Company Intelligence</title>
   <link rel="icon" href="/favicon.svg?v={{ASSET_VERSION}}" type="image/svg+xml">
-  <link rel="stylesheet" href="/assets/research.css?v={{ASSET_VERSION}}">
   <link rel="stylesheet" href="/assets/news.css?v={{ASSET_VERSION}}">
-  <link rel="stylesheet" href="/assets/company.css?v={{ASSET_VERSION}}">
-  <link rel="stylesheet" href="/assets/company-polish.css?v={{ASSET_VERSION}}">
   <link rel="stylesheet" href="/assets/watchlist.css?v={{ASSET_VERSION}}">
-  <link rel="stylesheet" href="/assets/company-launch.css?v={{ASSET_VERSION}}">
+  <link rel="stylesheet" href="/assets/company-pass4.css?v={{ASSET_VERSION}}">
   <script src="/assets/watchlist.js?v={{ASSET_VERSION}}" defer></script>
   <script src="/assets/company-watchlist.js?v={{ASSET_VERSION}}" defer></script>
   <script src="/assets/company.js?v={{ASSET_VERSION}}" defer></script>
-  <script src="/assets/company-journey.js?v={{ASSET_VERSION}}" defer></script>
-  <script src="/assets/company-launch.js?v={{ASSET_VERSION}}" defer></script>
 </head>
-<body class="company-body">
+<body class="company-intelligence-page">
   <a class="skip-link" href="#company-research">Skip to company intelligence</a>
 
   <header class="site-header">
@@ -35,8 +31,8 @@
       <div class="header-meta">
         <span class="live-status">
           <i aria-hidden="true"></i>
-          <span class="status-full">COMPANY INTELLIGENCE</span>
-          <span class="status-compact">COMPANY</span>
+          <span class="status-full">Company Intelligence</span>
+          <span class="status-compact">Company</span>
         </span>
         <form action="/logout" method="post">
           <button class="text-action" type="submit">Sign out</button>
@@ -45,20 +41,18 @@
     </div>
   </header>
 
-  <main class="company-main" id="company-research">
+  <main class="company-shell" id="company-research">
     <section class="company-hero" aria-labelledby="company-title">
-      <div class="company-hero-top">
-        <div>
-          <p class="eyebrow">COMPANY INTELLIGENCE</p>
-          <h1 id="company-title"><span id="company-ticker">—</span><em aria-hidden="true">.</em></h1>
+      <div class="company-hero-copy">
+        <p class="eyebrow">Company Intelligence</p>
+        <h1 id="company-title"><span id="company-ticker">—</span><em aria-hidden="true">.</em></h1>
+        <div class="company-identity">
+          <strong id="company-name">Loading company intelligence…</strong>
+          <span id="company-market">AIM</span>
         </div>
-        <button id="company-watch-toggle" class="company-watch-toggle" type="button" aria-pressed="false">☆ Watch</button>
+        <p id="company-coverage" class="company-coverage" aria-live="polite">Preparing the company record…</p>
       </div>
-      <div class="company-identity">
-        <strong id="company-name">Loading company intelligence…</strong>
-        <span id="company-market">AIM</span>
-      </div>
-      <p id="company-coverage" class="company-coverage" aria-live="polite">Preparing company history…</p>
+      <button id="company-watch-toggle" class="company-watch-toggle" type="button" aria-pressed="false">☆ Watch</button>
     </section>
 
     <div id="company-content" class="company-content" aria-live="polite">
@@ -72,9 +66,9 @@
     </noscript>
   </main>
 
-  <footer class="site-footer">
+  <footer class="site-footer company-footer">
     <span>smallcaps.ai</span>
-    <p>Company history. Material facts. What changed.</p>
+    <p>Current position. What matters now. Source-linked evidence.</p>
     <a class="company-footer-link" href="/rns">Company News ↗</a>
   </footer>
 </body>
