@@ -20,6 +20,7 @@ from ui.common import (
 )
 from ui.company import render_company
 from ui.feed import render_feed
+from ui.navigation_scroll import reset_scroll_on_view_change
 from ui.note import render_note
 
 load_dotenv()
@@ -97,6 +98,11 @@ def main() -> None:
         return
 
     view = query_value("view", "feed").lower()
+    reset_scroll_on_view_change(
+        view,
+        source_id=query_value("source_id"),
+        ticker=query_value("ticker"),
+    )
     try:
         if view == "note":
             render_note(product_repository, query_value("source_id"))
