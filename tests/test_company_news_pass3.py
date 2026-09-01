@@ -8,7 +8,7 @@ def test_company_news_uses_an_isolated_light_asset_stack() -> None:
     html = (ROOT / "frontend" / "index.html").read_text(encoding="utf-8")
 
     assert '<meta name="color-scheme" content="light">' in html
-    assert '<body class="company-news-page">' in html
+    assert '<body class="company-news-page product-page">' in html
     assert 'role="search"' in html
     assert 'class="search-shortcut"' in html
 
@@ -23,10 +23,18 @@ def test_company_news_uses_an_isolated_light_asset_stack() -> None:
     assert html.index("/assets/news-pass3.css") < html.index(
         "/assets/news-pass3-polish.css"
     )
+    assert html.index("/assets/news-pass3-polish.css") < html.index(
+        "/assets/product-shell.css"
+    )
     assert html.index("/assets/research.js") < html.index("/assets/news-pass3.js")
+    assert html.index("/assets/news-pass3.js") < html.index(
+        "/assets/product-shell.js"
+    )
     assert "/assets/news-pass3.css?v={{ASSET_VERSION}}" in html
     assert "/assets/news-pass3-polish.css?v={{ASSET_VERSION}}" in html
     assert "/assets/news-pass3.js?v={{ASSET_VERSION}}" in html
+    assert "/assets/product-shell.css?v={{ASSET_VERSION}}" in html
+    assert "/assets/product-shell.js?v={{ASSET_VERSION}}" in html
 
 
 def test_company_news_pass3_resets_rows_and_keeps_them_dense() -> None:

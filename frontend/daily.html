@@ -5,15 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="The AIM Daily — the AIM market, edited for investors every morning by Smallcaps.ai.">
   <meta name="theme-color" content="#f5f6f8">
+  <meta name="color-scheme" content="light">
   <title>The AIM Daily · Smallcaps.ai</title>
   <link rel="icon" href="/favicon.svg?v={{ASSET_VERSION}}" type="image/svg+xml">
-  <link rel="stylesheet" href="/assets/research.css?v={{ASSET_VERSION}}">
   <link rel="stylesheet" href="/assets/news.css?v={{ASSET_VERSION}}">
   <link rel="stylesheet" href="/assets/daily.css?v={{ASSET_VERSION}}">
   <link rel="stylesheet" href="/assets/daily-polish.css?v={{ASSET_VERSION}}">
+  <link rel="stylesheet" href="/assets/product-shell.css?v={{ASSET_VERSION}}">
+  <script src="/assets/watchlist.js?v={{ASSET_VERSION}}" defer></script>
   <script src="/assets/daily.js?v={{ASSET_VERSION}}" defer></script>
+  <script src="/assets/product-shell.js?v={{ASSET_VERSION}}" defer></script>
 </head>
-<body class="daily-body">
+<body class="daily-body product-page">
   <a class="skip-link" href="#daily-edition">Skip to The AIM Daily</a>
 
   <header class="site-header daily-site-header">
@@ -22,12 +25,12 @@
         <span>smallcaps</span><strong>.ai</strong>
       </a>
       <nav class="primary-nav" aria-label="Primary navigation">
-        <a class="nav-link" href="/rns">News</a>
-        <a class="nav-link" href="/rns?watchlist=1">Watchlist</a>
-        <a class="nav-link nav-link-active" href="/" aria-current="page">The AIM Daily</a>
+        <a id="news-nav-link" class="nav-link" data-product-nav="news" href="/rns">News</a>
+        <a id="watchlist-nav-link" class="nav-link" data-product-nav="watchlist" href="/rns?watchlist=1">Watchlist<span id="watchlist-nav-count" class="watchlist-nav-count" data-watchlist-count hidden>0</span></a>
+        <a id="daily-nav-link" class="nav-link nav-link-active" data-product-nav="daily" href="/" aria-current="page">The AIM Daily</a>
       </nav>
       <div class="header-meta">
-        <span class="live-status"><i aria-hidden="true"></i><span>AIM live</span></span>
+        <span class="live-status"><i aria-hidden="true"></i><span data-product-status>AIM live</span></span>
         <form action="/logout" method="post">
           <button class="text-action" type="submit">Sign out</button>
         </form>
@@ -111,10 +114,13 @@
     </noscript>
   </main>
 
-  <footer class="site-footer daily-footer">
-    <span>SMALLCAPS.AI</span>
-    <p>The AIM market, edited for you. Evidence first.</p>
-    <a href="/rns">Company News ↗</a>
+  <footer class="site-footer product-footer">
+    <span class="product-footer-brand">smallcaps.ai</span>
+    <p class="product-footer-copy">Independent AIM research. Facts first. Not personal investment advice.</p>
+    <nav class="product-footer-links" aria-label="Footer navigation">
+      <a href="/">The AIM Daily</a>
+      <a href="/rns">Company News</a>
+    </nav>
   </footer>
 </body>
 </html>

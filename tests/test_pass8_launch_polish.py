@@ -15,7 +15,9 @@ def test_company_intelligence_uses_one_isolated_light_asset_stack() -> None:
     assert '/assets/news.css' in html
     assert '/assets/watchlist.css' in html
     assert '/assets/company-pass4.css' in html
+    assert '/assets/product-shell.css' in html
     assert '/assets/company.js' in html
+    assert '/assets/product-shell.js' in html
     for retired in (
         '/assets/research.css',
         '/assets/company.css',
@@ -27,9 +29,10 @@ def test_company_intelligence_uses_one_isolated_light_asset_stack() -> None:
         assert retired not in html
 
     assert "COMPANY INTELLIGENCE" in html.upper()
-    assert 'href="/rns">News</a>' in html
-    assert 'href="/rns?watchlist=1">Watchlist' in html
-    assert 'href="/">The AIM Daily</a>' in html
+    assert 'data-product-nav="news"' in html
+    assert 'data-product-nav="watchlist"' in html
+    assert 'data-product-nav="daily"' in html
+    assert 'id="company-context-link"' in html
     assert "COMPANY MONITORING SHEET" not in html
 
     assert "color-scheme:light" in css
@@ -41,7 +44,7 @@ def test_company_intelligence_uses_one_isolated_light_asset_stack() -> None:
     assert "@media (prefers-reduced-motion:reduce)" in css
 
 
-def test_company_page_renders_final_language_directly_without_dom_rewriting() -> None:
+def test_company_page_renders_final_language_directly_without_report_rewriting() -> None:
     javascript = (ROOT / "frontend" / "assets" / "company.js").read_text(
         encoding="utf-8"
     )
@@ -94,10 +97,13 @@ def test_the_aim_daily_keeps_its_editorial_identity_inside_the_product_shell() -
     assert "Preparing edition" in html
     assert '<meta name="theme-color" content="#f5f6f8">' in html
     assert '/assets/news.css' in html
+    assert '/assets/product-shell.css' in html
+    assert '/assets/product-shell.js' in html
+    assert '/assets/research.css' not in html
     assert 'class="header-inner"' in html
-    assert 'href="/rns">News</a>' in html
-    assert 'href="/rns?watchlist=1">Watchlist</a>' in html
-    assert 'href="/" aria-current="page">The AIM Daily</a>' in html
+    assert 'data-product-nav="news"' in html
+    assert 'data-product-nav="watchlist"' in html
+    assert 'data-product-nav="daily"' in html
     assert "AIM live" in html
     assert "VIEW ALL COMPANY NEWS →" in html
     assert "OPEN COMPANY NEWS →" in html
