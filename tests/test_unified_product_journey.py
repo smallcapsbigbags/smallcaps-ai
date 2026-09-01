@@ -47,7 +47,7 @@ def test_private_beta_rejects_an_external_or_header_injection_destination(monkey
     assert response.headers["location"] == "/"
 
 
-def test_feed_owns_company_navigation_and_shareable_company_news_state() -> None:
+def test_feed_owns_company_data_links_and_shareable_company_news_state() -> None:
     html = Path("frontend/index.html").read_text(encoding="utf-8")
     javascript = Path("frontend/assets/research.js").read_text(encoding="utf-8")
 
@@ -63,7 +63,7 @@ def test_feed_owns_company_navigation_and_shareable_company_news_state() -> None
     assert "KEY_NEWS_THRESHOLD = 3" in javascript
 
 
-def test_company_evidence_trail_builds_exact_dated_news_links_without_a_mutation_layer() -> None:
+def test_company_evidence_trail_builds_exact_dated_news_links_directly() -> None:
     html = Path("frontend/company.html").read_text(encoding="utf-8")
     javascript = Path("frontend/assets/company.js").read_text(encoding="utf-8")
 
@@ -80,17 +80,38 @@ def test_company_evidence_trail_builds_exact_dated_news_links_without_a_mutation
     assert "innerHTML" not in javascript
 
 
-def test_mobile_product_headers_retain_sign_out_and_compact_company_layout() -> None:
+def test_shared_shell_preserves_source_context_without_accepting_an_arbitrary_return_url() -> None:
+    shell = Path("frontend/assets/product-shell.js").read_text(encoding="utf-8")
+
+    assert 'const COMPANY_CONTEXTS = new Set(["news", "watchlist", "daily"])' in shell
+    assert 'url.searchParams.set("from", surface)' in shell
+    assert 'url.searchParams.set("open", sourceId)' in shell
+    assert 'new URLSearchParams({ watchlist: "1", open: sourceId })' in shell
+    assert 'DAILY_STATES.has(state)' in shell
+    assert 'return COMPANY_CONTEXTS.has(value) ? value : "news"' in shell
+    assert "return_url" not in shell
+    assert "next_url" not in shell
+    assert "fetch(" not in shell
+
+
+def test_mobile_product_headers_retain_sign_out_and_use_one_shared_layout() -> None:
     feed = Path("frontend/index.html").read_text(encoding="utf-8")
+    daily = Path("frontend/daily.html").read_text(encoding="utf-8")
     company = Path("frontend/company.html").read_text(encoding="utf-8")
     company_css = Path("frontend/assets/company-pass4.css").read_text(encoding="utf-8")
-    news_css = Path("frontend/assets/news.css").read_text(encoding="utf-8")
+    shell_css = Path("frontend/assets/product-shell.css").read_text(encoding="utf-8")
+    compact = "".join(shell_css.split())
 
-    assert 'button class="text-action" type="submit">Sign out</button>' in feed
-    assert "status-full" in company and "status-compact" in company
+    for html in (feed, daily, company):
+        assert 'button class="text-action" type="submit">Sign out</button>' in html
+        assert "product-page" in html
+        assert 'data-product-status>AIM live</span>' in html
+        assert '/assets/product-shell.css?v={{ASSET_VERSION}}' in html
+
     assert ".company-watch-toggle" in company_css
     assert ".company-position-main" in company_css
     assert ".company-matters-grid" in company_css
     assert "@media (max-width:680px)" in company_css
-    assert "@media (max-width: 680px)" in news_css
-    assert ".live-status { display: none; }" in news_css
+    assert 'grid-template-areas:"brandmeta""navnav"' in compact
+    assert ".product-page .live-status" in shell_css
+    assert "min-height:44px" in compact
