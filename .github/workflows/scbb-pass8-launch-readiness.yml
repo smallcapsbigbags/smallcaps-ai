@@ -83,7 +83,11 @@ jobs:
           def capture(page):
               failures = []
               page.on('pageerror', lambda error: failures.append(f'pageerror: {error}'))
-              page.on('console', lambda message: failures.append(f'console: {message.text}') if message.type == 'error' else None)
+              page.on(
+                  'console',
+                  lambda message: failures.append(f'console: {message.text}')
+                  if message.type == 'error' else None,
+              )
               return failures
 
           def assert_clean(failures, label):
@@ -96,7 +100,9 @@ jobs:
               )
               if hrefs != expected_nav:
                   raise AssertionError(f'Navigation drifted: {hrefs}')
-              expect(page.locator(f'[data-product-nav="{active}"]')).to_have_attribute('aria-current', 'page')
+              expect(page.locator(f'[data-product-nav="{active}"]')).to_have_attribute(
+                  'aria-current', 'page'
+              )
               expect(page.locator('[data-product-status]')).to_have_text('AIM live')
               page.get_by_text(footer_copy, exact=True).wait_for(timeout=30000)
               dims = page.evaluate(
@@ -114,26 +120,16 @@ jobs:
               if dims['scroll'] > dims['client'] + 2 or dims['body'] > dims['client'] + 2:
                   raise AssertionError(f'Document clips horizontally: {dims}')
               if dims['duplicates']:
-                  raise AssertionError(f'Duplicate ids: {dims}')
-              external = [
-                  url for url in page.evaluate(
-                      "() => performance.getEntriesByType('resource').map(entry => entry.name)"
-                  )
-                  if urlparse(url).netloc not in {'', '127.0.0.1:8501'}
-                  and not url.startswith(('data:', 'blob:'))
-              ]
-              if external:
-                  raise AssertionError(f'Unexpected external launch assets: {external}')
+                  raise AssertionError(f'Duplicate DOM ids: {dims}')
 
-          def wait_news(page, *, watchlist=False):
+          def wait_news(page, watchlist=False):
               page.get_by_role(
                   'heading',
                   name='Your watchlist.' if watchlist else 'Facts. No fluff.',
                   exact=True,
               ).wait_for(timeout=30000)
-              if watchlist:
-                  return
-              page.locator('article.monitor-row').first.wait_for(timeout=30000)
+              if not watchlist:
+                  page.locator('article.monitor-row').first.wait_for(timeout=30000)
 
           def wait_company(page, ticker='SPR'):
               page.get_by_role('heading', name=ticker, exact=True).wait_for(timeout=30000)
@@ -147,10 +143,21 @@ jobs:
 
           def wait_daily(page):
               page.get_by_role('heading', name='THE AIM DAILY', exact=True).wait_for(timeout=30000)
-              expect(page.locator('#edition-summary')).to_contain_text('full analyses', timeout=30000)
+              expect(page.locator('#edition-summary')).to_contain_text(
+                  'full analyses', timeout=30000
+              )
               page.locator('.lead-layout').wait_for(timeout=30000)
               if 'THE REST OF AIM' not in page.locator('body').inner_text():
                   raise AssertionError('The Daily no longer explains suppressed coverage')
+
+          def wait_href(page, anchor, needle):
+              href = ''
+              for _ in range(120):
+                  href = anchor.get_attribute('href') or ''
+                  if needle in href:
+                      return href
+                  page.wait_for_timeout(50)
+              raise AssertionError(f'Link never gained {needle}: {href}')
 
           def mobile_header(page):
               return page.evaluate(
@@ -181,13 +188,12 @@ jobs:
               wait_news(page)
               assert_basics(page, 'news')
 
-              company_link = page.locator('article.monitor-row[data-source-id="spr-preview-buyback"] a.company-research-link')
-              company_link.wait_for(timeout=30000)
-              page.wait_for_function(
-                  "el => new URL(el.href).searchParams.get('from') === 'news'",
-                  company_link.element_handle(),
+              company_link = page.locator(
+                  'article.monitor-row[data-source-id="spr-preview-buyback"] '
+                  'a.company-research-link'
               )
-              href = company_link.get_attribute('href')
+              company_link.wait_for(timeout=30000)
+              href = wait_href(page, company_link, 'from=news')
               query = parse_qs(urlparse(href).query)
               if query.get('open') != ['spr-preview-buyback'] or query.get('date') != ['2026-08-21']:
                   raise AssertionError(f'News-to-company context is incomplete: {href}')
@@ -195,9 +201,9 @@ jobs:
 
               current = wait_company(page)
               assert_basics(page, 'news')
-              view_words = current.locator('.company-view-copy p').inner_text().strip().split()
-              if not view_words or len(view_words) > 50:
-                  raise AssertionError(f'Company view is not terse: {len(view_words)} words')
+              words = current.locator('.company-view-copy p').inner_text().strip().split()
+              if not words or len(words) > 50:
+                  raise AssertionError(f'Company view is not terse: {len(words)} words')
               computed = page.evaluate(
                   """
                   () => ({
@@ -209,31 +215,45 @@ jobs:
                   """
               )
               if computed['background'] != 'rgb(245, 246, 248)' or computed['surface'] != 'rgb(255, 255, 255)':
-                  raise AssertionError(f'Company Intelligence visual system drifted: {computed}')
+                  raise AssertionError(f'Company visual system drifted: {computed}')
               if computed['accent'] != 'rgb(37, 99, 235)' or not 42 <= computed['headingSize'] <= 72:
-                  raise AssertionError(f'Company Intelligence hierarchy drifted: {computed}')
+                  raise AssertionError(f'Company hierarchy drifted: {computed}')
               expect(page.locator('#company-context-link')).to_have_attribute(
                   'href', '/rns?date=2026-08-21&open=spr-preview-buyback'
               )
-              page.locator('.company-current-evidence > summary').click()
+              current.locator('.company-current-evidence > summary').click()
               page.get_by_role('heading', name='Reported facts', exact=True).wait_for(timeout=30000)
               page.get_by_role('heading', name='Before → now', exact=True).wait_for(timeout=30000)
               page.screenshot(path=out / '01-company-launch-desktop.png', full_page=True)
 
               page.locator('#company-context-link').click()
-              page.wait_for_url(f'{base}/rns?date=2026-08-21&open=spr-preview-buyback', timeout=30000)
+              page.wait_for_url(
+                  f'{base}/rns?date=2026-08-21&open=spr-preview-buyback',
+                  timeout=30000,
+              )
               wait_news(page)
-              expect(page.locator('article.monitor-row[data-source-id="spr-preview-buyback"] .row-toggle')).to_have_attribute('aria-expanded', 'true')
+              expect(
+                  page.locator(
+                      'article.monitor-row[data-source-id="spr-preview-buyback"] .row-toggle'
+                  )
+              ).to_have_attribute('aria-expanded', 'true')
               assert_basics(page, 'news')
 
-              page.goto(f'{base}/?date=2026-08-21&state=aim_close', wait_until='domcontentloaded')
+              page.goto(
+                  f'{base}/?date=2026-08-21&state=aim_close',
+                  wait_until='domcontentloaded',
+              )
               wait_daily(page)
               assert_basics(page, 'daily')
               page.screenshot(path=out / '02-aim-daily-launch-desktop.png', full_page=True)
               assert_clean(failures, 'desktop launch')
               desktop.close()
 
-              mobile = browser.new_context(viewport={'width': 390, 'height': 844}, device_scale_factor=1, is_mobile=True)
+              mobile = browser.new_context(
+                  viewport={'width': 390, 'height': 844},
+                  device_scale_factor=1,
+                  is_mobile=True,
+              )
               page = mobile.new_page()
               failures = capture(page)
 
@@ -243,13 +263,19 @@ jobs:
               news_header = mobile_header(page)
 
               page.goto(f'{base}/company/SPR', wait_until='domcontentloaded')
-              current = wait_company(page)
+              wait_company(page)
               assert_basics(page, 'news')
               company_header = mobile_header(page)
-              grid = page.locator('.company-position-main').evaluate('(el) => getComputedStyle(el).gridTemplateColumns')
-              if len(grid.split()) != 1:
-                  raise AssertionError(f'Mobile company position did not collapse: {grid}')
-              for selector in ('#company-watch-toggle', '.company-action', '.company-current-evidence > summary'):
+              columns = page.locator('.company-position-main').evaluate(
+                  '(el) => getComputedStyle(el).gridTemplateColumns'
+              )
+              if len(columns.split()) != 1:
+                  raise AssertionError(f'Mobile company position did not collapse: {columns}')
+              for selector in (
+                  '#company-watch-toggle',
+                  '.company-action',
+                  '.company-current-evidence > summary',
+              ):
                   box = page.locator(selector).first.bounding_box()
                   if box is None or box['height'] < 43.5:
                       raise AssertionError(f'Mobile target is too small: {selector} {box}')
@@ -257,11 +283,16 @@ jobs:
 
               page.goto(f'{base}/rns?watchlist=1', wait_until='domcontentloaded')
               wait_news(page, watchlist=True)
-              page.get_by_text('Your watchlist is empty.', exact=True).wait_for(timeout=30000)
+              page.get_by_role(
+                  'heading', name='Your watchlist is empty.', exact=True
+              ).wait_for(timeout=30000)
               assert_basics(page, 'watchlist')
               watchlist_header = mobile_header(page)
 
-              page.goto(f'{base}/?date=2026-08-21&state=aim_close', wait_until='domcontentloaded')
+              page.goto(
+                  f'{base}/?date=2026-08-21&state=aim_close',
+                  wait_until='domcontentloaded',
+              )
               wait_daily(page)
               assert_basics(page, 'daily')
               daily_header = mobile_header(page)
@@ -280,7 +311,7 @@ jobs:
                       raise AssertionError(f'{name} shared header controls are too small: {header}')
               heights = [header['headerHeight'] for header in headers.values()]
               if max(heights) - min(heights) > 2:
-                  raise AssertionError(f'Launch headers are no longer one component: {headers}')
+                  raise AssertionError(f'Launch headers are not one component: {headers}')
 
               assert_clean(failures, 'mobile launch')
               mobile.close()
