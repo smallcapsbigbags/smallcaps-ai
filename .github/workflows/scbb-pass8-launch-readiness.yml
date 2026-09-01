@@ -40,8 +40,6 @@ jobs:
           node --check frontend/assets/research.js
           node --check frontend/assets/watchlist.js
           node --check frontend/assets/company.js
-          node --check frontend/assets/company-journey.js
-          node --check frontend/assets/company-launch.js
           node --check frontend/assets/daily.js
 
       - name: Seed deterministic launch product
@@ -84,6 +82,7 @@ jobs:
               {'text': 'The AIM Daily', 'href': '/'},
           ]
           legacy_company = (
+              'LATEST COMPANY NEWS',
               'AI VIEW',
               'RNS HISTORY',
               'COMPANY MONITORING SHEET',
@@ -146,9 +145,7 @@ jobs:
                   raise AssertionError(f'Duplicate DOM ids: {duplicates}')
 
           def same_origin_assets_only(page):
-              urls = page.evaluate(
-                  "() => performance.getEntriesByType('resource').map((entry) => entry.name)"
-              )
+              urls = page.evaluate("() => performance.getEntriesByType('resource').map((entry) => entry.name)")
               external = []
               for url in urls:
                   parsed = urlparse(url)
@@ -171,9 +168,9 @@ jobs:
 
           def wait_company(page):
               page.get_by_role('heading', name='SPR', exact=True).wait_for(timeout=30000)
-              page.get_by_text('LATEST COMPANY NEWS', exact=True).wait_for(timeout=30000)
-              page.get_by_text('COMPANY NEWS HISTORY', exact=True).wait_for(timeout=30000)
-              page.wait_for_timeout(250)
+              page.locator('[data-company-section="current-position"]').wait_for(timeout=30000)
+              page.get_by_role('heading', name='Current position', exact=True).wait_for(timeout=30000)
+              page.get_by_role('heading', name='Evidence trail', exact=True).wait_for(timeout=30000)
 
           def assert_company(page, *, mobile=False):
               wait_company(page)
@@ -181,21 +178,20 @@ jobs:
               for retired in legacy_company:
                   if retired in body:
                       raise AssertionError(f'Legacy Company Intelligence wording visible: {retired}')
-              for required in ('COMPANY INTELLIGENCE', 'LATEST COMPANY NEWS', 'MATERIALITY', 'COMPANY NEWS HISTORY'):
+              for required in ('Company Intelligence', 'Current position', 'What changed', 'Smallcaps.ai view', 'Evidence trail'):
                   if required not in body:
                       raise AssertionError(f'Missing Company Intelligence launch element: {required}')
 
-              expect(page.locator('.company-current-change')).to_have_attribute('data-label', 'WHAT CHANGED')
-              expect(page.locator('.company-ai-view span')).to_have_text('TAKE')
-              take = page.locator('.company-ai-view p').inner_text().strip().split()
-              if not take or len(take) > 45:
-                  raise AssertionError(f'Company take is not terse: {len(take)} words')
+              current = page.locator('[data-company-section="current-position"]')
+              view_words = current.locator('.company-view-copy p').inner_text().strip().split()
+              if not view_words or len(view_words) > 50:
+                  raise AssertionError(f'Company view is not terse: {len(view_words)} words')
 
               computed = page.evaluate(
                   """
                   () => ({
                     background: getComputedStyle(document.body).backgroundColor,
-                    surface: getComputedStyle(document.querySelector('.company-section')).backgroundColor,
+                    surface: getComputedStyle(document.querySelector('.company-position-card')).backgroundColor,
                     headingSize: parseFloat(getComputedStyle(document.querySelector('.company-hero h1')).fontSize),
                     accent: getComputedStyle(document.querySelector('.company-hero h1 em')).color,
                   })
@@ -203,7 +199,7 @@ jobs:
               )
               if computed['background'] != 'rgb(245, 246, 248)' or computed['surface'] != 'rgb(255, 255, 255)':
                   raise AssertionError(f'Company Intelligence visual system drifted: {computed}')
-              if computed['accent'] != 'rgb(37, 99, 235)' or not 40 <= computed['headingSize'] <= 70:
+              if computed['accent'] != 'rgb(37, 99, 235)' or not 42 <= computed['headingSize'] <= 72:
                   raise AssertionError(f'Company Intelligence hierarchy drifted: {computed}')
 
               watch = page.locator('#company-watch-toggle')
@@ -217,9 +213,13 @@ jobs:
               expect(watch).to_have_attribute('aria-pressed', 'false')
 
               if mobile:
-                  grid = page.locator('.company-current-grid').evaluate('(el) => getComputedStyle(el).gridTemplateColumns')
-                  if ' ' in grid.strip():
-                      raise AssertionError(f'Mobile current company view did not collapse: {grid}')
+                  grid = page.locator('.company-position-main').evaluate('(el) => getComputedStyle(el).gridTemplateColumns')
+                  if len(grid.split()) != 1:
+                      raise AssertionError(f'Mobile current company position did not collapse: {grid}')
+                  evidence = page.locator('.company-current-evidence > summary')
+                  evidence_box = evidence.bounding_box()
+                  if evidence_box is None or evidence_box['height'] < 43.5:
+                      raise AssertionError(f'Mobile evidence target is too small: {evidence_box}')
 
               assert_page_basics(page)
 
@@ -227,9 +227,10 @@ jobs:
               page.get_by_role('heading', name='THE AIM DAILY', exact=True).wait_for(timeout=30000)
               expect(page.locator('#edition-summary')).to_contain_text('full analyses', timeout=30000)
               page.locator('.lead-layout').wait_for(timeout=30000)
-              if 'THE REST OF AIM' not in page.locator('body').inner_text():
+              body = page.locator('body').inner_text()
+              if 'THE REST OF AIM' not in body:
                   raise AssertionError('The Daily no longer explains suppressed coverage')
-              if 'RNS MONITOR' in page.locator('body').inner_text():
+              if 'RNS MONITOR' in body:
                   raise AssertionError('The AIM Daily still exposes legacy RNS Monitor language')
               assert_page_basics(page)
 
@@ -248,15 +249,12 @@ jobs:
               assert_company(page)
               page.screenshot(path=out / '01-company-launch-desktop.png', full_page=True)
 
-              page.get_by_text('VIEW EVIDENCE', exact=True).click()
-              page.get_by_text('MATERIAL FACTS', exact=True).first.wait_for(timeout=30000)
-              page.get_by_text('WHAT CHANGED', exact=True).first.wait_for(timeout=30000)
-              evidence_text = page.locator('.company-full-note').inner_text()
-              for retired in ('AI VIEW', 'WHAT TO WATCH', 'SUPPORTS THE CASE', 'CHALLENGES THE CASE', 'READ-THROUGH'):
-                  if retired in evidence_text:
-                      raise AssertionError(f'Legacy analyst-report section visible in evidence: {retired}')
+              current_evidence = page.locator('.company-current-evidence')
+              current_evidence.locator('summary').click()
+              current_evidence.get_by_role('heading', name='Reported facts', exact=True).wait_for(timeout=30000)
+              current_evidence.get_by_role('heading', name='Before → now', exact=True).wait_for(timeout=30000)
 
-              page.get_by_role('link', name='OPEN IN NEWS →', exact=True).click()
+              page.locator('[data-company-section="current-position"]').get_by_role('link', name='Open in News →', exact=True).click()
               page.wait_for_url(f'{base}/rns?date=2026-08-21&open=spr-preview-buyback', timeout=30000)
               wait_news(page)
               if urlparse(page.url).path != '/rns':
@@ -269,19 +267,11 @@ jobs:
               page.screenshot(path=out / '02-aim-daily-launch-desktop.png', full_page=True)
               desktop.close()
 
-              mobile = browser.new_context(
-                  viewport={'width': 390, 'height': 844},
-                  device_scale_factor=1,
-                  is_mobile=True,
-              )
+              mobile = browser.new_context(viewport={'width': 390, 'height': 844}, device_scale_factor=1, is_mobile=True)
               page = mobile.new_page()
               failures = attach_error_capture(page)
               page.goto(f'{base}/company/SPR', wait_until='domcontentloaded')
               assert_company(page, mobile=True)
-              evidence = page.get_by_text('VIEW EVIDENCE', exact=True)
-              evidence_box = evidence.bounding_box()
-              if evidence_box is None or evidence_box['height'] < 43.5:
-                  raise AssertionError(f'Mobile evidence target is too small: {evidence_box}')
               page.screenshot(path=out / '03-company-launch-mobile.png', full_page=True)
 
               page.goto(f'{base}/rns?watchlist=1', wait_until='domcontentloaded')
