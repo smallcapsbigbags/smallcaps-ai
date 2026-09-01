@@ -1,0 +1,297 @@
+name: launch-repair-pass6-investor-workflow
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: launch-repair-pass6-investor-workflow-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  investor-workflow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DATABASE_URL: sqlite+pysqlite:///data/pass6-investor-workflow.db
+      PRIVATE_BETA_MODE: "false"
+      APP_BETA_PASSWORD: preview-access
+      APP_ADMIN_PASSWORD: preview-admin
+      MARKET_DATA_ENABLED: "true"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install application and browser dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install playwright==1.55.0
+          python -m playwright install --with-deps chromium
+          node --check frontend/assets/investor-workflow.js
+          node --check frontend/assets/research.js
+          node --check frontend/assets/company.js
+          node --check frontend/assets/daily.js
+
+      - name: Enforce deterministic Pass 6 boundaries
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          pages = [
+              Path('frontend/index.html'),
+              Path('frontend/company.html'),
+              Path('frontend/daily.html'),
+          ]
+          for page in pages:
+              html = page.read_text(encoding='utf-8')
+              for required in (
+                  '/assets/investor-workflow.css?v={{ASSET_VERSION}}',
+                  '/assets/investor-workflow.js?v={{ASSET_VERSION}}',
+              ):
+                  if required not in html:
+                      raise AssertionError(f'{page} does not load {required}')
+
+          script = Path('frontend/assets/investor-workflow.js').read_text(encoding='utf-8')
+          for forbidden in ('fetch(', 'XMLHttpRequest', 'WebSocket', 'innerHTML'):
+              if forbidden in script:
+                  raise AssertionError(f'Pass 6 introduced a forbidden data path: {forbidden}')
+          PY
+
+      - name: Seed deterministic investor evidence
+        run: |
+          rm -f data/pass6-investor-workflow.db
+          python -m jobs.seed_launch_preview
+          python -m jobs.seed_pass1_preview
+
+      - name: Start the product
+        shell: bash
+        run: |
+          mkdir -p /tmp/pass6-investor-workflow
+          python -m uvicorn web_app:app --host 127.0.0.1 --port 8501 \
+            > /tmp/pass6-investor-workflow/web.log 2>&1 &
+          echo $! > /tmp/pass6-investor-workflow/web.pid
+          for attempt in $(seq 1 90); do
+            if curl --fail --silent http://127.0.0.1:8501/api/v1/health >/dev/null \
+              && curl --fail --silent http://127.0.0.1:8501/api/v1/company/SPR >/dev/null \
+              && curl --fail --silent 'http://127.0.0.1:8501/api/v1/aim-daily/newsroom?date=2026-08-21&state=aim_close' >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/pass6-investor-workflow/web.log
+          exit 1
+
+      - name: Audit decision utility on desktop and mobile
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          from playwright.sync_api import expect, sync_playwright
+
+          out = Path('/tmp/pass6-investor-workflow')
+          base = 'http://127.0.0.1:8501'
+          watched = ['TRLS', 'AMCO', 'GAMA', 'SPR']
+
+          def capture(page):
+              failures = []
+              page.on('pageerror', lambda error: failures.append(f'pageerror: {error}'))
+              page.on(
+                  'console',
+                  lambda message: failures.append(f'console: {message.text}')
+                  if message.type == 'error' else None,
+              )
+              return failures
+
+          def assert_clean(failures, label):
+              if failures:
+                  raise AssertionError(f'{label}: {failures}')
+
+          def assert_no_overflow(page):
+              dimensions = page.evaluate(
+                  """
+                  () => ({
+                    client: document.documentElement.clientWidth,
+                    scroll: document.documentElement.scrollWidth,
+                    body: document.body.scrollWidth,
+                    duplicateIds: [...document.querySelectorAll('[id]')]
+                      .map(node => node.id)
+                      .filter((id, index, values) => values.indexOf(id) !== index),
+                  })
+                  """
+              )
+              if dimensions['scroll'] > dimensions['client'] + 2 \
+                      or dimensions['body'] > dimensions['client'] + 2:
+                  raise AssertionError(f'Horizontal overflow: {dimensions}')
+              if dimensions['duplicateIds']:
+                  raise AssertionError(f'Duplicate DOM ids: {dimensions}')
+
+          def wait_news(page, watchlist=False):
+              page.get_by_role(
+                  'heading',
+                  name='Your watchlist.' if watchlist else 'Facts. No fluff.',
+                  exact=True,
+              ).wait_for(timeout=30000)
+              page.locator('article.monitor-row').first.wait_for(timeout=30000)
+
+          def wait_company(page):
+              page.get_by_role('heading', name='SPR', exact=True).wait_for(timeout=30000)
+              page.locator('#company-next-checks').wait_for(timeout=30000)
+
+          def wait_daily(page):
+              page.get_by_role('heading', name='THE AIM DAILY', exact=True).wait_for(timeout=30000)
+              page.locator('#daily-follow-through').wait_for(timeout=30000)
+
+          with sync_playwright() as p:
+              browser = p.chromium.launch()
+
+              desktop = browser.new_context(viewport={'width': 1440, 'height': 1000})
+              desktop.add_init_script(
+                  f"localStorage.setItem('smallcaps-ai-watchlist-v1', JSON.stringify({watched!r}));"
+              )
+              page = desktop.new_page()
+              failures = capture(page)
+
+              page.goto(f'{base}/rns?watchlist=1', wait_until='domcontentloaded')
+              wait_news(page, watchlist=True)
+              panel = page.locator('#investor-attention')
+              panel.get_by_role('heading', name='What needs attention.', exact=True).wait_for(timeout=30000)
+              expect(panel.locator('.investor-attention-stat').filter(has_text='Needs review').locator('strong')).to_have_text('3')
+              expect(panel.locator('.investor-attention-stat').filter(has_text='Material positive').locator('strong')).to_have_text('1')
+
+              expect(page.locator('article[data-source-id="trls-pass1-administration"] .investor-marker')).to_have_text('HIGH ATTENTION')
+              expect(page.locator('article[data-source-id="gama-pass1-possible-offer"] .investor-marker')).to_have_text('REVIEW')
+              expect(page.locator('article[data-source-id="spr-preview-buyback"] .investor-marker')).to_have_text('MATERIAL')
+
+              sort_button = panel.get_by_role('button', name='Sort highest materiality', exact=True)
+              sort_button.click()
+              expect(page.locator('#sort-filter')).to_have_value('impact')
+              panel.get_by_role('button', name='Return to newest first', exact=True).wait_for(timeout=30000)
+
+              panel.locator('.investor-attention-story').first.click()
+              expect(page.locator('article[data-investor-priority="high-attention"] button.row-toggle').first).to_have_attribute('aria-expanded', 'true')
+              assert_no_overflow(page)
+              page.screenshot(path=out / '01-watchlist-attention-desktop.png', full_page=True)
+
+              page.goto(f'{base}/rns?date=2026-08-21', wait_until='domcontentloaded')
+              wait_news(page)
+              expect(page.locator('#investor-attention')).to_have_count(0)
+              expect(page.locator('article[data-source-id="amco-preview-warning"] .investor-marker')).to_have_text('HIGH ATTENTION')
+              assert_no_overflow(page)
+
+              page.goto(f'{base}/company/SPR', wait_until='domcontentloaded')
+              wait_company(page)
+              checks = page.locator('#company-next-checks .investor-check')
+              expect(checks).to_have_count(3)
+              expect(checks.locator('.investor-check-type')).to_have_text(
+                  ['Open question', 'Management commitment', 'Guidance']
+              )
+              copied = checks.locator('.investor-check-value').all_inner_texts()
+              source = [
+                  page.locator('[data-matter-card="open-questions"] .company-matter-value').first.inner_text(),
+                  page.locator('[data-matter-card="commitments"] .company-matter-value').first.inner_text(),
+                  page.locator('[data-matter-card="guidance"] .company-matter-value').first.inner_text(),
+              ]
+              if [item.strip() for item in copied] != [item.strip() for item in source]:
+                  raise AssertionError(f'Next checks changed source wording: {copied} != {source}')
+
+              checks.first.click()
+              page.wait_for_timeout(350)
+              active = page.evaluate('document.activeElement?.id || ""')
+              if active != 'company-matter-open-questions':
+                  raise AssertionError(f'Next-check evidence did not receive focus: {active}')
+              assert_no_overflow(page)
+              page.screenshot(path=out / '02-company-next-checks-desktop.png', full_page=True)
+
+              page.goto(f'{base}/?date=2026-08-21&state=aim_close', wait_until='domcontentloaded')
+              wait_daily(page)
+              follow = page.locator('#daily-follow-through')
+              expect(follow.get_by_role('link', name='Open this market day in Company News →', exact=True)).to_have_attribute(
+                  'href', '/rns?date=2026-08-21'
+              )
+              expect(follow.get_by_role('link', name='Review Watchlist →', exact=True)).to_have_attribute(
+                  'href', '/rns?watchlist=1'
+              )
+              assert_no_overflow(page)
+              page.screenshot(path=out / '03-daily-follow-through-desktop.png', full_page=True)
+              assert_clean(failures, 'desktop investor workflow')
+              desktop.close()
+
+              mobile = browser.new_context(
+                  viewport={'width': 390, 'height': 844},
+                  device_scale_factor=1,
+                  is_mobile=True,
+              )
+              mobile.add_init_script(
+                  f"localStorage.setItem('smallcaps-ai-watchlist-v1', JSON.stringify({watched!r}));"
+              )
+              page = mobile.new_page()
+              failures = capture(page)
+
+              page.goto(f'{base}/rns?watchlist=1', wait_until='domcontentloaded')
+              wait_news(page, watchlist=True)
+              page.locator('#investor-attention').wait_for(timeout=30000)
+              stats_columns = page.locator('.investor-attention-stats').evaluate(
+                  '(node) => getComputedStyle(node).gridTemplateColumns'
+              )
+              if len(stats_columns.split()) != 1:
+                  raise AssertionError(f'Mobile attention stats did not collapse: {stats_columns}')
+              sort_box = page.locator('.investor-sort-button').bounding_box()
+              if not sort_box or sort_box['height'] < 43.5:
+                  raise AssertionError(f'Mobile sort control is too small: {sort_box}')
+              assert_no_overflow(page)
+              page.screenshot(path=out / '04-watchlist-attention-mobile.png', full_page=True)
+
+              page.goto(f'{base}/company/SPR', wait_until='domcontentloaded')
+              wait_company(page)
+              check_columns = page.locator('.investor-check-grid').evaluate(
+                  '(node) => getComputedStyle(node).gridTemplateColumns'
+              )
+              if len(check_columns.split()) != 1:
+                  raise AssertionError(f'Mobile next checks did not collapse: {check_columns}')
+              for height in page.locator('.investor-check').evaluate_all(
+                  'nodes => nodes.map(node => node.getBoundingClientRect().height)'
+              ):
+                  if height < 110:
+                      raise AssertionError(f'Mobile next-check target is too small: {height}')
+              assert_no_overflow(page)
+              page.screenshot(path=out / '05-company-next-checks-mobile.png', full_page=True)
+
+              page.goto(f'{base}/?date=2026-08-21&state=aim_close', wait_until='domcontentloaded')
+              wait_daily(page)
+              for height in page.locator('.daily-follow-link').evaluate_all(
+                  'nodes => nodes.map(node => node.getBoundingClientRect().height)'
+              ):
+                  if height < 43.5:
+                      raise AssertionError(f'Mobile Daily follow-through target is too small: {height}')
+              assert_no_overflow(page)
+              page.screenshot(path=out / '06-daily-follow-through-mobile.png', full_page=True)
+              assert_clean(failures, 'mobile investor workflow')
+              mobile.close()
+              browser.close()
+          PY
+
+      - name: Reject runtime failures
+        run: |
+          if grep -En 'Traceback \(most recent call last\)|Uncaught app exception|company-api-error|monitoring-api-error|newsroom-api-error' /tmp/pass6-investor-workflow/web.log; then
+            cat /tmp/pass6-investor-workflow/web.log
+            exit 1
+          fi
+
+      - name: Upload Pass 6 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smallcaps-pass6-investor-workflow
+          path: /tmp/pass6-investor-workflow
+          if-no-files-found: error
+          retention-days: 90
