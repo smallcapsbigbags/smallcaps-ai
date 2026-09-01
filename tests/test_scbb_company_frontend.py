@@ -20,9 +20,11 @@ def test_company_frontend_uses_the_pass4_investor_decision_contract() -> None:
         "news.css",
         "watchlist.css",
         "company-pass4.css",
+        "product-shell.css",
         "watchlist.js",
         "company-watchlist.js",
         "company.js",
+        "product-shell.js",
     ):
         assert asset in html
     for retired_asset in (
@@ -35,10 +37,11 @@ def test_company_frontend_uses_the_pass4_investor_decision_contract() -> None:
     ):
         assert retired_asset not in html
 
-    assert 'href="/rns">News</a>' in html
-    assert 'href="/rns?watchlist=1">Watchlist' in html
-    assert 'href="/">The AIM Daily</a>' in html
-    assert "Current position. What matters now. Source-linked evidence." in html
+    assert 'data-product-nav="news"' in html
+    assert 'data-product-nav="watchlist"' in html
+    assert 'data-product-nav="daily"' in html
+    assert 'id="company-context-link"' in html
+    assert "Independent AIM research. Facts first." in html
     assert "COMPANY MONITORING SHEET" not in html
 
     assert 'const COMPANY_SCHEMA = "scbb-company-v1"' in javascript
@@ -107,14 +110,18 @@ def test_private_beta_preserves_the_requested_company_destination(monkeypatch) -
     assert "httponly" in unlocked.headers["set-cookie"].lower()
 
 
-def test_feed_builds_company_navigation_without_a_mutation_enhancer() -> None:
+def test_feed_renderer_and_shared_shell_have_separate_navigation_responsibilities() -> None:
     html = Path("frontend/index.html").read_text(encoding="utf-8")
-    javascript = Path("frontend/assets/research.js").read_text(encoding="utf-8")
+    research = Path("frontend/assets/research.js").read_text(encoding="utf-8")
+    shell = Path("frontend/assets/product-shell.js").read_text(encoding="utf-8")
 
     assert "/assets/company.css" not in html
     assert "/assets/company-polish.css" not in html
     assert "/assets/news-pass3.css" in html
     assert "/assets/news-pass3-polish.css" in html
     assert "/assets/feed-company.js" not in html
-    assert "company-research-link" in javascript
-    assert "company-inline-link" in javascript
+    assert "company-research-link" in research
+    assert "company-inline-link" in research
+    assert 'url.searchParams.set("from", surface)' in shell
+    assert 'url.searchParams.set("open", sourceId)' in shell
+    assert "fetch(" not in shell
