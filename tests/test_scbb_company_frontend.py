@@ -69,7 +69,7 @@ def test_company_frontend_uses_the_pass4_investor_decision_contract() -> None:
     ):
         assert retired_visible_copy not in javascript
 
-    assert "color-scheme: light" in css
+    assert "color-scheme:light" in css
     assert ".company-position-card" in css
     assert ".company-position-main" in css
     assert ".company-position-snapshot" in css
