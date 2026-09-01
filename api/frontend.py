@@ -42,13 +42,7 @@ def _valid_token(value: str, secret: str) -> bool:
 
 @lru_cache(maxsize=1)
 def _asset_version() -> str:
-    """Return a deterministic fingerprint for every customer-facing asset.
-
-    HTML responses are never cached, so embedding this value in stylesheet and
-    script URLs forces a browser to fetch the exact asset set shipped with the
-    current deployment. This prevents an older cached research.js or daily.js
-    from running against a newer DOM contract.
-    """
+    """Return a deterministic fingerprint for every customer-facing asset."""
 
     digest = hashlib.sha256()
     asset_root = _FRONTEND_ROOT / "assets"
@@ -143,13 +137,12 @@ def _protected_file(request: Request, filename: str) -> Response:
 
 
 def create_frontend_routes() -> list[Route]:
-    """Serve The AIM Daily, Company News, Company Intelligence and beta entrance."""
+    """Serve Company News, Watchlist, Company pages and the beta entrance."""
 
     async def home(request: Request) -> Response:
-        # Legacy company links may still deep-link to /?date=...&open=SOURCE_ID.
-        # Keep those stable while making the plain root URL The AIM Daily.
-        filename = "index.html" if request.query_params.get("open") else "daily.html"
-        return _protected_file(request, filename)
+        # Company News is the product front door. /rns remains the stable
+        # canonical route for dated and announcement-level links.
+        return _protected_file(request, "index.html")
 
     async def rns(request: Request) -> Response:
         return _protected_file(request, "index.html")
