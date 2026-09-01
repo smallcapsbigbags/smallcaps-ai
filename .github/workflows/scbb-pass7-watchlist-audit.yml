@@ -40,6 +40,7 @@ jobs:
           node --check frontend/assets/watchlist.js
           node --check frontend/assets/company-watchlist.js
           node --check frontend/assets/research.js
+          node --check frontend/assets/product-shell.js
 
       - name: Seed deterministic watchlist company news
         run: |
@@ -67,6 +68,7 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
+          from urllib.parse import parse_qs, urlparse
 
           from playwright.sync_api import expect, sync_playwright
 
@@ -94,9 +96,11 @@ jobs:
               page.locator('article.monitor-row').first.wait_for(timeout=30000)
 
           def wait_watchlist(page):
-              expect(page.locator('#page-eyebrow')).to_have_text('WATCHLIST')
+              page.get_by_role('heading', name='Your watchlist.', exact=True).wait_for(timeout=30000)
+              expect(page.locator('#page-eyebrow')).to_have_text('PERSONAL COMPANY NEWS')
               expect(page.locator('#watchlist-nav-link')).to_have_attribute('aria-current', 'page')
               expect(page.locator('#news-nav-link')).not_to_have_attribute('aria-current', 'page')
+              expect(page.locator('[data-product-status]')).to_have_text('AIM live')
               page.locator('#feed-mode').wait_for(timeout=30000)
 
           with sync_playwright() as p:
@@ -123,7 +127,7 @@ jobs:
               page.goto(f'{base}/rns?watchlist=1', wait_until='domcontentloaded')
               wait_watchlist(page)
               expect(page.locator('#feed-mode')).to_have_text('Watchlist')
-              expect(page.locator('#feed-tagline')).to_have_text('All updates from companies you follow.')
+              expect(page.locator('#feed-tagline')).to_have_text('Every update from the AIM companies you follow, in one place.')
               expect(page.locator('#period-label')).to_have_text('Coverage')
               expect(page.locator('#result-status')).to_contain_text('1 company')
               expect(page.locator('#result-status')).to_contain_text('saved on this browser')
@@ -144,6 +148,7 @@ jobs:
               company_watch.click()
               expect(company_watch).to_have_attribute('aria-pressed', 'true')
               expect(company_watch).to_have_text('★ Watching')
+              expect(page.locator('#watchlist-nav-count')).to_have_text('2')
 
               page.goto(f'{base}/rns?watchlist=1', wait_until='domcontentloaded')
               wait_watchlist(page)
@@ -151,6 +156,28 @@ jobs:
               page.locator(f'article.monitor-row[data-source-id="{spr_current}"]').wait_for(timeout=30000)
               page.locator(f'article.monitor-row[data-source-id="{spr_prior}"]').wait_for(timeout=30000)
               page.locator(f'article.monitor-row[data-source-id="{gamma}"]').wait_for(timeout=30000)
+
+              springfield_link = page.locator(f'article.monitor-row[data-source-id="{spr_current}"] a.company-research-link')
+              page.wait_for_function(
+                  "el => new URL(el.href).searchParams.get('from') === 'watchlist'",
+                  springfield_link.element_handle(),
+              )
+              href = springfield_link.get_attribute('href')
+              query = parse_qs(urlparse(href).query)
+              if query.get('from') != ['watchlist'] or query.get('open') != [spr_current]:
+                  raise AssertionError(f'Watchlist company context is incomplete: {href}')
+              springfield_link.click()
+              page.get_by_role('heading', name='SPR', exact=True).wait_for(timeout=30000)
+              expect(page.locator('[data-product-nav="watchlist"]')).to_have_attribute('aria-current', 'page')
+              expect(page.locator('#company-context-link')).to_have_text('← Back to Watchlist')
+              expect(page.locator('#company-context-link')).to_have_attribute(
+                  'href', f'/rns?watchlist=1&open={spr_current}'
+              )
+              page.get_by_role('link', name='Open in Watchlist →', exact=True).wait_for(timeout=30000)
+              page.locator('#company-context-link').click()
+              page.wait_for_url(f'{base}/rns?watchlist=1&open={spr_current}', timeout=30000)
+              wait_watchlist(page)
+              expect(page.locator(f'article.monitor-row[data-source-id="{spr_current}"] .row-toggle')).to_have_attribute('aria-expanded', 'true')
 
               page.locator(f'article.monitor-row[data-source-id="{gamma}"] button.watch-toggle').click()
               expect(page.locator(f'article.monitor-row[data-source-id="{gamma}"]')).to_have_count(0)
@@ -193,6 +220,16 @@ jobs:
               box = page.locator('article.monitor-row').first.locator('button.watch-toggle').bounding_box()
               if not box or box['width'] < 40 or box['height'] < 40:
                   raise AssertionError(f'Mobile watch target is too small: {box}')
+              header = page.evaluate(
+                  """
+                  () => ({
+                    navHeight: document.querySelector('.primary-nav').getBoundingClientRect().height,
+                    signOutHeight: document.querySelector('.text-action').getBoundingClientRect().height,
+                  })
+                  """
+              )
+              if header['navHeight'] < 43.5 or header['signOutHeight'] < 43.5:
+                  raise AssertionError(f'Mobile shared header controls are too small: {header}')
               expect(page.locator('.news-time-watchlist').first).to_contain_text('Aug')
               page.screenshot(path=out / '02-watchlist-mobile.png', full_page=True)
               mobile.close()
