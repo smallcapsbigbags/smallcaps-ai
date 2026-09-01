@@ -38,11 +38,14 @@ jobs:
           pip install playwright==1.55.0
           python -m playwright install --with-deps chromium
           node --check frontend/assets/company.js
+          node --check frontend/assets/product-shell.js
 
       - name: Enforce the isolated Company Intelligence asset stack
         run: |
           grep -Fq '/assets/company-pass4.css?v={{ASSET_VERSION}}' frontend/company.html
+          grep -Fq '/assets/product-shell.css?v={{ASSET_VERSION}}' frontend/company.html
           grep -Fq '/assets/company.js?v={{ASSET_VERSION}}' frontend/company.html
+          grep -Fq '/assets/product-shell.js?v={{ASSET_VERSION}}' frontend/company.html
           for retired in research.css company.css company-polish.css company-launch.css company-journey.js company-launch.js; do
             if grep -Fq "/assets/$retired" frontend/company.html; then
               echo "Company Intelligence still loads retired asset: $retired"
@@ -81,6 +84,8 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
+          from urllib.parse import parse_qs, urlparse
+
           from playwright.sync_api import expect, sync_playwright
 
           out = Path('/tmp/scbb-pass4-audit')
@@ -115,8 +120,11 @@ jobs:
                   raise AssertionError(f'What matters appears after the evidence trail: {keys}')
 
           def assert_no_legacy_language(page):
-              body = page.locator('body').inner_text()
-              body_lines = {line.strip().upper() for line in body.splitlines() if line.strip()}
+              body_lines = {
+                  line.strip().upper()
+                  for line in page.locator('body').inner_text().splitlines()
+                  if line.strip()
+              }
               for retired in (
                   'LATEST COMPANY NEWS',
                   'AI VIEW',
@@ -133,6 +141,14 @@ jobs:
                       raise AssertionError(f'Legacy company language is still visible: {retired}')
               if page.locator('.company-data-row, .company-history-row').count():
                   raise AssertionError('Company Intelligence still renders the retired database-table layout')
+
+          def assert_shared_shell(page, context='news'):
+              expected = 'watchlist' if context == 'watchlist' else 'daily' if context == 'daily' else 'news'
+              active = page.locator(f'[data-product-nav="{expected}"]')
+              expect(active).to_have_attribute('aria-current', 'page')
+              expect(page.locator('[data-product-status]')).to_have_text('AIM live')
+              footer = page.locator('.product-footer')
+              footer.get_by_text('Independent AIM research. Facts first. Not personal investment advice.', exact=True).wait_for(timeout=30000)
 
           def assert_current_position(page):
               current = page.locator('[data-company-section="current-position"]')
@@ -160,6 +176,7 @@ jobs:
           def assert_springfield(page):
               wait_company(page, 'SPR')
               assert_section_order(page)
+              assert_shared_shell(page)
               page.get_by_text('Springfield Properties plc', exact=True).first.wait_for(timeout=30000)
               page.get_by_text('Meaningful buyback authority could retire about 10% of shares', exact=True).first.wait_for(timeout=30000)
               page.get_by_role('heading', name='What matters now', exact=True).wait_for(timeout=30000)
@@ -175,6 +192,7 @@ jobs:
           def assert_trellus(page):
               wait_company(page, 'TRLS')
               assert_section_order(page)
+              assert_shared_shell(page)
               page.get_by_text('Administration imminent; no shareholder return expected', exact=True).first.wait_for(timeout=30000)
               page.get_by_text('Negative', exact=True).first.wait_for(timeout=30000)
               page.get_by_text('5/5', exact=True).first.wait_for(timeout=30000)
@@ -190,12 +208,22 @@ jobs:
 
               desktop = browser.new_context(viewport={'width': 1440, 'height': 1000})
               page = desktop.new_page()
-              page.goto(f'{base}/rns', wait_until='domcontentloaded')
+              page.goto(f'{base}/rns?date=2026-08-21', wait_until='domcontentloaded')
               page.get_by_role('heading', name='Facts. No fluff.', exact=True).wait_for(timeout=30000)
-              company_link = page.locator('a.company-research-link[href="/company/SPR"]').first
+              company_link = page.locator('article.monitor-row[data-source-id="spr-preview-buyback"] a.company-research-link')
               company_link.wait_for(timeout=30000)
+              page.wait_for_function(
+                  "el => new URL(el.href).searchParams.get('from') === 'news'",
+                  company_link.element_handle(),
+              )
+              href = company_link.get_attribute('href')
+              parsed = urlparse(href)
+              query = parse_qs(parsed.query)
+              if parsed.path != '/company/SPR' or query.get('from') != ['news'] or query.get('open') != ['spr-preview-buyback'] or query.get('date') != ['2026-08-21']:
+                  raise AssertionError(f'Company link lost source context: {href}')
               company_link.click()
               assert_springfield(page)
+              expect(page.locator('#company-context-link')).to_have_text('← Back to Company News')
               no_overflow(page)
               computed = page.evaluate(
                   """
@@ -257,6 +285,8 @@ jobs:
                     current: getComputedStyle(document.querySelector('.company-position-main')).gridTemplateColumns,
                     matters: getComputedStyle(document.querySelector('.company-matters-grid')).gridTemplateColumns,
                     height: document.body.scrollHeight,
+                    navHeight: document.querySelector('.primary-nav').getBoundingClientRect().height,
+                    signOutHeight: document.querySelector('.text-action').getBoundingClientRect().height,
                   })
                   """
               )
@@ -264,8 +294,10 @@ jobs:
                   raise AssertionError(f'Mobile current position did not collapse to one column: {layout}')
               if len(layout['matters'].split()) != 1:
                   raise AssertionError(f'Mobile What matters now did not collapse to one column: {layout}')
-              if layout['height'] > 4500:
+              if layout['height'] > 4650:
                   raise AssertionError(f'Mobile company journey has regressed into an overlong database page: {layout}')
+              if layout['navHeight'] < 43.5 or layout['signOutHeight'] < 43.5:
+                  raise AssertionError(f'Mobile shared header controls are too small: {layout}')
               for selector in ('#company-watch-toggle', '.company-action', '.company-current-evidence > summary'):
                   box = page.locator(selector).first.bounding_box()
                   if box is None or box['height'] < 43.5:
@@ -280,9 +312,10 @@ jobs:
 
               deep_link = browser.new_context(viewport={'width': 1280, 'height': 900})
               page = deep_link.new_page()
-              page.goto(f'{base}/company/SPR?open=spr-preview-buyback', wait_until='domcontentloaded')
+              page.goto(f'{base}/company/SPR?from=news&date=2026-08-21&open=spr-preview-buyback', wait_until='domcontentloaded')
               page.locator('.company-current-evidence[open]').wait_for(timeout=30000)
               page.get_by_role('heading', name='Reported facts', exact=True).wait_for(timeout=30000)
+              expect(page.locator('#company-context-link')).to_have_attribute('href', '/rns?date=2026-08-21&open=spr-preview-buyback')
               no_overflow(page)
               deep_link.close()
 
