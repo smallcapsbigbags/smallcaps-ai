@@ -38,7 +38,8 @@ jobs:
           pip install playwright==1.55.0
           python -m playwright install --with-deps chromium
           node --check frontend/assets/research.js
-          node --check frontend/assets/daily.js
+          node --check frontend/assets/product-shell.js
+          node --check frontend/assets/company-repo-pass1.js
 
       - name: Seed deterministic production-shaped data
         run: |
@@ -56,7 +57,7 @@ jobs:
           for attempt in $(seq 1 90); do
             if curl --fail --silent http://127.0.0.1:8501/api/v1/health >/dev/null \
               && curl --fail --silent http://127.0.0.1:8501/rns >/dev/null \
-              && curl --fail --silent 'http://127.0.0.1:8501/api/v1/aim-daily/newsroom?state=morning_note' >/tmp/launch-repair-pass1/latest-daily.json; then
+              && curl --fail --silent http://127.0.0.1:8501/ >/dev/null; then
               exit 0
             fi
             sleep 1
@@ -64,37 +65,35 @@ jobs:
           cat /tmp/launch-repair-pass1/web.log
           exit 1
 
-      - name: Validate asset contract and latest populated edition
+      - name: Validate Company News front door and asset contract
         run: |
           python - <<'PY'
-          import json
           import re
           import requests
 
           base = 'http://127.0.0.1:8501'
-          html = requests.get(f'{base}/rns', timeout=10)
-          html.raise_for_status()
-          if html.headers.get('cache-control') != 'no-store':
-              raise AssertionError(html.headers)
-          match = re.search(r'/assets/research\.js\?v=([0-9a-f]{12})', html.text)
-          if match is None:
-              raise AssertionError('Company News does not pin its bootstrap JavaScript to an asset fingerprint')
-          asset = requests.get(f'{base}{match.group(0)}', timeout=10)
-          asset.raise_for_status()
-          if asset.headers.get('cache-control') != 'public, max-age=0, must-revalidate':
-              raise AssertionError(asset.headers)
-
-          daily = json.loads(open('/tmp/launch-repair-pass1/latest-daily.json').read())
-          if daily.get('date') != '2026-08-21':
-              raise AssertionError(f'Undated Daily did not fall back to latest populated edition: {daily.get("date")}')
-          if daily.get('screened_candidate_count', 0) < 1:
-              raise AssertionError('Latest Daily fallback is still empty')
+          for route in ('/', '/rns'):
+              response = requests.get(f'{base}{route}', timeout=10)
+              response.raise_for_status()
+              if response.headers.get('cache-control') != 'no-store':
+                  raise AssertionError(response.headers)
+              if 'AIM COMPANY NEWS' not in response.text or 'Facts. No fluff.' not in response.text:
+                  raise AssertionError(f'{route} is not Company News')
+              if 'The AIM Daily' in response.text or 'data-product-nav="daily"' in response.text:
+                  raise AssertionError(f'{route} still exposes the retired Daily')
+              for asset in ('research.js', 'watchlist.js', 'product-shell.js', 'company-repo-pass1.js'):
+                  match = re.search(rf'/assets/{re.escape(asset)}\?v=([0-9a-f]{{12}})', response.text)
+                  if match is None:
+                      raise AssertionError(f'{route} does not pin {asset} to the deployment fingerprint')
+                  asset_response = requests.get(f'{base}{match.group(0)}', timeout=10)
+                  asset_response.raise_for_status()
+                  if asset_response.headers.get('cache-control') != 'public, max-age=0, must-revalidate':
+                      raise AssertionError(asset_response.headers)
           PY
 
-      - name: Audit actual customer journeys in a browser
+      - name: Audit the actual Company News customer read path
         run: |
           python - <<'PY'
-          import re
           from pathlib import Path
           from urllib.parse import urlparse
 
@@ -103,81 +102,45 @@ jobs:
           base = 'http://127.0.0.1:8501'
           out = Path('/tmp/launch-repair-pass1')
 
-          def capture(page):
-              failures = []
-              requests = []
-              page.on('pageerror', lambda error: failures.append(f'pageerror: {error}'))
-              page.on('console', lambda message: failures.append(f'console: {message.text}') if message.type == 'error' else None)
-              page.on('request', lambda request: requests.append(request.url))
-              return failures, requests
-
-          def assert_clean(failures, label):
-              if failures:
-                  raise AssertionError(f'{label}: {failures}')
-
-          def assert_nav(page):
-              links = page.locator('nav[aria-label="Primary navigation"] a').evaluate_all(
-                  "els => els.map(el => ({text: el.textContent.trim(), href: el.getAttribute('href')}))"
-              )
-              hrefs = [item['href'] for item in links]
-              if hrefs != ['/rns', '/rns?watchlist=1', '/']:
-                  raise AssertionError(f'Navigation order is inconsistent: {links}')
-
-          def assert_versioned(urls, filename):
-              matches = [url for url in urls if urlparse(url).path.endswith(filename)]
-              if not matches:
-                  raise AssertionError(f'{filename} was never requested')
-              if not all(re.search(r'\?v=[0-9a-f]{12}(?:&|$)', url) for url in matches):
-                  raise AssertionError(f'Unversioned {filename} request: {matches}')
-
           with sync_playwright() as p:
               browser = p.chromium.launch()
               context = browser.new_context(viewport={'width': 1440, 'height': 1000})
               page = context.new_page()
-              failures, requests_seen = capture(page)
+              failures = []
+              requests_seen = []
+              page.on('pageerror', lambda error: failures.append(f'pageerror: {error}'))
+              page.on('console', lambda message: failures.append(f'console: {message.text}') if message.type == 'error' else None)
+              page.on('request', lambda request: requests_seen.append(request.url))
 
-              page.goto(f'{base}/rns', wait_until='domcontentloaded')
+              page.goto(base, wait_until='domcontentloaded')
               page.get_by_role('heading', name='Facts. No fluff.', exact=True).wait_for(timeout=30000)
               page.locator('article.monitor-row').first.wait_for(timeout=30000)
               expect(page.locator('.loading-state')).to_have_count(0)
               expect(page.locator('#feed-count')).not_to_contain_text('Loading', timeout=30000)
-              expect(page.locator('#active-day')).to_contain_text('21 Aug 2026')
+              expect(page.locator('#feed-tagline')).to_have_text('What changed across AIM.')
               if not any('/api/v1/monitoring?' in url for url in requests_seen):
                   raise AssertionError('Company News never requested its live read model')
-              assert_versioned(requests_seen, '/assets/research.js')
-              assert_versioned(requests_seen, '/assets/watchlist.js')
-              assert_nav(page)
-              assert_clean(failures, 'Company News')
-              page.screenshot(path=out / '01-company-news-live.png', full_page=True)
-
-              failures.clear()
-              requests_seen.clear()
-              page.goto(base, wait_until='domcontentloaded')
-              page.get_by_role('heading', name='THE AIM DAILY', exact=True).wait_for(timeout=30000)
-              expect(page.locator('#edition-summary')).to_contain_text('full analyses', timeout=30000)
-              page.locator('article[data-story-key]').first.wait_for(timeout=30000)
-              expect(page.locator('#edition-date')).to_contain_text('21 AUGUST 2026')
-              if page.locator('#edition-summary').inner_text().strip().startswith('0 full analyses'):
-                  raise AssertionError('The AIM Daily selected an empty current-day edition')
-              if not any('/api/v1/aim-daily/newsroom?state=morning_note' in url for url in requests_seen):
-                  raise AssertionError('The AIM Daily did not request the undated latest-edition endpoint')
-              assert_versioned(requests_seen, '/assets/daily.js')
-              assert_nav(page)
-              assert_clean(failures, 'The AIM Daily')
-              page.screenshot(path=out / '02-aim-daily-latest-populated.png', full_page=True)
-
+              links = page.locator('nav[aria-label="Primary navigation"] a').evaluate_all(
+                  "els => els.map(el => el.getAttribute('href'))"
+              )
+              if links != ['/rns', '/rns?watchlist=1']:
+                  raise AssertionError(f'Navigation is not minimal: {links}')
+              expect(page.locator('[data-company-search-input]')).to_be_visible()
+              if failures:
+                  raise AssertionError(failures)
+              page.screenshot(path=out / '01-company-news-front-door.png', full_page=True)
               context.close()
               browser.close()
           PY
 
       - name: Reject runtime failures
         run: |
-          if grep -En 'Traceback \(most recent call last\)|Uncaught app exception|monitoring-api-error|newsroom-api-error' /tmp/launch-repair-pass1/web.log; then
+          if grep -En 'Traceback \(most recent call last\)|Uncaught app exception|monitoring-api-error' /tmp/launch-repair-pass1/web.log; then
             cat /tmp/launch-repair-pass1/web.log
             exit 1
           fi
 
-      - name: Upload Pass 1 audit evidence
+      - name: Upload read-path evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
