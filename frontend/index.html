@@ -6,7 +6,7 @@
   <meta name="description" content="AIM company news. Facts. No fluff.">
   <meta name="theme-color" content="#f5f6f8">
   <meta name="color-scheme" content="light">
-  <title>Smallcaps.ai · AIM company news</title>
+  <title>Smallcaps.ai · Company news</title>
   <link rel="icon" href="/favicon.svg?v={{ASSET_VERSION}}" type="image/svg+xml">
   <link rel="stylesheet" href="/assets/news.css?v={{ASSET_VERSION}}">
   <link rel="stylesheet" href="/assets/news-interactions.css?v={{ASSET_VERSION}}">
@@ -27,14 +27,21 @@
 
   <header class="site-header">
     <div class="header-inner">
-      <a class="wordmark" href="/" aria-label="Smallcaps.ai home">
+      <a class="wordmark" href="/rns" aria-label="Smallcaps.ai company news">
         <span>smallcaps</span><strong>.ai</strong>
       </a>
       <nav class="primary-nav" aria-label="Primary navigation">
         <a id="news-nav-link" class="nav-link nav-link-active" data-product-nav="news" href="/rns" aria-current="page">News</a>
         <a id="watchlist-nav-link" class="nav-link" data-product-nav="watchlist" href="/rns?watchlist=1">Watchlist<span id="watchlist-nav-count" class="watchlist-nav-count" data-watchlist-count hidden>0</span></a>
-        <a id="daily-nav-link" class="nav-link" data-product-nav="daily" href="/">The AIM Daily</a>
       </nav>
+      <div class="company-search" role="search" data-company-search>
+        <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5"></circle><path d="m13 13 4 4"></path></svg>
+        <label class="sr-only" for="search-filter">Search company, ticker or news</label>
+        <input id="search-filter" data-company-search-input data-news-filter="true" list="company-search-options" type="search" autocomplete="off" placeholder="Company, ticker or news">
+        <datalist id="company-search-options" data-company-search-options></datalist>
+        <kbd aria-hidden="true">/</kbd>
+        <span class="sr-only" data-company-search-status aria-live="polite"></span>
+      </div>
       <div class="header-meta">
         <span class="live-status"><i aria-hidden="true"></i><span data-product-status>AIM live</span></span>
         <form action="/logout" method="post">
@@ -49,7 +56,7 @@
       <div>
         <p id="page-eyebrow" class="eyebrow">AIM COMPANY NEWS</p>
         <h1 id="page-title">Facts. No fluff.</h1>
-        <p id="feed-tagline" class="feed-tagline">Every material AIM announcement, reduced to what changed.</p>
+        <p id="feed-tagline" class="feed-tagline">What changed across AIM.</p>
       </div>
       <div class="market-day" aria-live="polite">
         <span id="period-label">Market day</span>
@@ -57,13 +64,7 @@
       </div>
     </section>
 
-    <section class="feed-toolbar" role="search" aria-label="Search and filter company news">
-      <label class="search-control" for="search-filter">
-        <span class="sr-only">Search company news</span>
-        <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5"></circle><path d="m13 13 4 4"></path></svg>
-        <input id="search-filter" type="search" autocomplete="off" placeholder="Search ticker, company or announcement">
-        <kbd class="search-shortcut" aria-hidden="true">/</kbd>
-      </label>
+    <section class="feed-toolbar feed-toolbar-compact" aria-label="Company news controls">
       <button id="filters-toggle" class="toolbar-button" type="button" aria-expanded="false" aria-controls="filter-panel">
         Filters <span id="filter-count" class="filter-count" hidden>0</span>
       </button>
@@ -150,8 +151,8 @@
     <span class="product-footer-brand">smallcaps.ai</span>
     <p class="product-footer-copy">Independent AIM research. Facts first. Not personal investment advice.</p>
     <nav class="product-footer-links" aria-label="Footer navigation">
-      <a href="/">The AIM Daily</a>
-      <a href="/rns">Company News</a>
+      <a href="/rns">News</a>
+      <a href="/rns?watchlist=1">Watchlist</a>
     </nav>
   </footer>
 </body>
