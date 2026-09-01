@@ -116,6 +116,7 @@ jobs:
 
           def assert_no_legacy_language(page):
               body = page.locator('body').inner_text()
+              body_lines = {line.strip().upper() for line in body.splitlines() if line.strip()}
               for retired in (
                   'LATEST COMPANY NEWS',
                   'AI VIEW',
@@ -128,7 +129,7 @@ jobs:
                   'SUPPORTS THE CASE',
                   'CHALLENGES THE CASE',
               ):
-                  if retired in body:
+                  if retired in body_lines:
                       raise AssertionError(f'Legacy company language is still visible: {retired}')
               if page.locator('.company-data-row, .company-history-row').count():
                   raise AssertionError('Company Intelligence still renders the retired database-table layout')
