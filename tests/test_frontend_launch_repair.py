@@ -43,12 +43,19 @@ def test_company_news_bootstrap_script_is_versioned(monkeypatch) -> None:
     assert 'src="/assets/research.js"' not in response.text
 
 
-def test_primary_navigation_order_is_consistent(monkeypatch) -> None:
+def test_primary_navigation_is_news_watchlist_then_search(monkeypatch) -> None:
     client = _client(monkeypatch)
 
     for path in ("/rns", "/", "/company/SPR"):
         html = client.get(path).text
-        news = html.index('href="/rns"')
-        watchlist = html.index('href="/rns?watchlist=1"')
-        daily = html.index('href="/"', html.index("Primary navigation"))
-        assert news < watchlist < daily, path
+        navigation = html.split('aria-label="Primary navigation"', 1)[1].split(
+            "</nav>", 1
+        )[0]
+        assert navigation.count('data-product-nav="news"') == 1
+        assert navigation.count('data-product-nav="watchlist"') == 1
+        assert 'data-product-nav="daily"' not in navigation
+        assert navigation.index('data-product-nav="news"') < navigation.index(
+            'data-product-nav="watchlist"'
+        )
+        assert "data-company-search" in html
+        assert html.index("Primary navigation") < html.index("data-company-search")
