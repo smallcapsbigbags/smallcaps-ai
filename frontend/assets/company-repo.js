@@ -299,7 +299,7 @@
 
   function metricCard(metric) {
     const card = element("article", "repo-metric");
-    const latestPoint = Array.isArray(metric.points) ? metric.points[0] || {} : {};
+    const latestPoint = Array.isArray(metric.points) ? metric.points.at(-1) || {} : {};
 
     const top = element("div", "repo-metric-top");
     top.append(
