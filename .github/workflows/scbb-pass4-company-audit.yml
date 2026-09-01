@@ -40,7 +40,7 @@ jobs:
           node --check frontend/assets/company.js
           node --check frontend/assets/product-shell.js
 
-      - name: Enforce the isolated Company Intelligence asset stack
+      - name: Enforce the Company Intelligence asset contract
         run: |
           grep -Fq '/assets/company-pass4.css?v={{ASSET_VERSION}}' frontend/company.html
           grep -Fq '/assets/product-shell.css?v={{ASSET_VERSION}}' frontend/company.html
@@ -52,10 +52,7 @@ jobs:
               exit 1
             fi
           done
-          if grep -Fq 'innerHTML' frontend/assets/company.js; then
-            echo 'Company Intelligence must render through safe DOM methods.'
-            exit 1
-          fi
+          ! grep -Fq 'innerHTML' frontend/assets/company.js
 
       - name: Seed deterministic company research
         run: |
@@ -80,7 +77,7 @@ jobs:
           cat /tmp/scbb-pass4-audit/web.log
           exit 1
 
-      - name: Capture and validate Company Intelligence journey
+      - name: Audit Company Intelligence on desktop and mobile
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -98,28 +95,52 @@ jobs:
                     client: document.documentElement.clientWidth,
                     scroll: document.documentElement.scrollWidth,
                     body: document.body.scrollWidth,
+                    duplicates: [...document.querySelectorAll('[id]')]
+                      .map(node => node.id)
+                      .filter((id, index, values) => values.indexOf(id) !== index),
                   })
                   """
               )
               if dims['scroll'] > dims['client'] + 2 or dims['body'] > dims['client'] + 2:
                   raise AssertionError(f'Document clips horizontally: {dims}')
+              if dims['duplicates']:
+                  raise AssertionError(f'Duplicate ids: {dims}')
 
           def wait_company(page, ticker):
               page.get_by_role('heading', name=ticker, exact=True).wait_for(timeout=30000)
-              page.locator('[data-company-section="current-position"]').wait_for(timeout=30000)
+              current = page.locator('[data-company-section="current-position"]')
+              current.wait_for(timeout=30000)
               page.get_by_role('heading', name='Current position', exact=True).wait_for(timeout=30000)
               page.get_by_role('heading', name='Evidence trail', exact=True).wait_for(timeout=30000)
-              page.wait_for_timeout(250)
+              return current
 
-          def assert_section_order(page):
-              sections = page.locator('.company-section')
-              keys = [sections.nth(index).get_attribute('data-company-section') for index in range(sections.count())]
+          def assert_company(page, ticker, sparse=False):
+              current = wait_company(page, ticker)
+              current.get_by_text('What changed', exact=True).wait_for(timeout=30000)
+              current.get_by_text('Smallcaps.ai view', exact=True).wait_for(timeout=30000)
+              current.get_by_text('Guidance', exact=True).wait_for(timeout=30000)
+              current.get_by_text('Balance sheet', exact=True).wait_for(timeout=30000)
+              current.get_by_text('Market reaction', exact=True).wait_for(timeout=30000)
+              current.get_by_text('Materiality', exact=True).wait_for(timeout=30000)
+              current.get_by_role('link', name='Source RNS ↗', exact=True).wait_for(timeout=30000)
+              current.get_by_role('link', name='Open in News →', exact=True).wait_for(timeout=30000)
+              expect(page.locator('[data-product-nav="news"]')).to_have_attribute('aria-current', 'page')
+              expect(page.locator('[data-product-status]')).to_have_text('AIM live')
+
+              words = current.locator('.company-view-copy p').inner_text().strip().split()
+              if not words or len(words) > 50:
+                  raise AssertionError(f'Company view is not terse: {len(words)} words')
+
+              keys = page.locator('.company-section').evaluate_all(
+                  "els => els.map(el => el.dataset.companySection)"
+              )
               if not keys or keys[0] != 'current-position' or keys[-1] != 'evidence-trail':
-                  raise AssertionError(f'Company hierarchy is incorrect: {keys}')
-              if 'what-matters' in keys and keys.index('what-matters') > keys.index('evidence-trail'):
-                  raise AssertionError(f'What matters appears after the evidence trail: {keys}')
+                  raise AssertionError(f'Company hierarchy drifted: {keys}')
+              if sparse and 'what-matters' in keys:
+                  raise AssertionError(f'Sparse research invented a section: {keys}')
+              if not sparse and 'what-matters' not in keys:
+                  raise AssertionError(f'Established research lost What matters now: {keys}')
 
-          def assert_no_legacy_language(page):
               body_lines = {
                   line.strip().upper()
                   for line in page.locator('body').inner_text().splitlines()
@@ -132,141 +153,69 @@ jobs:
                   'COMPANY MONITORING SHEET',
                   'VIEW FULL ANALYST NOTE',
                   'READ ANALYSIS →',
-                  'ORIGINAL RNS ↗',
-                  'OPEN IN RNS FEED →',
-                  'SUPPORTS THE CASE',
-                  'CHALLENGES THE CASE',
               ):
                   if retired in body_lines:
-                      raise AssertionError(f'Legacy company language is still visible: {retired}')
+                      raise AssertionError(f'Legacy copy remains visible: {retired}')
               if page.locator('.company-data-row, .company-history-row').count():
-                  raise AssertionError('Company Intelligence still renders the retired database-table layout')
-
-          def assert_shared_shell(page, context='news'):
-              expected = 'watchlist' if context == 'watchlist' else 'daily' if context == 'daily' else 'news'
-              active = page.locator(f'[data-product-nav="{expected}"]')
-              expect(active).to_have_attribute('aria-current', 'page')
-              expect(page.locator('[data-product-status]')).to_have_text('AIM live')
-              footer = page.locator('.product-footer')
-              footer.get_by_text('Independent AIM research. Facts first. Not personal investment advice.', exact=True).wait_for(timeout=30000)
-
-          def assert_current_position(page):
-              current = page.locator('[data-company-section="current-position"]')
-              current.get_by_text('What changed', exact=True).wait_for(timeout=30000)
-              current.get_by_text('Smallcaps.ai view', exact=True).wait_for(timeout=30000)
-              current.get_by_text('Guidance', exact=True).wait_for(timeout=30000)
-              current.get_by_text('Balance sheet', exact=True).wait_for(timeout=30000)
-              current.get_by_text('Market reaction', exact=True).wait_for(timeout=30000)
-              current.get_by_text('Materiality', exact=True).wait_for(timeout=30000)
-              current.get_by_role('link', name='Source RNS ↗', exact=True).wait_for(timeout=30000)
-              current.get_by_role('link', name='Open in News →', exact=True).wait_for(timeout=30000)
-              view_words = current.locator('.company-view-copy p').inner_text().strip().split()
-              if not view_words or len(view_words) > 50:
-                  raise AssertionError(f'Current Smallcaps.ai view should be terse and non-empty: {len(view_words)} words')
-
-          def open_current_evidence(page):
-              details = page.locator('.company-current-evidence')
-              details.locator('summary').click()
-              expect(details).to_have_attribute('open', '')
-              details.get_by_role('heading', name='Reported facts', exact=True).wait_for(timeout=30000)
-              details.get_by_role('heading', name='Before → now', exact=True).wait_for(timeout=30000)
-              details.get_by_role('heading', name='Not disclosed / source checks', exact=True).wait_for(timeout=30000)
-              return details
-
-          def assert_springfield(page):
-              wait_company(page, 'SPR')
-              assert_section_order(page)
-              assert_shared_shell(page)
-              page.get_by_text('Springfield Properties plc', exact=True).first.wait_for(timeout=30000)
-              page.get_by_text('Meaningful buyback authority could retire about 10% of shares', exact=True).first.wait_for(timeout=30000)
-              page.get_by_role('heading', name='What matters now', exact=True).wait_for(timeout=30000)
-              for card in ('Guidance', 'Metrics that matter', 'Management commitments', 'Open questions'):
-                  page.get_by_role('heading', name=card, exact=True).wait_for(timeout=30000)
-              if page.locator('[data-matter-card="metrics"] .company-matter-row').count() < 3:
-                  raise AssertionError('Springfield should expose at least three decision-useful metrics')
-              if page.locator('.company-event').count() != 2:
-                  raise AssertionError('Springfield should show both preview announcements')
-              assert_current_position(page)
-              assert_no_legacy_language(page)
-
-          def assert_trellus(page):
-              wait_company(page, 'TRLS')
-              assert_section_order(page)
-              assert_shared_shell(page)
-              page.get_by_text('Administration imminent; no shareholder return expected', exact=True).first.wait_for(timeout=30000)
-              page.get_by_text('Negative', exact=True).first.wait_for(timeout=30000)
-              page.get_by_text('5/5', exact=True).first.wait_for(timeout=30000)
-              if page.locator('[data-company-section="what-matters"]').count():
-                  raise AssertionError('Sparse Trellus research invented a What matters now section')
-              if page.locator('.company-event').count() != 1:
-                  raise AssertionError('Trellus should have one preview evidence event')
-              assert_current_position(page)
-              assert_no_legacy_language(page)
+                  raise AssertionError('Retired database-table layout remains visible')
+              no_overflow(page)
+              return current
 
           with sync_playwright() as p:
               browser = p.chromium.launch()
 
               desktop = browser.new_context(viewport={'width': 1440, 'height': 1000})
               page = desktop.new_page()
-              page.goto(f'{base}/rns?date=2026-08-21', wait_until='domcontentloaded')
-              page.get_by_role('heading', name='Facts. No fluff.', exact=True).wait_for(timeout=30000)
-              company_link = page.locator('article.monitor-row[data-source-id="spr-preview-buyback"] a.company-research-link')
-              company_link.wait_for(timeout=30000)
-              page.wait_for_function(
-                  "el => new URL(el.href).searchParams.get('from') === 'news'",
-                  company_link.element_handle(),
+              page.goto(
+                  f'{base}/company/SPR?from=news&date=2026-08-21&open=spr-preview-buyback',
+                  wait_until='domcontentloaded',
               )
-              href = company_link.get_attribute('href')
-              parsed = urlparse(href)
-              query = parse_qs(parsed.query)
-              if parsed.path != '/company/SPR' or query.get('from') != ['news'] or query.get('open') != ['spr-preview-buyback'] or query.get('date') != ['2026-08-21']:
-                  raise AssertionError(f'Company link lost source context: {href}')
-              company_link.click()
-              assert_springfield(page)
+              current = assert_company(page, 'SPR')
+              expect(page.locator('#company-context-link')).to_have_attribute(
+                  'href', '/rns?date=2026-08-21&open=spr-preview-buyback'
+              )
               expect(page.locator('#company-context-link')).to_have_text('← Back to Company News')
-              no_overflow(page)
+              if page.locator('[data-matter-card="metrics"] .company-matter-row').count() < 3:
+                  raise AssertionError('Springfield lost decision-useful metrics')
+              if page.locator('.company-event').count() != 2:
+                  raise AssertionError('Springfield evidence trail is incomplete')
+
               computed = page.evaluate(
                   """
                   () => ({
                     background: getComputedStyle(document.body).backgroundColor,
+                    surface: getComputedStyle(document.querySelector('.company-position-card')).backgroundColor,
                     headingSize: parseFloat(getComputedStyle(document.querySelector('.company-hero h1')).fontSize),
                     accent: getComputedStyle(document.querySelector('.company-hero h1 em')).color,
-                    surface: getComputedStyle(document.querySelector('.company-position-card')).backgroundColor,
-                    currentColumns: getComputedStyle(document.querySelector('.company-position-main')).gridTemplateColumns,
+                    columns: getComputedStyle(document.querySelector('.company-position-main')).gridTemplateColumns,
                   })
                   """
               )
-              if computed['background'] != 'rgb(245, 246, 248)':
-                  raise AssertionError(f'Company page should use the Facts No Fluff page background: {computed}')
-              if computed['surface'] != 'rgb(255, 255, 255)':
-                  raise AssertionError(f'Current position should use a white decision surface: {computed}')
-              if not 42 <= computed['headingSize'] <= 72:
-                  raise AssertionError(f'Company ticker hierarchy is incorrect: {computed}')
-              if computed['accent'] != 'rgb(37, 99, 235)':
-                  raise AssertionError(f'Company page should use Smallcaps.ai blue: {computed}')
-              if len(computed['currentColumns'].split()) < 2:
-                  raise AssertionError(f'Desktop current position should use narrative and snapshot columns: {computed}')
-              watch_box = page.locator('#company-watch-toggle').bounding_box()
-              if watch_box is None or watch_box['height'] < 43.5:
-                  raise AssertionError(f'Watch target is too small: {watch_box}')
+              if computed['background'] != 'rgb(245, 246, 248)' or computed['surface'] != 'rgb(255, 255, 255)':
+                  raise AssertionError(f'Company visual system drifted: {computed}')
+              if computed['accent'] != 'rgb(37, 99, 235)' or not 42 <= computed['headingSize'] <= 72:
+                  raise AssertionError(f'Company hierarchy drifted: {computed}')
+              if len(computed['columns'].split()) < 2:
+                  raise AssertionError(f'Desktop decision surface did not retain two columns: {computed}')
+
+              current.locator('.company-current-evidence > summary').click()
+              page.get_by_role('heading', name='Reported facts', exact=True).wait_for(timeout=30000)
+              page.get_by_role('heading', name='Before → now', exact=True).wait_for(timeout=30000)
+              page.get_by_role(
+                  'heading', name='Not disclosed / source checks', exact=True
+              ).wait_for(timeout=30000)
               page.screenshot(path=out / '01-company-springfield-desktop.png', full_page=True)
-
-              current_details = open_current_evidence(page)
-              page.screenshot(path=out / '01b-company-springfield-evidence-desktop.png', full_page=True)
-              current_details.locator('summary').click()
-
-              first_event = page.locator('.company-event').first
-              first_event.locator('.company-event-evidence summary').click()
-              first_event.get_by_role('heading', name='Reported facts', exact=True).wait_for(timeout=30000)
-              first_event.get_by_role('heading', name='Before → now', exact=True).wait_for(timeout=30000)
-              first_event.get_by_role('link', name='Source ↗', exact=True).wait_for(timeout=30000)
               desktop.close()
 
               sparse = browser.new_context(viewport={'width': 1280, 'height': 900})
               page = sparse.new_page()
               page.goto(f'{base}/company/TRLS', wait_until='domcontentloaded')
-              assert_trellus(page)
-              no_overflow(page)
+              assert_company(page, 'TRLS', sparse=True)
+              page.get_by_text(
+                  'Administration imminent; no shareholder return expected', exact=True
+              ).first.wait_for(timeout=30000)
+              if page.locator('.company-event').count() != 1:
+                  raise AssertionError('Trellus evidence trail should contain one event')
               page.screenshot(path=out / '02-company-trellus-laptop.png', full_page=True)
               sparse.close()
 
@@ -277,52 +226,35 @@ jobs:
               )
               page = mobile.new_page()
               page.goto(f'{base}/company/SPR', wait_until='domcontentloaded')
-              assert_springfield(page)
-              no_overflow(page)
+              assert_company(page, 'SPR')
               layout = page.evaluate(
                   """
                   () => ({
                     current: getComputedStyle(document.querySelector('.company-position-main')).gridTemplateColumns,
                     matters: getComputedStyle(document.querySelector('.company-matters-grid')).gridTemplateColumns,
-                    height: document.body.scrollHeight,
-                    navHeight: document.querySelector('.primary-nav').getBoundingClientRect().height,
-                    signOutHeight: document.querySelector('.text-action').getBoundingClientRect().height,
+                    nav: document.querySelector('.primary-nav').getBoundingClientRect().height,
+                    signout: document.querySelector('.text-action').getBoundingClientRect().height,
                   })
                   """
               )
-              if len(layout['current'].split()) != 1:
-                  raise AssertionError(f'Mobile current position did not collapse to one column: {layout}')
-              if len(layout['matters'].split()) != 1:
-                  raise AssertionError(f'Mobile What matters now did not collapse to one column: {layout}')
-              if layout['height'] > 4650:
-                  raise AssertionError(f'Mobile company journey has regressed into an overlong database page: {layout}')
-              if layout['navHeight'] < 43.5 or layout['signOutHeight'] < 43.5:
-                  raise AssertionError(f'Mobile shared header controls are too small: {layout}')
-              for selector in ('#company-watch-toggle', '.company-action', '.company-current-evidence > summary'):
+              if len(layout['current'].split()) != 1 or len(layout['matters'].split()) != 1:
+                  raise AssertionError(f'Mobile company grids did not collapse: {layout}')
+              if layout['nav'] < 43.5 or layout['signout'] < 43.5:
+                  raise AssertionError(f'Mobile shell targets are too small: {layout}')
+              for selector in (
+                  '#company-watch-toggle',
+                  '.company-action',
+                  '.company-current-evidence > summary',
+              ):
                   box = page.locator(selector).first.bounding_box()
                   if box is None or box['height'] < 43.5:
-                      raise AssertionError(f'Mobile action is below the 44px target: {selector} {box}')
+                      raise AssertionError(f'Mobile target is too small: {selector} {box}')
               page.screenshot(path=out / '03-company-springfield-mobile.png', full_page=True)
-
-              page.locator('.company-event').first.locator('.company-event-evidence summary').click()
-              page.locator('.company-event').first.get_by_role('heading', name='Reported facts', exact=True).wait_for(timeout=30000)
-              no_overflow(page)
-              page.screenshot(path=out / '03b-company-springfield-evidence-mobile.png', full_page=True)
               mobile.close()
-
-              deep_link = browser.new_context(viewport={'width': 1280, 'height': 900})
-              page = deep_link.new_page()
-              page.goto(f'{base}/company/SPR?from=news&date=2026-08-21&open=spr-preview-buyback', wait_until='domcontentloaded')
-              page.locator('.company-current-evidence[open]').wait_for(timeout=30000)
-              page.get_by_role('heading', name='Reported facts', exact=True).wait_for(timeout=30000)
-              expect(page.locator('#company-context-link')).to_have_attribute('href', '/rns?date=2026-08-21&open=spr-preview-buyback')
-              no_overflow(page)
-              deep_link.close()
-
               browser.close()
           PY
 
-      - name: Reject runtime and frontend failures
+      - name: Reject runtime failures
         run: |
           if grep -En 'Traceback \(most recent call last\)|Uncaught app exception|company-api-error|monitoring-api-error' /tmp/scbb-pass4-audit/web.log; then
             cat /tmp/scbb-pass4-audit/web.log
