@@ -8,34 +8,45 @@ from starlette.testclient import TestClient
 from api.frontend import create_frontend_routes
 
 
-def test_company_frontend_uses_the_repository_contract() -> None:
-    html = Path("frontend/company.html").read_text(encoding="utf-8")
-    javascript = Path("frontend/assets/company.js").read_text(encoding="utf-8")
-    css = Path("frontend/assets/company-pass4.css").read_text(encoding="utf-8")
+ROOT = Path(__file__).resolve().parents[1]
+FRONTEND = ROOT / "frontend"
+ASSETS = FRONTEND / "assets"
+
+
+def test_company_frontend_uses_the_compact_repository_contract() -> None:
+    html = (FRONTEND / "company.html").read_text(encoding="utf-8")
+    javascript = (ASSETS / "company-repo.js").read_text(encoding="utf-8")
+    css = (ASSETS / "company-repo.css").read_text(encoding="utf-8")
 
     assert '<p class="eyebrow">Company</p>' in html
     assert "company-repository-page" in html
     assert "Company Intelligence" not in html
     assert '<meta name="theme-color" content="#f5f6f8">' in html
     assert '<meta name="color-scheme" content="light">' in html
+
     for asset in (
         "news.css",
         "watchlist.css",
-        "company-pass4.css",
         "product-shell.css",
+        "company-repo.css",
         "watchlist.js",
         "company-watchlist.js",
-        "company.js",
+        "company-repo.js",
         "product-shell.js",
     ):
-        assert asset in html
+        assert f"/assets/{asset}" in html
+
     for retired_asset in (
-        "research.css",
-        "company.css",
-        "company-polish.css",
-        "company-launch.css",
-        "company-journey.js",
-        "company-launch.js",
+        "/assets/research.css",
+        "/assets/company.css",
+        "/assets/company-polish.css",
+        "/assets/company-pass4.css",
+        "/assets/company-launch.css",
+        "/assets/company.js",
+        "/assets/company-journey.js",
+        "/assets/company-launch.js",
+        "/assets/investor-workflow.css",
+        "/assets/investor-workflow.js",
     ):
         assert retired_asset not in html
 
@@ -45,48 +56,52 @@ def test_company_frontend_uses_the_repository_contract() -> None:
     assert "data-company-search" in html
     assert 'id="company-context-link"' in html
     assert "Independent AIM research. Facts first." in html
-    assert "COMPANY MONITORING SHEET" not in html
     assert "The AIM Daily" not in html
 
     assert 'const COMPANY_SCHEMA = "scbb-company-v1"' in javascript
     assert 'const MONITORING_SCHEMA = "scbb-monitoring-v1"' in javascript
-    assert '"Current position"' in javascript
-    assert '"What matters now"' in javascript
-    assert '"Evidence trail"' in javascript
-    assert '"current-position"' in javascript
-    assert '"what-matters"' in javascript
-    assert '"evidence-trail"' in javascript
-    assert '"What changed"' in javascript
-    assert '"Smallcaps.ai view"' in javascript
-    assert '"Show supporting evidence"' in javascript
+    assert 'storyCell("NOW"' in javascript
+    assert 'storyCell("CHANGE"' in javascript
+    assert 'storyCell("WATCH"' in javascript
+    assert 'sectionHead("Key numbers"' in javascript
+    assert 'sectionHead("Company news"' in javascript
+    assert 'detailGroup("FACTS")' in javascript
+    assert 'detailGroup("CHANGE")' in javascript
+    assert 'detailGroup("WATCH")' in javascript
+    assert '"NOT DISCLOSED"' in javascript
     assert '"Open in News →"' in javascript
-    assert '"Source RNS ↗"' in javascript
-    assert "INITIAL_HISTORY_COUNT = 8" in javascript
-    assert "history.replaceState" not in javascript
+    assert '"Source ↗"' in javascript
+    assert "INITIAL_NEWS_COUNT = 10" in javascript
+    assert "MAX_KEY_NUMBERS = 6" in javascript
+    assert "activateRequestedAnnouncement" in javascript
+    assert 'element("details", `repo-news-item' in javascript
     assert "innerHTML" not in javascript
     assert "OpenAI" not in javascript
 
     for retired_visible_copy in (
-        '"CURRENT VIEW"',
+        '"Current position"',
+        '"What matters now"',
+        '"Evidence trail"',
+        '"Smallcaps.ai view"',
+        '"Show supporting evidence"',
         '"LATEST COMPANY NEWS"',
-        '"AI VIEW"',
         '"RNS HISTORY"',
         '"VIEW FULL ANALYST NOTE"',
-        '"READ ANALYSIS →"',
     ):
         assert retired_visible_copy not in javascript
 
-    assert "color-scheme:light" in css
-    assert ".company-position-card" in css
-    assert ".company-position-main" in css
-    assert ".company-position-snapshot" in css
-    assert ".company-matters-grid" in css
-    assert ".company-matter-card" in css
-    assert ".company-event" in css
-    assert ".company-evidence-grid" in css
-    assert "min-height:44px" in css
-    assert "@media (max-width:680px)" in css
-    assert "@media (prefers-reduced-motion:reduce)" in css
+    assert ".repo-story-grid" in css
+    assert ".repo-story-now" in css
+    assert ".repo-story-change" in css
+    assert ".repo-story-watch" in css
+    assert ".repo-metric-grid" in css
+    assert ".repo-news-list" in css
+    assert ".repo-news-summary" in css
+    assert ".repo-detail-grid" in css
+    assert ".company-watch-toggle" in css
+    assert "min-height: 44px" in css
+    assert "@media (max-width: 680px)" in css
+    assert "@media (prefers-reduced-motion: reduce)" in css
 
 
 def test_private_beta_preserves_the_requested_company_destination(monkeypatch) -> None:
@@ -115,9 +130,9 @@ def test_private_beta_preserves_the_requested_company_destination(monkeypatch) -
 
 
 def test_feed_renderer_and_shared_shell_have_separate_navigation_responsibilities() -> None:
-    html = Path("frontend/index.html").read_text(encoding="utf-8")
-    research = Path("frontend/assets/research.js").read_text(encoding="utf-8")
-    shell = Path("frontend/assets/product-shell.js").read_text(encoding="utf-8")
+    html = (FRONTEND / "index.html").read_text(encoding="utf-8")
+    research = (ASSETS / "research.js").read_text(encoding="utf-8")
+    shell = (ASSETS / "product-shell.js").read_text(encoding="utf-8")
 
     assert "/assets/company.css" not in html
     assert "/assets/company-polish.css" not in html
