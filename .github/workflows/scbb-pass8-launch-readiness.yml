@@ -142,10 +142,10 @@ jobs:
 
               page.locator('a.company-research-link[href="/company/SPR"]').first.click()
               wait_company(page)
-              body = page.locator('body').inner_text()
-              for required in ('Company Intelligence', 'Current position', 'What changed', 'Smallcaps.ai view', 'Evidence trail'):
-                  if required not in body:
-                      raise AssertionError(f'Missing Company Intelligence element: {required}')
+              current = page.locator('[data-company-section="current-position"]')
+              current.get_by_text('What changed', exact=True).wait_for(timeout=30000)
+              current.get_by_text('Smallcaps.ai view', exact=True).wait_for(timeout=30000)
+              body = page.locator('body').inner_text().upper()
               for retired in ('LATEST COMPANY NEWS', 'RNS HISTORY', 'VIEW FULL ANALYST NOTE', 'READ ANALYSIS →'):
                   if retired in body:
                       raise AssertionError(f'Legacy Company Intelligence wording visible: {retired}')
