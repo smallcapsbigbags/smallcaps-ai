@@ -1,0 +1,370 @@
+name: launch-repair-pass3-company-news
+
+on:
+  pull_request:
+    branches: ["main"]
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: launch-repair-pass3-company-news-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dense-company-news:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DATABASE_URL: sqlite+pysqlite:///data/launch-repair-pass3.db
+      PRIVATE_BETA_MODE: "false"
+      APP_BETA_PASSWORD: preview-access
+      APP_ADMIN_PASSWORD: preview-admin
+      MARKET_DATA_ENABLED: "true"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install application and browser dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install playwright==1.55.0
+          python -m playwright install --with-deps chromium
+          node --check frontend/assets/research.js
+          node --check frontend/assets/news-pass3.js
+
+      - name: Seed deterministic Company News data
+        run: |
+          rm -f data/launch-repair-pass3.db
+          python -m jobs.seed_launch_preview
+          python -m jobs.seed_pass1_preview
+
+      - name: Start product
+        shell: bash
+        run: |
+          mkdir -p /tmp/launch-repair-pass3
+          python -m uvicorn web_app:app --host 127.0.0.1 --port 8501 \
+            > /tmp/launch-repair-pass3/web.log 2>&1 &
+          echo $! > /tmp/launch-repair-pass3/web.pid
+          for attempt in $(seq 1 90); do
+            if curl --fail --silent http://127.0.0.1:8501/api/v1/health >/dev/null \
+              && curl --fail --silent 'http://127.0.0.1:8501/api/v1/monitoring?date=2026-08-21&limit=20' >/tmp/launch-repair-pass3/feed.json; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/launch-repair-pass3/web.log
+          exit 1
+
+      - name: Validate isolated asset contract
+        run: |
+          python - <<'PY'
+          import re
+          import requests
+
+          response = requests.get('http://127.0.0.1:8501/rns', timeout=10)
+          response.raise_for_status()
+          html = response.text
+          if response.headers.get('cache-control') != 'no-store':
+              raise AssertionError(response.headers)
+          for retired in ('/assets/research.css', '/assets/company.css', '/assets/company-polish.css'):
+              if retired in html:
+                  raise AssertionError(f'Legacy stylesheet still loaded by Company News: {retired}')
+          for asset in (
+              'news.css',
+              'news-interactions.css',
+              'news-detail.css',
+              'watchlist.css',
+              'news-pass3.css',
+              'watchlist.js',
+              'research.js',
+              'news-pass3.js',
+          ):
+              if re.search(rf'/assets/{re.escape(asset)}\?v=[0-9a-f]{{12}}', html) is None:
+                  raise AssertionError(f'{asset} is not content fingerprinted')
+          if '<body class="company-news-page">' not in html:
+              raise AssertionError('Company News page scope is missing')
+          PY
+
+      - name: Audit desktop, mobile and forced-dark journeys
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from urllib.parse import urlparse
+
+          from playwright.sync_api import expect, sync_playwright
+
+          base = 'http://127.0.0.1:8501'
+          out = Path('/tmp/launch-repair-pass3')
+
+          def capture(page):
+              failures = []
+              requests_seen = []
+              page.on('pageerror', lambda error: failures.append(f'pageerror: {error}'))
+              page.on('console', lambda message: failures.append(f'console: {message.text}') if message.type == 'error' else None)
+              page.on('request', lambda request: requests_seen.append(request.url))
+              return failures, requests_seen
+
+          def assert_clean(failures, label):
+              if failures:
+                  raise AssertionError(f'{label}: {failures}')
+
+          def assert_no_overflow(page):
+              dims = page.evaluate(
+                  """
+                  () => ({
+                    client: document.documentElement.clientWidth,
+                    scroll: document.documentElement.scrollWidth,
+                    body: document.body.scrollWidth,
+                  })
+                  """
+              )
+              if dims['scroll'] > dims['client'] + 2 or dims['body'] > dims['client'] + 2:
+                  raise AssertionError(f'Document clips horizontally: {dims}')
+
+          def assert_no_duplicate_ids(page):
+              duplicates = page.evaluate(
+                  """
+                  () => {
+                    const counts = new Map();
+                    document.querySelectorAll('[id]').forEach((node) => counts.set(node.id, (counts.get(node.id) || 0) + 1));
+                    return [...counts.entries()].filter(([, count]) => count > 1);
+                  }
+                  """
+              )
+              if duplicates:
+                  raise AssertionError(f'Duplicate DOM ids: {duplicates}')
+
+          def wait_feed(page):
+              page.get_by_role('heading', name='Facts. No fluff.', exact=True).wait_for(timeout=30000)
+              page.locator('article.monitor-row').first.wait_for(timeout=30000)
+              expect(page.locator('article.monitor-row')).to_have_count(5)
+              expect(page.locator('#feed-mode')).to_have_text('Key News')
+
+          def assert_shared_nav(page):
+              links = page.locator('nav[aria-label="Primary navigation"] a').evaluate_all(
+                  "els => els.map(el => ({text: el.childNodes[0].textContent.trim(), href: el.getAttribute('href')}))"
+              )
+              expected = [
+                  {'text': 'News', 'href': '/rns'},
+                  {'text': 'Watchlist', 'href': '/rns?watchlist=1'},
+                  {'text': 'The AIM Daily', 'href': '/'},
+              ]
+              if links != expected:
+                  raise AssertionError(f'Navigation drifted: {links}')
+
+          def assert_collapsed_row(page, row, *, mobile=False):
+              state = row.evaluate(
+                  """
+                  (row) => {
+                    const toggle = row.querySelector('.row-toggle');
+                    const headline = row.querySelector('.news-headline');
+                    const take = row.querySelector('.news-take');
+                    const detail = row.querySelector('.expanded-research');
+                    const box = row.getBoundingClientRect();
+                    const toggleBox = toggle.getBoundingClientRect();
+                    return {
+                      rowBackground: getComputedStyle(row).backgroundColor,
+                      rowHeight: box.height,
+                      togglePosition: getComputedStyle(toggle).position,
+                      toggleWidth: toggleBox.width,
+                      toggleHeight: toggleBox.height,
+                      headlineAlign: getComputedStyle(headline).textAlign,
+                      headlineColour: getComputedStyle(headline).color,
+                      takeDisplay: getComputedStyle(take).display,
+                      detailHidden: detail.hidden,
+                    };
+                  }
+                  """
+              )
+              if state['rowBackground'] != 'rgb(255, 255, 255)':
+                  raise AssertionError(f'Collapsed row is not white: {state}')
+              if state['togglePosition'] != 'static':
+                  raise AssertionError(f'Legacy absolute row toggle leaked through: {state}')
+              if state['headlineAlign'] != 'left':
+                  raise AssertionError(f'Headline hierarchy is not left aligned: {state}')
+              if state['detailHidden'] is not True:
+                  raise AssertionError(f'Collapsed detail is visible: {state}')
+              minimum_height = 108 if mobile else 82
+              maximum_height = 230 if mobile else 170
+              minimum_width = 300 if mobile else 700
+              if not minimum_height <= state['rowHeight'] <= maximum_height:
+                  raise AssertionError(f'Row density is outside launch bounds: {state}')
+              if state['toggleWidth'] < minimum_width or state['toggleHeight'] < 44:
+                  raise AssertionError(f'Row disclosure target is too small: {state}')
+
+          def assert_expanded_row(row):
+              state = row.evaluate(
+                  """
+                  (row) => {
+                    const detail = row.querySelector('.expanded-research');
+                    const toggle = row.querySelector('.row-toggle');
+                    const detailBox = detail.getBoundingClientRect();
+                    const toggleBox = toggle.getBoundingClientRect();
+                    return {
+                      rowBackground: getComputedStyle(row).backgroundColor,
+                      detailBackground: getComputedStyle(detail).backgroundColor,
+                      detailHidden: detail.hidden,
+                      detailTop: detailBox.top,
+                      toggleBottom: toggleBox.bottom,
+                    };
+                  }
+                  """
+              )
+              if state['rowBackground'] != 'rgb(255, 255, 255)':
+                  raise AssertionError(f'Expanded row regressed to the dark terminal surface: {state}')
+              if state['detailBackground'] not in {'rgb(251, 252, 253)', 'rgb(255, 255, 255)'}:
+                  raise AssertionError(f'Expanded detail is not a light evidence surface: {state}')
+              if state['detailHidden'] is not False or state['detailTop'] < state['toggleBottom'] - 2:
+                  raise AssertionError(f'Expanded detail overlaps the summary: {state}')
+
+          with sync_playwright() as p:
+              browser = p.chromium.launch()
+
+              desktop = browser.new_context(viewport={'width': 1440, 'height': 1000})
+              page = desktop.new_page()
+              failures, requests_seen = capture(page)
+              page.goto(f'{base}/rns?date=2026-08-21', wait_until='domcontentloaded')
+              wait_feed(page)
+              assert_shared_nav(page)
+              assert_no_overflow(page)
+              assert_no_duplicate_ids(page)
+
+              first = page.locator('article.monitor-row').first
+              assert_collapsed_row(page, first)
+              page.screenshot(path=out / '01-company-news-dense-desktop.png', full_page=True)
+
+              springfield = page.locator('article.monitor-row[data-source-id="spr-preview-buyback"]')
+              springfield.locator('.news-meta').click()
+              expect(springfield.locator('.row-toggle')).to_have_attribute('aria-expanded', 'true')
+              springfield.locator('.expanded-research:not([hidden])').wait_for(timeout=30000)
+              springfield.get_by_text('MATERIAL FACTS', exact=True).wait_for(timeout=30000)
+              assert_expanded_row(springfield)
+              page.screenshot(path=out / '02-company-news-expanded-desktop.png', full_page=True)
+
+              source = springfield.locator('a.source-link').first
+              source.focus()
+              page.keyboard.press('Escape')
+              expect(springfield.locator('.row-toggle')).to_have_attribute('aria-expanded', 'false')
+              expect(springfield.locator('.row-toggle')).to_be_focused()
+
+              page.locator('body').click(position={'x': 5, 'y': 5})
+              page.keyboard.press('/')
+              expect(page.locator('#search-filter')).to_be_focused()
+              page.keyboard.press('Escape')
+
+              page.locator('#filters-toggle').click()
+              expect(page.locator('#filter-panel')).to_be_visible()
+              filter_heights = page.locator('#filter-panel select, #reset-filters').evaluate_all(
+                  'els => els.map(el => el.getBoundingClientRect().height)'
+              )
+              if min(filter_heights) < 43.5:
+                  raise AssertionError(f'Filter controls are too small: {filter_heights}')
+              page.locator('#search-filter').fill('Trellus')
+              expect(page.locator('article.monitor-row')).to_have_count(1)
+              expect(page.locator('article.monitor-row .ticker')).to_have_text('TRLS')
+              page.locator('#reset-filters').click()
+              expect(page.locator('article.monitor-row')).to_have_count(5)
+
+              asset_paths = {urlparse(url).path for url in requests_seen}
+              for retired in ('/assets/research.css', '/assets/company.css', '/assets/company-polish.css'):
+                  if retired in asset_paths:
+                      raise AssertionError(f'Legacy Company News stylesheet was requested: {retired}')
+              for required in ('/assets/news.css', '/assets/news-pass3.css', '/assets/news-pass3.js'):
+                  if required not in asset_paths:
+                      raise AssertionError(f'Missing Company News asset request: {required}')
+              assert_clean(failures, 'Desktop Company News')
+              desktop.close()
+
+              mobile = browser.new_context(viewport={'width': 390, 'height': 844}, device_scale_factor=1, is_mobile=True)
+              page = mobile.new_page()
+              failures, _requests_seen = capture(page)
+              page.goto(f'{base}/rns?date=2026-08-21', wait_until='domcontentloaded')
+              wait_feed(page)
+              assert_shared_nav(page)
+              assert_no_overflow(page)
+              assert_no_duplicate_ids(page)
+
+              header_state = page.evaluate(
+                  """
+                  () => {
+                    const wordmark = document.querySelector('.wordmark').getBoundingClientRect();
+                    const nav = document.querySelector('.primary-nav').getBoundingClientRect();
+                    const signOut = document.querySelector('.text-action').getBoundingClientRect();
+                    return {
+                      navTop: nav.top,
+                      wordmarkBottom: wordmark.bottom,
+                      navHeight: nav.height,
+                      signOutHeight: signOut.height,
+                    };
+                  }
+                  """
+              )
+              if header_state['navTop'] < header_state['wordmarkBottom'] - 1:
+                  raise AssertionError(f'Mobile navigation still collides with the brand row: {header_state}')
+              if header_state['navHeight'] < 43.5 or header_state['signOutHeight'] < 43.5:
+                  raise AssertionError(f'Mobile header targets are too small: {header_state}')
+
+              first = page.locator('article.monitor-row').first
+              assert_collapsed_row(page, first, mobile=True)
+              springfield = page.locator('article.monitor-row[data-source-id="spr-preview-buyback"]')
+              springfield.locator('.news-meta').click()
+              springfield.locator('.expanded-research:not([hidden])').wait_for(timeout=30000)
+              springfield.get_by_text('MATERIAL FACTS', exact=True).wait_for(timeout=30000)
+              assert_expanded_row(springfield)
+              action_boxes = springfield.locator('.expanded-top-actions a').evaluate_all(
+                  'els => els.map(el => ({height: el.getBoundingClientRect().height, width: el.getBoundingClientRect().width}))'
+              )
+              if not action_boxes or min(item['height'] for item in action_boxes) < 39.5:
+                  raise AssertionError(f'Mobile evidence actions are too small: {action_boxes}')
+              page.screenshot(path=out / '03-company-news-expanded-mobile.png', full_page=True)
+              assert_clean(failures, 'Mobile Company News')
+              mobile.close()
+
+              forced_dark = browser.new_context(
+                  viewport={'width': 1280, 'height': 900},
+                  color_scheme='dark',
+              )
+              page = forced_dark.new_page()
+              failures, _requests_seen = capture(page)
+              page.goto(f'{base}/rns?date=2026-08-21', wait_until='domcontentloaded')
+              wait_feed(page)
+              colours = page.evaluate(
+                  """
+                  () => ({
+                    body: getComputedStyle(document.body).backgroundColor,
+                    row: getComputedStyle(document.querySelector('.monitor-row')).backgroundColor,
+                    toolbar: getComputedStyle(document.querySelector('.feed-toolbar')).backgroundColor,
+                  })
+                  """
+              )
+              if set(colours.values()) != {'rgb(245, 246, 248)', 'rgb(255, 255, 255)'}:
+                  raise AssertionError(f'Forced dark preference changed Company News surfaces: {colours}')
+              assert_clean(failures, 'Forced-dark Company News')
+              forced_dark.close()
+
+              browser.close()
+          PY
+
+      - name: Reject runtime failures
+        run: |
+          if grep -En 'Traceback \(most recent call last\)|Uncaught app exception|monitoring-api-error|company-api-error' /tmp/launch-repair-pass3/web.log; then
+            cat /tmp/launch-repair-pass3/web.log
+            exit 1
+          fi
+
+      - name: Upload Pass 3 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: launch-repair-pass3-company-news-evidence
+          path: /tmp/launch-repair-pass3
+          if-no-files-found: error
+          retention-days: 90

@@ -5,19 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="AIM company news. Facts. No fluff.">
   <meta name="theme-color" content="#f5f6f8">
+  <meta name="color-scheme" content="light">
   <title>Smallcaps.ai · AIM company news</title>
   <link rel="icon" href="/favicon.svg?v={{ASSET_VERSION}}" type="image/svg+xml">
-  <link rel="stylesheet" href="/assets/research.css?v={{ASSET_VERSION}}">
-  <link rel="stylesheet" href="/assets/company.css?v={{ASSET_VERSION}}">
-  <link rel="stylesheet" href="/assets/company-polish.css?v={{ASSET_VERSION}}">
   <link rel="stylesheet" href="/assets/news.css?v={{ASSET_VERSION}}">
   <link rel="stylesheet" href="/assets/news-interactions.css?v={{ASSET_VERSION}}">
   <link rel="stylesheet" href="/assets/news-detail.css?v={{ASSET_VERSION}}">
   <link rel="stylesheet" href="/assets/watchlist.css?v={{ASSET_VERSION}}">
+  <link rel="stylesheet" href="/assets/news-pass3.css?v={{ASSET_VERSION}}">
+  <link rel="stylesheet" href="/assets/news-pass3-polish.css?v={{ASSET_VERSION}}">
   <script src="/assets/watchlist.js?v={{ASSET_VERSION}}" defer></script>
   <script src="/assets/research.js?v={{ASSET_VERSION}}" defer></script>
+  <script src="/assets/news-pass3.js?v={{ASSET_VERSION}}" defer></script>
 </head>
-<body>
+<body class="company-news-page">
   <a class="skip-link" href="#monitoring-sheet">Skip to company news</a>
 
   <header class="site-header">
@@ -52,11 +53,12 @@
       </div>
     </section>
 
-    <section class="feed-toolbar" aria-label="Company news controls">
+    <section class="feed-toolbar" role="search" aria-label="Search and filter company news">
       <label class="search-control" for="search-filter">
-        <span class="sr-only">Search</span>
+        <span class="sr-only">Search company news</span>
         <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5"></circle><path d="m13 13 4 4"></path></svg>
         <input id="search-filter" type="search" autocomplete="off" placeholder="Search ticker, company or announcement">
+        <kbd class="search-shortcut" aria-hidden="true">/</kbd>
       </label>
       <button id="filters-toggle" class="toolbar-button" type="button" aria-expanded="false" aria-controls="filter-panel">
         Filters <span id="filter-count" class="filter-count" hidden>0</span>
