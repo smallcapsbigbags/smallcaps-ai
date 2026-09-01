@@ -1,9 +1,8 @@
 (() => {
   "use strict";
 
-  const PRODUCT_SURFACES = new Set(["news", "watchlist", "daily", "company"]);
-  const COMPANY_CONTEXTS = new Set(["news", "watchlist", "daily"]);
-  const DAILY_STATES = new Set(["early_read", "morning_note", "aim_close"]);
+  const PRODUCT_SURFACES = new Set(["news", "watchlist", "company"]);
+  const COMPANY_CONTEXTS = new Set(["news", "watchlist"]);
 
   document.addEventListener("DOMContentLoaded", initialise);
 
@@ -16,6 +15,7 @@
     syncNavigation(surface);
     syncProductStatus();
     syncWatchlistCount();
+    initialiseCompanySearch(surface);
 
     if (surface === "watchlist") configureWatchlistHero();
     if (surface === "company") {
@@ -43,7 +43,6 @@
 
   function detectSurface() {
     if (document.body.classList.contains("company-intelligence-page")) return "company";
-    if (document.body.classList.contains("daily-body")) return "daily";
     if (new URLSearchParams(window.location.search).get("watchlist") === "1") {
       return "watchlist";
     }
@@ -121,17 +120,124 @@
   }
 
   function configureWatchlistHero() {
-    setText("page-eyebrow", "PERSONAL COMPANY NEWS");
-    setText("page-title", "Your watchlist.");
-    setText(
-      "feed-tagline",
-      "Every update from the AIM companies you follow, in one place.",
-    );
-    document.title = "Your watchlist · Smallcaps.ai";
+    setText("page-eyebrow", "WATCHLIST");
+    setText("page-title", "Your companies.");
+    setText("feed-tagline", "What changed. What needs attention.");
+    document.title = "Watchlist · Smallcaps.ai";
+  }
+
+  function initialiseCompanySearch(surface) {
+    const input = document.querySelector("[data-company-search-input]");
+    const options = document.querySelector("[data-company-search-options]");
+    const status = document.querySelector("[data-company-search-status]");
+    if (!(input instanceof HTMLInputElement)) return;
+
+    const catalogue = new Map();
+    let optionSignature = "";
+    let refreshQueued = false;
+
+    const addCompany = (tickerValue, nameValue = "") => {
+      const ticker = normaliseTicker(tickerValue);
+      if (!ticker) return;
+      const name = clean(nameValue);
+      const existing = catalogue.get(ticker) || "";
+      if (!existing || (name && !/loading/i.test(name))) catalogue.set(ticker, name);
+    };
+
+    const refresh = () => {
+      refreshQueued = false;
+
+      document.querySelectorAll("a.company-research-link").forEach((link) => {
+        addCompany(
+          link.querySelector(".ticker")?.textContent,
+          link.querySelector(".company-name")?.textContent,
+        );
+      });
+
+      document.querySelectorAll("#company-filter option[value]").forEach((option) => {
+        if (!(option instanceof HTMLOptionElement) || !option.value) return;
+        const label = clean(option.textContent).replace(/^\S+\s*[·-]\s*/, "");
+        addCompany(option.value, label);
+      });
+
+      addCompany(
+        document.getElementById("company-ticker")?.textContent,
+        document.getElementById("company-name")?.textContent,
+      );
+
+      if (!(options instanceof HTMLDataListElement)) return;
+      const entries = [...catalogue.entries()].sort(([left], [right]) => left.localeCompare(right));
+      const signature = JSON.stringify(entries);
+      if (signature === optionSignature) return;
+      optionSignature = signature;
+      options.replaceChildren(
+        ...entries.map(([ticker, name]) => {
+          const option = document.createElement("option");
+          option.value = ticker;
+          if (name) option.label = name;
+          return option;
+        }),
+      );
+    };
+
+    const scheduleRefresh = () => {
+      if (refreshQueued) return;
+      refreshQueued = true;
+      window.requestAnimationFrame(refresh);
+    };
+
+    const resolveCompany = (rawValue, allowTickerFallback) => {
+      const value = clean(rawValue);
+      const lower = value.toLowerCase();
+      if (!value) return null;
+
+      for (const [ticker, name] of catalogue.entries()) {
+        if (ticker.toLowerCase() === lower || clean(name).toLowerCase() === lower) {
+          return ticker;
+        }
+      }
+
+      const selected = value.match(/^([A-Za-z0-9.-]{1,12})\s*[·-]/)?.[1];
+      if (selected) return normaliseTicker(selected);
+      return allowTickerFallback ? normaliseTicker(value) : "";
+    };
+
+    const openCompany = () => {
+      refresh();
+      const allowTickerFallback = surface === "company" || input.dataset.newsFilter !== "true";
+      const ticker = resolveCompany(input.value, allowTickerFallback);
+      if (!ticker) {
+        if (status) status.textContent = "Keep typing or choose a company ticker.";
+        return false;
+      }
+
+      const context = surface === "watchlist" ? "watchlist" : companyContext();
+      const query = new URLSearchParams({ from: context });
+      window.location.assign(`/company/${encodeURIComponent(ticker)}?${query.toString()}`);
+      return true;
+    };
+
+    input.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" || event.isComposing) return;
+      if (openCompany()) event.preventDefault();
+    });
+    input.addEventListener("input", () => {
+      if (status) status.textContent = "";
+    });
+
+    const observed = document.getElementById("sheet-rows")
+      || document.getElementById("company-research")
+      || document.body;
+    new MutationObserver(scheduleRefresh).observe(observed, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+    refresh();
   }
 
   function decorateCompanyLinks(root, surface) {
-    if (!["news", "watchlist", "daily"].includes(surface)) return;
+    if (!["news", "watchlist"].includes(surface)) return;
     anchorsWithin(root).forEach((anchor) => {
       let url;
       try {
@@ -152,12 +258,6 @@
         const date = clean(current.get("date"));
         if (validIsoDate(date)) url.searchParams.set("date", date);
       }
-      if (surface === "daily") {
-        const state = clean(current.get("state"));
-        const date = clean(current.get("date"));
-        if (DAILY_STATES.has(state)) url.searchParams.set("daily_state", state);
-        if (validIsoDate(date)) url.searchParams.set("daily_date", date);
-      }
 
       anchor.href = `${url.pathname}${url.search}`;
       anchor.dataset.productContext = surface;
@@ -173,21 +273,13 @@
     const params = new URLSearchParams(window.location.search);
     const sourceId = clean(params.get("open")).slice(0, 180);
     let href = "/rns";
-    let label = "← Back to Company News";
+    let label = "← Back to News";
 
     if (context === "watchlist") {
       const next = new URLSearchParams({ watchlist: "1" });
       if (sourceId) next.set("open", sourceId);
       href = `/rns?${next.toString()}`;
       label = "← Back to Watchlist";
-    } else if (context === "daily") {
-      const next = new URLSearchParams();
-      const state = clean(params.get("daily_state"));
-      const date = clean(params.get("daily_date"));
-      if (DAILY_STATES.has(state)) next.set("state", state);
-      if (validIsoDate(date)) next.set("date", date);
-      href = next.toString() ? `/?${next.toString()}` : "/";
-      label = "← Back to The AIM Daily";
     } else {
       const next = new URLSearchParams();
       const date = clean(params.get("date"));
@@ -267,6 +359,11 @@
   function setText(id, value) {
     const node = document.getElementById(id);
     if (node && node.textContent !== value) node.textContent = value;
+  }
+
+  function normaliseTicker(value) {
+    const ticker = clean(value).toUpperCase();
+    return /^[A-Z0-9.-]{1,12}$/.test(ticker) ? ticker : "";
   }
 
   function validIsoDate(value) {
