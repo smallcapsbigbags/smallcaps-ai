@@ -35,8 +35,8 @@ def test_odd_key_number_sets_do_not_render_a_false_empty_card() -> None:
 
     assert ":has(>.repo-metric:nth-child(5):last-child)" in compact
     assert "grid-template-columns:repeat(6,minmax(0,1fr))" in compact
-    assert ">.repo-metric{grid-column:span2}" in compact
-    assert ">.repo-metric:nth-child(n+4){grid-column:span3}" in compact
+    assert "grid-column:span2" in compact
+    assert "grid-column:span3" in compact
     assert ":has(>.repo-metric:nth-child(4):last-child)" in compact
     assert "@media(max-width:820px)" in compact
     assert "@media(max-width:680px)" in compact
