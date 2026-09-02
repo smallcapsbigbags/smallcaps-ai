@@ -6,6 +6,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from analyst.monitoring_sheet import MonitoringSignal
+from product.kpi_integrity import KPI_INTEGRITY_VERSION
 from product.monitoring import (
     MonitoringImpact,
     MonitoringMarketReaction,
@@ -13,6 +14,16 @@ from product.monitoring import (
 )
 
 COMPANY_SHEET_SCHEMA_VERSION = "scbb-company-v1"
+
+MetricPeriodType = Literal["instant", "duration", "event", "unknown"]
+MetricTrendStatus = Literal[
+    "comparable",
+    "single-point",
+    "range-only",
+    "insufficient-period",
+    "missing-provenance",
+    "non-numeric",
+]
 
 
 class CompanySheetModel(BaseModel):
@@ -51,32 +62,71 @@ class CompanyMetricPoint(CompanySheetModel):
     source_url: str = ""
     label: str
     metric: str
+    identity: str = ""
     period: str = ""
+    period_family: str = ""
+    period_type: MetricPeriodType = "unknown"
+    period_end: str = ""
     value: str
     value_numeric: float | None = None
     value_low: float | None = None
     value_high: float | None = None
     unit: str = ""
+    unit_family: str = ""
+    unit_scale: float = Field(default=1.0, gt=0)
+    comparable_value_numeric: float | None = None
     currency: str = ""
     as_of_date: str = ""
     basis: str = "reported"
     note: str = ""
 
 
+class CompanyMetricIntegrity(CompanySheetModel):
+    """Why a KPI trend is, or is not, safe to draw."""
+
+    version: Literal["kpi-integrity-v1"] = KPI_INTEGRITY_VERSION
+    status: MetricTrendStatus = "single-point"
+    reason: str = ""
+    identity: str = ""
+    period_family: str = ""
+    period_type: MetricPeriodType = "unknown"
+    unit_family: str = ""
+    currency: str = ""
+    basis: str = "reported"
+    total_points: int = Field(default=0, ge=0)
+    selected_points: int = Field(default=0, ge=0)
+    comparable_points: int = Field(default=0, ge=0)
+    source_count: int = Field(default=0, ge=0)
+    suppressed_points: int = Field(default=0, ge=0)
+    suppressed_series: int = Field(default=0, ge=0)
+    deduplicated_points: int = Field(default=0, ge=0)
+    provenance_complete: bool = False
+    warnings: list[str] = Field(default_factory=list)
+
+
 class CompanyMetricSeries(CompanySheetModel):
     key: str
+    identity: str = ""
     metric: str
     label: str
     period_family: str
+    period_type: MetricPeriodType = "unknown"
     basis: str = "reported"
     unit: str = ""
+    unit_family: str = ""
     currency: str = ""
     latest_value: str
     previous_value: str = ""
+    latest_source_id: str = ""
+    latest_source_url: str = ""
+    previous_source_id: str = ""
+    previous_source_url: str = ""
     change_direction: Literal["up", "down", "flat", "unclear"] = "unclear"
     change_absolute: float | None = None
     change_percent: float | None = None
     points: list[CompanyMetricPoint] = Field(default_factory=list)
+    trend_points: list[CompanyMetricPoint] = Field(default_factory=list)
+    integrity: CompanyMetricIntegrity = Field(default_factory=CompanyMetricIntegrity)
 
 
 class CompanyClaim(CompanySheetModel):
@@ -136,7 +186,7 @@ class CompanySheet(CompanySheetModel):
     def prefer_dated_carried_balance_context(self) -> "CompanySheet":
         """Avoid presenting a generic accounting period as a disclosure date.
 
-        Some historic facts use ``Point in time`` as their period family.  On the
+        Some historic facts use ``Point in time`` as their period family. On the
         company page a carried balance-sheet figure is clearer when it falls back
         to the source RNS publication date instead of displaying that generic label.
         The underlying monitoring record and fact provenance remain unchanged.
