@@ -37,6 +37,16 @@ def test_company_api_returns_strict_public_sheet(tmp_path) -> None:
     assert payload["current_position"]["schema_version"] == "scbb-monitoring-v1"
     assert payload["history"][0]["detail_url"].startswith("/api/v1/monitoring/")
 
+    assert payload["metrics"]
+    metric = payload["metrics"][0]
+    assert metric["identity"]
+    assert metric["latest_source_id"]
+    assert metric["latest_source_url"]
+    assert isinstance(metric["trend_points"], list)
+    assert metric["integrity"]["version"] == "kpi-integrity-v1"
+    assert metric["integrity"]["identity"] == metric["identity"]
+    assert metric["integrity"]["selected_points"] >= 1
+
 
 def test_company_api_hides_unknown_coverage_and_exposes_schema(tmp_path) -> None:
     engine, repository = seeded_repository(tmp_path)
@@ -54,3 +64,13 @@ def test_company_api_hides_unknown_coverage_and_exposes_schema(tmp_path) -> None
     payload = schema.json()
     assert payload["schema_version"] == "scbb-company-v1"
     assert payload["company"]["additionalProperties"] is False
+
+    definitions = payload["company"]["$defs"]
+    metric_series = definitions["CompanyMetricSeries"]["properties"]
+    metric_point = definitions["CompanyMetricPoint"]["properties"]
+    integrity = definitions["CompanyMetricIntegrity"]["properties"]
+    assert "identity" in metric_series
+    assert "trend_points" in metric_series
+    assert "integrity" in metric_series
+    assert "comparable_value_numeric" in metric_point
+    assert "provenance_complete" in integrity
