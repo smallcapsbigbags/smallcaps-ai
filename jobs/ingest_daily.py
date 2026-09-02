@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 from zoneinfo import ZoneInfo
 
 from analyst.analyzer import OpenAIAnalystEngine
 from database.db import create_database_engine, create_session_factory, init_database
-from database.editorial_calibration import EditorialCalibrationRepository
 from database.operations import OperationsRepository, advisory_job_lock
 from database.repository import IntelligenceRepository
 from ingestion.daily_service import DailyAIMIngestionService
+from ingestion.licensed_daily import LicensedDailyAIMSource
+from ingestion.source_wrapper import ProvenanceNormalisingDailySource
 from ingestion.verified_fallback_daily import VerifiedFallbackDailyAIMSource
 from jobs.update_prices import PriceJobOutcome, run_price_job
 from pipeline import FoundationPipeline
@@ -42,8 +44,17 @@ def _price_summary(outcome: PriceJobOutcome | None) -> dict[str, object]:
 
 def _empty_ingestion_summary(
     price_outcome: PriceJobOutcome | None,
+    *,
+    source_mode: str,
 ) -> dict[str, object]:
     return {
+        "source_mode": source_mode,
+        "source_name": "",
+        "source_fca_nsm": 0,
+        "source_official_rns": 0,
+        "source_non_mirror": 0,
+        "source_mirror_only": 0,
+        "source_missing": 0,
         "discovered": 0,
         "known": 0,
         "analysed": 0,
@@ -60,9 +71,35 @@ def _empty_ingestion_summary(
         "deferred": 0,
         "blocked": 0,
         "failed": 0,
+        # Retained as a compatibility field. The retired AIM Daily sync no longer runs.
         "story_links_created": 0,
         **_price_summary(price_outcome),
     }
+
+
+def _build_source(
+    settings: Settings,
+    repository: IntelligenceRepository,
+) -> Any:
+    common = {
+        "repository": repository,
+        "api_key": settings.openai_api_key,
+        "deep_model": settings.openai_deep_model,
+        "deep_batch_size": settings.deep_search_batch_size,
+        "max_document_chars": settings.max_document_chars,
+        "max_pages": settings.investegate_aim_max_pages,
+    }
+    mode = settings.aim_source_policy().normalised_mode
+    if mode == "licensed":
+        return LicensedDailyAIMSource(
+            feed_url=settings.aim_licensed_feed_url,
+            feed_token=settings.aim_licensed_feed_token,
+            feed_timeout_seconds=settings.aim_licensed_feed_timeout_seconds,
+            **common,
+        )
+    if mode == "owner-test":
+        return VerifiedFallbackDailyAIMSource(**common)
+    raise RuntimeError(f"AIM discovery source is not enabled: mode={mode!r}")
 
 
 def main() -> None:
@@ -70,13 +107,15 @@ def main() -> None:
     errors, warnings = settings.runtime_issues("ingestion")
     if errors:
         raise RuntimeError(" | ".join(errors))
+
+    source_policy = settings.aim_source_policy()
+    source_mode = source_policy.normalised_mode
     engine = create_database_engine(settings.database_url)
     try:
         init_database(engine)
         factory = create_session_factory(engine)
         repository = IntelligenceRepository(factory)
         operations = OperationsRepository(factory)
-        editorial = EditorialCalibrationRepository(factory)
         combined_warnings: list[str] = list(warnings)
         price_outcome: PriceJobOutcome | None = None
 
@@ -103,7 +142,10 @@ def main() -> None:
                 operations.finish_job(
                     run_id,
                     status="skipped",
-                    summary=_empty_ingestion_summary(price_outcome),
+                    summary=_empty_ingestion_summary(
+                        price_outcome,
+                        source_mode=source_mode,
+                    ),
                     warnings=combined_warnings,
                 )
                 print(
@@ -116,8 +158,34 @@ def main() -> None:
             run_id = operations.begin_job(
                 JOB_NAME,
                 run_key=datetime.now(LONDON).date().isoformat(),
-                summary=_price_summary(price_outcome),
+                summary={
+                    "source_mode": source_mode,
+                    **_price_summary(price_outcome),
+                },
             )
+
+            if source_mode == "disabled":
+                disabled_warning = (
+                    "AIM discovery is disabled by policy. Existing company "
+                    "repositories and market-reaction maintenance remain available."
+                )
+                combined_warnings.append(disabled_warning)
+                summary = _empty_ingestion_summary(
+                    price_outcome,
+                    source_mode=source_mode,
+                )
+                operations.finish_job(
+                    run_id,
+                    status="skipped",
+                    summary=summary,
+                    warnings=combined_warnings,
+                )
+                print(
+                    "Daily AIM ingestion skipped: AIM_DISCOVERY_MODE=disabled",
+                    flush=True,
+                )
+                return
+
             try:
                 analyst = OpenAIAnalystEngine(
                     api_key=settings.openai_api_key,
@@ -130,14 +198,8 @@ def main() -> None:
                     prompt_version=settings.prompt_version,
                     min_evidence_chars=settings.min_evidence_chars,
                 )
-                source = VerifiedFallbackDailyAIMSource(
-                    repository=repository,
-                    api_key=settings.openai_api_key,
-                    deep_model=settings.openai_deep_model,
-                    deep_batch_size=settings.deep_search_batch_size,
-                    max_document_chars=settings.max_document_chars,
-                    max_pages=settings.investegate_aim_max_pages,
-                )
+                raw_source = _build_source(settings, repository)
+                source = ProvenanceNormalisingDailySource(raw_source)
                 service = DailyAIMIngestionService(
                     source=source,
                     repository=repository,
@@ -147,20 +209,21 @@ def main() -> None:
                 )
                 result = service.run()
                 analyst_stats = analyst.model_call_stats()
-                story_links_created = 0
-                story_sync_failed = False
-                try:
-                    story_links_created = editorial.ensure_story_links(
-                        datetime.now(LONDON).date()
-                    )
-                except Exception as exc:
-                    story_sync_failed = True
+                provenance = source.provenance_counts()
+                if provenance.get("mirror_only", 0):
                     combined_warnings.append(
-                        "AIM Daily developing-story sync failed: "
-                        f"{type(exc).__name__}: {exc}"
+                        "Source provenance retained "
+                        f"{provenance['mirror_only']} mirror-only catalogue "
+                        "record(s); these are not treated as FCA/official verification."
                     )
 
                 summary: dict[str, object] = {
+                    "source_mode": source_mode,
+                    "source_name": str(getattr(raw_source, "name", "")),
+                    **{
+                        f"source_{key}": value
+                        for key, value in provenance.items()
+                    },
                     "discovered": result.discovered,
                     "known": result.already_known,
                     "analysed": result.analysed,
@@ -177,7 +240,8 @@ def main() -> None:
                     "deferred": result.deferred,
                     "blocked": result.blocked,
                     "failed": result.failed,
-                    "story_links_created": story_links_created,
+                    # The customer-facing AIM Daily was retired in Pass 1.
+                    "story_links_created": 0,
                     **_price_summary(price_outcome),
                 }
                 combined_warnings.extend(result.warnings)
@@ -187,7 +251,6 @@ def main() -> None:
                         result.deferred,
                         result.blocked,
                         result.failed,
-                        story_sync_failed,
                         price_outcome is not None
                         and price_outcome.status in {"degraded", "failed"},
                     )
@@ -202,7 +265,10 @@ def main() -> None:
                 operations.finish_job(
                     run_id,
                     status="failed",
-                    summary=_price_summary(price_outcome),
+                    summary={
+                        "source_mode": source_mode,
+                        **_price_summary(price_outcome),
+                    },
                     warnings=combined_warnings,
                     error_text=f"{type(exc).__name__}: {exc}",
                 )
