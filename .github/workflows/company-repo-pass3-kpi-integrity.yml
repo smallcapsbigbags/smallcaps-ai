@@ -1,0 +1,215 @@
+name: company-repo-pass3-kpi-integrity
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: company-repo-pass3-kpi-integrity-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  kpi-integrity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DATABASE_URL: sqlite+pysqlite:///data/company-repo-pass3-kpi.db
+      PRIVATE_BETA_MODE: "false"
+      APP_BETA_PASSWORD: preview-access
+      APP_ADMIN_PASSWORD: preview-admin
+      MARKET_DATA_ENABLED: "true"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install application and browser dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install playwright==1.55.0
+          python -m playwright install --with-deps chromium
+          node --check frontend/assets/company-kpi-integrity.js
+          node --check frontend/assets/company-repo.js
+
+      - name: Run KPI integrity contracts
+        run: |
+          pytest -q \
+            tests/test_kpi_integrity.py \
+            tests/test_company_kpi_projection.py \
+            tests/test_company_kpi_frontend.py \
+            tests/test_company_api.py \
+            tests/test_company_memory.py \
+            tests/test_company_intelligence.py
+
+      - name: Seed deterministic KPI history
+        run: |
+          rm -f data/company-repo-pass3-kpi.db
+          python -m jobs.seed_pass3_kpi_preview
+
+      - name: Start product
+        shell: bash
+        run: |
+          mkdir -p /tmp/company-repo-pass3-kpi
+          python -m uvicorn web_app:app --host 127.0.0.1 --port 8501 \
+            > /tmp/company-repo-pass3-kpi/web.log 2>&1 &
+          echo $! > /tmp/company-repo-pass3-kpi/web.pid
+          for attempt in $(seq 1 90); do
+            if curl --fail --silent http://127.0.0.1:8501/api/v1/company/KPI \
+              > /tmp/company-repo-pass3-kpi/company.json; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/company-repo-pass3-kpi/web.log
+          exit 1
+
+      - name: Audit comparable KPI history on desktop and mobile
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from urllib.parse import urlparse
+
+          from playwright.sync_api import expect, sync_playwright
+
+          base = "http://127.0.0.1:8501"
+          out = Path("/tmp/company-repo-pass3-kpi")
+
+          def capture_failures(page):
+              failures = []
+              page.on("pageerror", lambda error: failures.append(f"pageerror: {error}"))
+              page.on(
+                  "console",
+                  lambda message: failures.append(f"console: {message.text}")
+                  if message.type == "error"
+                  else None,
+              )
+              return failures
+
+          def company_request_counter(page):
+              requests = []
+              page.on(
+                  "request",
+                  lambda request: requests.append(request.url)
+                  if urlparse(request.url).path == "/api/v1/company/KPI"
+                  else None,
+              )
+              return requests
+
+          def assert_no_overflow(page):
+              dimensions = page.evaluate(
+                  """
+                  () => ({
+                    client: document.documentElement.clientWidth,
+                    scroll: document.documentElement.scrollWidth,
+                    body: document.body.scrollWidth,
+                    duplicates: [...document.querySelectorAll('[id]')]
+                      .map(node => node.id)
+                      .filter((id, index, values) => values.indexOf(id) !== index),
+                  })
+                  """
+              )
+              if dimensions["scroll"] > dimensions["client"] + 2:
+                  raise AssertionError(f"Document overflow: {dimensions}")
+              if dimensions["body"] > dimensions["client"] + 2:
+                  raise AssertionError(f"Body overflow: {dimensions}")
+              if dimensions["duplicates"]:
+                  raise AssertionError(f"Duplicate ids: {dimensions}")
+
+          def assert_company(page, requests):
+              page.get_by_role("heading", name="KPI", exact=True).wait_for(timeout=30000)
+              card = page.locator('.repo-metric[data-kpi-identity="revenue"]')
+              card.wait_for(timeout=30000)
+              expect(card).to_have_attribute("data-kpi-integrity", "kpi-integrity-v1")
+              expect(card).to_have_attribute("data-trend-status", "comparable")
+              expect(card.locator(".repo-metric-value")).to_have_text("£28,500k")
+              expect(card.locator(".repo-metric-meta")).to_contain_text("Prev £24.0m")
+              expect(card.locator(".repo-metric-meta")).to_contain_text("FY25")
+              expect(card.locator(".repo-metric-trend-caption")).to_have_text(
+                  "3 like-for-like periods · 1 kept separate"
+              )
+              sparkline = card.locator("svg.repo-sparkline")
+              expect(sparkline).to_have_count(1)
+              expect(sparkline).to_have_attribute(
+                  "aria-label",
+                  "Revenue: £20.0m to £28,500k across 3 like-for-like periods.",
+              )
+              plotted = card.locator("polyline.repo-sparkline-path").get_attribute("points") or ""
+              if len(plotted.split()) != 3:
+                  raise AssertionError(f"Expected three plotted observations: {plotted}")
+              expect(card.get_by_role("link", name="Source ↗", exact=True)).to_have_attribute(
+                  "href", "https://example.com/rns/kpi-fy25-results"
+              )
+              page.wait_for_timeout(300)
+              if len(requests) != 1:
+                  raise AssertionError(
+                      f"Company page made {len(requests)} company API requests: {requests}"
+                  )
+              assert_no_overflow(page)
+              return card
+
+          with sync_playwright() as playwright:
+              browser = playwright.chromium.launch()
+
+              desktop = browser.new_context(viewport={"width": 1440, "height": 1000})
+              page = desktop.new_page()
+              failures = capture_failures(page)
+              requests = company_request_counter(page)
+              page.goto(f"{base}/company/KPI", wait_until="domcontentloaded")
+              assert_company(page, requests)
+              page.screenshot(
+                  path=out / "01-kpi-integrity-desktop.png",
+                  full_page=True,
+              )
+              if failures:
+                  raise AssertionError(f"Desktop KPI audit: {failures}")
+              desktop.close()
+
+              mobile = browser.new_context(
+                  viewport={"width": 390, "height": 844},
+                  device_scale_factor=1,
+                  is_mobile=True,
+              )
+              page = mobile.new_page()
+              failures = capture_failures(page)
+              requests = company_request_counter(page)
+              page.goto(f"{base}/company/KPI", wait_until="domcontentloaded")
+              card = assert_company(page, requests)
+              width = card.evaluate("node => node.getBoundingClientRect().width")
+              if width < 330:
+                  raise AssertionError(f"Mobile KPI card is unexpectedly narrow: {width}")
+              page.screenshot(
+                  path=out / "02-kpi-integrity-mobile.png",
+                  full_page=True,
+              )
+              if failures:
+                  raise AssertionError(f"Mobile KPI audit: {failures}")
+              mobile.close()
+
+              browser.close()
+          PY
+
+      - name: Reject runtime failures
+        run: |
+          if grep -En 'Traceback \(most recent call last\)|Uncaught app exception|company-api-error' \
+            /tmp/company-repo-pass3-kpi/web.log; then
+            cat /tmp/company-repo-pass3-kpi/web.log
+            exit 1
+          fi
+
+      - name: Upload KPI integrity evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: company-repo-pass3-kpi-integrity-evidence
+          path: /tmp/company-repo-pass3-kpi
+          if-no-files-found: error
+          retention-days: 90
