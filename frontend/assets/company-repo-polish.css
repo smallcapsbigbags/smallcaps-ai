@@ -52,12 +52,15 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  /* The desktop balancing selectors are deliberately more specific. The
+     responsive contract must therefore win explicitly rather than creating
+     implicit columns on narrow screens. */
   .company-repository-page .repo-metric-grid > .repo-metric {
-    grid-column: auto;
+    grid-column: auto !important;
   }
 
   .company-repository-page .repo-metric-grid > .repo-metric:nth-child(odd):last-child {
-    grid-column: 1 / -1;
+    grid-column: 1 / -1 !important;
   }
 }
 
@@ -68,6 +71,6 @@
 
   .company-repository-page .repo-metric-grid > .repo-metric,
   .company-repository-page .repo-metric-grid > .repo-metric:nth-child(odd):last-child {
-    grid-column: auto;
+    grid-column: auto !important;
   }
 }
