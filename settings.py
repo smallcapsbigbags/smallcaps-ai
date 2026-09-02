@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from analyst.version import DEFAULT_PROMPT_VERSION
+from ingestion.source_policy import AIMSourcePolicy
 
 
 def _env_bool(name: str, default: bool) -> bool:
@@ -40,7 +41,7 @@ def _running_on_railway() -> bool:
 @dataclass(frozen=True)
 class Settings:
     database_url: str
-    openai_api_key: str
+    openai_api_key: str = field(repr=False)
     openai_model: str
     openai_deep_model: str
     openai_max_output_tokens: int
@@ -50,8 +51,13 @@ class Settings:
     min_evidence_chars: int
     investegate_aim_max_pages: int
     max_ai_items: int
-    app_admin_password: str
-    app_beta_password: str
+    aim_discovery_mode: str
+    aim_licensed_feed_url: str
+    aim_licensed_feed_token: str = field(repr=False)
+    aim_licensed_feed_timeout_seconds: int
+    allow_unlicensed_owner_test_catalogues: bool
+    app_admin_password: str = field(repr=False)
+    app_beta_password: str = field(repr=False)
     private_beta_mode: bool
     market_data_enabled: bool
     market_data_timeout_seconds: int
@@ -101,6 +107,25 @@ class Settings:
             max_ai_items=max(
                 3, int(os.getenv("MAX_AI_ITEMS", "36") or "36")
             ),
+            aim_discovery_mode=os.getenv(
+                "AIM_DISCOVERY_MODE", "disabled"
+            ).strip(),
+            aim_licensed_feed_url=os.getenv(
+                "AIM_LICENSED_FEED_URL", ""
+            ).strip(),
+            aim_licensed_feed_token=os.getenv(
+                "AIM_LICENSED_FEED_TOKEN", ""
+            ).strip(),
+            aim_licensed_feed_timeout_seconds=max(
+                5,
+                int(
+                    os.getenv("AIM_LICENSED_FEED_TIMEOUT_SECONDS", "30")
+                    or "30"
+                ),
+            ),
+            allow_unlicensed_owner_test_catalogues=_env_bool(
+                "ALLOW_UNLICENSED_OWNER_TEST_CATALOGUES", False
+            ),
             app_admin_password=os.getenv("APP_ADMIN_PASSWORD", ""),
             app_beta_password=os.getenv("APP_BETA_PASSWORD", ""),
             private_beta_mode=_env_bool("PRIVATE_BETA_MODE", railway),
@@ -119,6 +144,17 @@ class Settings:
         value = self.database_url.lower().strip()
         return value.startswith("postgres://") or value.startswith("postgresql")
 
+    def aim_source_policy(self) -> AIMSourcePolicy:
+        return AIMSourcePolicy(
+            mode=self.aim_discovery_mode,
+            licensed_feed_url=self.aim_licensed_feed_url,
+            allow_unlicensed_owner_test_catalogues=(
+                self.allow_unlicensed_owner_test_catalogues
+            ),
+            private_beta_mode=self.private_beta_mode,
+            running_on_railway=self.running_on_railway,
+        )
+
     def runtime_issues(self, service: str) -> tuple[list[str], list[str]]:
         errors: list[str] = []
         warnings: list[str] = []
@@ -128,8 +164,17 @@ class Settings:
             )
         if self.private_beta_mode and not self.app_beta_password:
             errors.append("PRIVATE_BETA_MODE requires APP_BETA_PASSWORD.")
-        if service in {"ingestion", "benchmark"} and not self.openai_api_key:
-            errors.append(f"{service} requires OPENAI_API_KEY.")
+
+        source_policy = self.aim_source_policy()
+        if service == "ingestion":
+            source_errors, source_warnings = source_policy.issues()
+            errors.extend(source_errors)
+            warnings.extend(source_warnings)
+            if source_policy.enabled and not self.openai_api_key:
+                errors.append("ingestion requires OPENAI_API_KEY.")
+        elif service == "benchmark" and not self.openai_api_key:
+            errors.append("benchmark requires OPENAI_API_KEY.")
+
         if service == "prices" and not self.market_data_enabled:
             errors.append("Price service is disabled by MARKET_DATA_ENABLED=false.")
         if service in {"web", "ingestion"} and not self.app_admin_password:
