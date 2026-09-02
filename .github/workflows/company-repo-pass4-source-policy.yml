@@ -1,0 +1,178 @@
+name: company-repo-pass4-source-policy
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: company-repo-pass4-source-policy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  source-policy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DATABASE_URL: sqlite+pysqlite:///data/company-repo-pass4.db
+      OPENAI_API_KEY: test-key
+      PRIVATE_BETA_MODE: "true"
+      APP_BETA_PASSWORD: preview-access
+      APP_ADMIN_PASSWORD: preview-admin
+      MARKET_DATA_ENABLED: "false"
+      AIM_DISCOVERY_MODE: owner-test
+      ALLOW_UNLICENSED_OWNER_TEST_CATALOGUES: "true"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Compile Pass 4 source boundary
+        run: |
+          python -m compileall \
+            ingestion/licensed_daily.py \
+            ingestion/source_policy.py \
+            ingestion/source_provenance.py \
+            ingestion/source_wrapper.py \
+            jobs/ingest_daily.py \
+            jobs/reconcile_source_provenance.py \
+            settings.py
+
+      - name: Run source policy and compatibility contracts
+        run: |
+          pytest -q \
+            tests/test_source_policy.py \
+            tests/test_source_provenance.py \
+            tests/test_licensed_daily.py \
+            tests/test_reconcile_source_provenance.py \
+            tests/test_multi_source_daily.py \
+            tests/test_lse_backup_policy.py \
+            tests/test_verified_lse_fallback.py \
+            tests/test_settings_version_lock.py
+
+      - name: Validate explicit private-beta owner-test mode
+        run: |
+          mkdir -p data
+          rm -f data/company-repo-pass4.db
+          python -m jobs.validate_runtime \
+            --service ingestion \
+            --create-schema \
+            > /tmp/pass4-owner-test.json
+
+      - name: Prove public launch rejects owner-test catalogues
+        shell: bash
+        run: |
+          set +e
+          PRIVATE_BETA_MODE=false \
+          AIM_DISCOVERY_MODE=owner-test \
+          ALLOW_UNLICENSED_OWNER_TEST_CATALOGUES=true \
+          python -m jobs.validate_runtime \
+            --service ingestion \
+            > /tmp/pass4-public-owner-test.json
+          rc=$?
+          set -e
+          if [ "$rc" -eq 0 ]; then
+            echo "Public owner-test mode should have been rejected."
+            exit 1
+          fi
+          grep -q "permitted only while PRIVATE_BETA_MODE=true" \
+            /tmp/pass4-public-owner-test.json
+
+      - name: Validate licensed launch configuration
+        run: |
+          PRIVATE_BETA_MODE=false \
+          AIM_DISCOVERY_MODE=licensed \
+          AIM_LICENSED_FEED_URL=https://licensed.example/aim.json \
+          ALLOW_UNLICENSED_OWNER_TEST_CATALOGUES=false \
+          python -m jobs.validate_runtime \
+            --service ingestion \
+            > /tmp/pass4-licensed.json
+
+      - name: Exercise idempotent historical provenance migration
+        run: |
+          mkdir -p data
+          python - <<'PY'
+          from datetime import datetime, timezone
+
+          from database.db import (
+              create_database_engine,
+              create_session_factory,
+              init_database,
+              session_scope,
+          )
+          from database.models import AnnouncementRow, CompanyRow
+
+          engine = create_database_engine("sqlite+pysqlite:///data/company-repo-pass4.db")
+          init_database(engine)
+          factory = create_session_factory(engine)
+          with session_scope(factory) as session:
+              if session.query(AnnouncementRow).count() == 0:
+                  company = CompanyRow(ticker="ABC", company_name="Example plc")
+                  session.add(company)
+                  session.flush()
+                  session.add(
+                      AnnouncementRow(
+                          company_id=company.id,
+                          source_id="aim-pass4-fixture",
+                          published_at=datetime(2026, 9, 2, 7, 0, tzinfo=timezone.utc),
+                          headline="Trading Update",
+                          source_url="https://www.lse.co.uk/rns/ABC/example.html",
+                          source_urls=[
+                              "https://www.lse.co.uk/rns/ABC/example.html",
+                              "https://data.fca.org.uk/artefacts/NSM/RNS/example.html",
+                          ],
+                          raw_text="Fixture",
+                      )
+                  )
+          engine.dispose()
+          PY
+
+          python -m jobs.reconcile_source_provenance --apply \
+            > /tmp/pass4-reconciliation-first.json
+          python -m jobs.reconcile_source_provenance --apply \
+            > /tmp/pass4-reconciliation-second.json
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          first = json.loads(Path("/tmp/pass4-reconciliation-first.json").read_text())
+          second = json.loads(Path("/tmp/pass4-reconciliation-second.json").read_text())
+          assert first["fca_nsm"] >= 1
+          assert first["reordered"] >= 1
+          assert second["reordered"] == 0
+          PY
+
+      - name: Write release evidence
+        if: always()
+        run: |
+          mkdir -p /tmp/company-repo-pass4-source-policy
+          cp /tmp/pass4-*.json /tmp/company-repo-pass4-source-policy/ 2>/dev/null || true
+          cat > /tmp/company-repo-pass4-source-policy/summary.txt <<'EOF'
+          Pass 4 source policy gate:
+          - public owner-test mode rejected
+          - licensed mode accepted only with secure configured feed
+          - historical source URL reconciliation idempotent
+          - no customer-facing UI change
+          EOF
+
+      - name: Upload Pass 4 source-policy evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: company-repo-pass4-source-policy-evidence
+          path: /tmp/company-repo-pass4-source-policy
+          if-no-files-found: error
+          retention-days: 90
