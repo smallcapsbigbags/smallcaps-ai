@@ -1,0 +1,73 @@
+/* Pass 3 KPI integrity: neutral trends only where the data is like for like. */
+
+.company-repository-page .repo-metric[data-kpi-enhanced="true"] {
+  justify-content: flex-start;
+}
+
+.company-repository-page .repo-metric[data-kpi-enhanced="true"] .repo-metric-foot {
+  margin-top: auto;
+  padding-top: 12px;
+}
+
+.company-repository-page .repo-metric-trend {
+  min-width: 0;
+  margin: 12px 0 0;
+}
+
+.company-repository-page .repo-sparkline {
+  display: block;
+  width: 100%;
+  height: 44px;
+  overflow: visible;
+}
+
+.company-repository-page .repo-sparkline-baseline {
+  stroke: var(--line);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.company-repository-page .repo-sparkline-path {
+  fill: none;
+  stroke: var(--blue);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
+  vector-effect: non-scaling-stroke;
+}
+
+.company-repository-page .repo-sparkline-point {
+  fill: var(--surface);
+  stroke: var(--blue);
+  stroke-width: 1.4;
+  vector-effect: non-scaling-stroke;
+}
+
+.company-repository-page .repo-sparkline-point-latest {
+  fill: var(--blue);
+}
+
+.company-repository-page .repo-metric-trend-caption,
+.company-repository-page .repo-metric-integrity-note {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 8px;
+  font-weight: 620;
+  line-height: 1.35;
+}
+
+.company-repository-page .repo-metric-integrity-note {
+  padding-top: 11px;
+  border-top: 1px solid var(--line);
+}
+
+@media (max-width: 680px) {
+  .company-repository-page .repo-sparkline {
+    height: 48px;
+  }
+
+  .company-repository-page .repo-metric-trend-caption,
+  .company-repository-page .repo-metric-integrity-note {
+    font-size: 8.5px;
+  }
+}
