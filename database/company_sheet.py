@@ -15,12 +15,13 @@ from product.company_sheet import (
     CompanyCoverage,
     CompanyDisclosureGap,
     CompanyGuidanceItem,
+    CompanyMetricIntegrity,
     CompanyMetricPoint,
     CompanyMetricSeries,
     CompanySheet,
     CompanyTimelineItem,
 )
-from product.formatting import fact_is_numeric
+from product.kpi_integrity import project_company_metrics
 from product.monitoring import (
     MonitoringImpact,
     market_reaction_from_price,
@@ -58,10 +59,14 @@ class CompanySheetRepository:
             for item in list(memory.get("current_guidance") or [])
             if isinstance(item, dict) and str(item.get("metric") or "").strip()
         ]
+        raw_metrics = [
+            item
+            for item in list(memory.get("metric_series") or [])
+            if isinstance(item, dict)
+        ]
         metrics = [
             _metric_series(item)
-            for item in list(memory.get("metric_series") or [])
-            if isinstance(item, dict) and _metric_series_is_displayable(item)
+            for item in project_company_metrics(raw_metrics)
         ]
         open_claims = [
             _claim_item(item)
@@ -157,18 +162,25 @@ def _guidance_item(item: dict[str, Any]) -> CompanyGuidanceItem:
     )
 
 
-def _metric_series_is_displayable(item: dict[str, Any]) -> bool:
-    points = [point for point in list(item.get("points") or []) if isinstance(point, dict)]
-    if len(points) > 1:
-        return True
-    latest = points[-1] if points else {}
-    return fact_is_numeric(
-        {
-            "value": latest.get("value") or item.get("latest_value"),
-            "value_numeric": latest.get("value_numeric"),
-            "value_low": latest.get("value_low"),
-            "value_high": latest.get("value_high"),
+def _period_type(value: object) -> str:
+    clean = str(value or "").strip().lower()
+    return clean if clean in {"instant", "duration", "event", "unknown"} else "unknown"
+
+
+def _trend_status(value: object) -> str:
+    clean = str(value or "").strip().lower()
+    return (
+        clean
+        if clean
+        in {
+            "comparable",
+            "single-point",
+            "range-only",
+            "insufficient-period",
+            "missing-provenance",
+            "non-numeric",
         }
+        else "single-point"
     )
 
 
@@ -180,16 +192,52 @@ def _metric_point(item: dict[str, Any]) -> CompanyMetricPoint:
         source_url=str(item.get("source_url") or ""),
         label=str(item.get("label") or item.get("metric") or "Metric"),
         metric=str(item.get("metric") or item.get("label") or "Metric"),
+        identity=str(item.get("identity") or ""),
         period=str(item.get("period") or ""),
+        period_family=str(item.get("period_family") or ""),
+        period_type=_period_type(item.get("period_type")),  # type: ignore[arg-type]
+        period_end=str(item.get("period_end") or ""),
         value=str(item.get("value") or ""),
         value_numeric=_optional_float(item.get("value_numeric")),
         value_low=_optional_float(item.get("value_low")),
         value_high=_optional_float(item.get("value_high")),
         unit=str(item.get("unit") or ""),
+        unit_family=str(item.get("unit_family") or ""),
+        unit_scale=_positive_float(item.get("unit_scale"), default=1.0),
+        comparable_value_numeric=_optional_float(
+            item.get("comparable_value_numeric")
+        ),
         currency=str(item.get("currency") or ""),
         as_of_date=str(item.get("as_of_date") or ""),
         basis=str(item.get("basis") or "reported"),
         note=str(item.get("note") or ""),
+    )
+
+
+def _metric_integrity(item: dict[str, Any]) -> CompanyMetricIntegrity:
+    return CompanyMetricIntegrity(
+        version="kpi-integrity-v1",
+        status=_trend_status(item.get("status")),  # type: ignore[arg-type]
+        reason=str(item.get("reason") or ""),
+        identity=str(item.get("identity") or ""),
+        period_family=str(item.get("period_family") or ""),
+        period_type=_period_type(item.get("period_type")),  # type: ignore[arg-type]
+        unit_family=str(item.get("unit_family") or ""),
+        currency=str(item.get("currency") or ""),
+        basis=str(item.get("basis") or "reported"),
+        total_points=_non_negative_int(item.get("total_points")),
+        selected_points=_non_negative_int(item.get("selected_points")),
+        comparable_points=_non_negative_int(item.get("comparable_points")),
+        source_count=_non_negative_int(item.get("source_count")),
+        suppressed_points=_non_negative_int(item.get("suppressed_points")),
+        suppressed_series=_non_negative_int(item.get("suppressed_series")),
+        deduplicated_points=_non_negative_int(item.get("deduplicated_points")),
+        provenance_complete=bool(item.get("provenance_complete")),
+        warnings=[
+            str(value)
+            for value in list(item.get("warnings") or [])
+            if str(value).strip()
+        ],
     )
 
 
@@ -202,20 +250,39 @@ def _metric_series(item: dict[str, Any]) -> CompanyMetricSeries:
         for point in list(item.get("points") or [])
         if isinstance(point, dict)
     ]
+    trend_points = [
+        _metric_point(point)
+        for point in list(item.get("trend_points") or [])
+        if isinstance(point, dict)
+    ]
+    integrity = (
+        item.get("integrity")
+        if isinstance(item.get("integrity"), dict)
+        else {}
+    )
     return CompanyMetricSeries(
         key=str(item.get("key") or ""),
+        identity=str(item.get("identity") or ""),
         metric=str(item.get("metric") or item.get("label") or "Metric"),
         label=str(item.get("label") or item.get("metric") or "Metric"),
         period_family=str(item.get("period_family") or ""),
+        period_type=_period_type(item.get("period_type")),  # type: ignore[arg-type]
         basis=str(item.get("basis") or "reported"),
         unit=str(item.get("unit") or ""),
+        unit_family=str(item.get("unit_family") or ""),
         currency=str(item.get("currency") or ""),
         latest_value=str(item.get("latest_value") or ""),
         previous_value=str(item.get("previous_value") or ""),
+        latest_source_id=str(item.get("latest_source_id") or ""),
+        latest_source_url=str(item.get("latest_source_url") or ""),
+        previous_source_id=str(item.get("previous_source_id") or ""),
+        previous_source_url=str(item.get("previous_source_url") or ""),
         change_direction=direction,  # type: ignore[arg-type]
         change_absolute=_optional_float(item.get("change_absolute")),
         change_percent=_optional_float(item.get("change_percent")),
         points=points,
+        trend_points=trend_points,
+        integrity=_metric_integrity(integrity),
     )
 
 
@@ -275,3 +342,15 @@ def _optional_float(value: object) -> float | None:
         return float(value)
     except (TypeError, ValueError):
         return None
+
+
+def _positive_float(value: object, *, default: float) -> float:
+    parsed = _optional_float(value)
+    return parsed if parsed is not None and parsed > 0 else default
+
+
+def _non_negative_int(value: object) -> int:
+    try:
+        return max(0, int(value or 0))
+    except (TypeError, ValueError):
+        return 0
