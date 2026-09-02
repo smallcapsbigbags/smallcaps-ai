@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from datetime import datetime, timezone
+from pathlib import Path
 
 from analyst.models import (
     AnalystNote,
@@ -90,7 +91,15 @@ def _note(
     )
 
 
+def _ensure_sqlite_parent(database_url: str) -> None:
+    if not database_url.startswith("sqlite") or "///" not in database_url:
+        return
+    raw_path = database_url.split("///", 1)[1]
+    Path(raw_path).parent.mkdir(parents=True, exist_ok=True)
+
+
 def seed(database_url: str) -> None:
+    _ensure_sqlite_parent(database_url)
     engine = create_database_engine(database_url)
     init_database(engine)
     repository = IntelligenceRepository(create_session_factory(engine))
