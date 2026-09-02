@@ -64,6 +64,7 @@ jobs:
 
       - name: Validate explicit private-beta owner-test mode
         run: |
+          mkdir -p data
           rm -f data/company-repo-pass4.db
           python -m jobs.validate_runtime \
             --service ingestion \
@@ -101,6 +102,7 @@ jobs:
 
       - name: Exercise idempotent historical provenance migration
         run: |
+          mkdir -p data
           python - <<'PY'
           from datetime import datetime, timezone
 
