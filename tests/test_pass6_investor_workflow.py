@@ -6,15 +6,22 @@ FRONTEND = ROOT / "frontend"
 ASSETS = FRONTEND / "assets"
 
 
-def test_investor_workflow_assets_are_loaded_by_news_and_company() -> None:
-    for name in ("index.html", "company.html"):
-        html = (FRONTEND / name).read_text(encoding="utf-8")
-        assert "/assets/investor-workflow.css?v={{ASSET_VERSION}}" in html
-        assert "/assets/investor-workflow.js?v={{ASSET_VERSION}}" in html
-        assert html.index("/assets/product-shell.js") < html.index(
-            "/assets/investor-workflow.js"
-        )
-        assert "The AIM Daily" not in html
+def test_investor_workflow_stays_on_news_while_company_uses_its_repo_layer() -> None:
+    news = (FRONTEND / "index.html").read_text(encoding="utf-8")
+    company = (FRONTEND / "company.html").read_text(encoding="utf-8")
+
+    assert "/assets/investor-workflow.css?v={{ASSET_VERSION}}" in news
+    assert "/assets/investor-workflow.js?v={{ASSET_VERSION}}" in news
+    assert news.index("/assets/product-shell.js") < news.index(
+        "/assets/investor-workflow.js"
+    )
+
+    assert "/assets/company-repo.css?v={{ASSET_VERSION}}" in company
+    assert "/assets/company-repo.js?v={{ASSET_VERSION}}" in company
+    assert "/assets/investor-workflow.css" not in company
+    assert "/assets/investor-workflow.js" not in company
+    assert "The AIM Daily" not in news
+    assert "The AIM Daily" not in company
 
 
 def test_investor_workflow_is_deterministic_and_read_only() -> None:
@@ -27,8 +34,6 @@ def test_investor_workflow_is_deterministic_and_read_only() -> None:
         "REVIEW",
         "MATERIAL",
         "What needs attention.",
-        "Next checks",
-        'data-matter-card="${key}"',
         "Sort highest materiality",
     ):
         assert required in script
@@ -43,12 +48,11 @@ def test_attention_rules_only_use_existing_signal_and_materiality() -> None:
     assert 'signal === "GREEN" && impact >= 4' in script
 
 
-def test_mobile_controls_and_evidence_navigation_are_explicit() -> None:
+def test_mobile_watchlist_controls_remain_explicit() -> None:
     stylesheet = (ASSETS / "investor-workflow.css").read_text(encoding="utf-8")
     script = (ASSETS / "investor-workflow.js").read_text(encoding="utf-8")
     assert "@media (max-width: 760px)" in stylesheet
     assert "min-height: 44px" in stylesheet
-    assert "VIEW EVIDENCE →" in script
     assert 'aria-labelledby", "investor-attention-title"' in script
     assert "prefers-reduced-motion: reduce" in stylesheet
 

@@ -157,7 +157,7 @@ jobs:
               expect(page.locator('#company-context-link')).to_have_attribute(
                   'href', f'/rns?watchlist=1&open={springfield}'
               )
-              page.get_by_role('link', name='Open in Watchlist →', exact=True).wait_for(timeout=30000)
+              page.get_by_role('link', name='Open in Watchlist →', exact=True).first.wait_for(timeout=30000)
               page.locator('#company-context-link').click()
               page.wait_for_url(f'{base}/rns?watchlist=1&open={springfield}', timeout=30000)
               wait_watchlist(page)

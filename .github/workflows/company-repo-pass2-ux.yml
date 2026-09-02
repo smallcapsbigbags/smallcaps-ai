@@ -1,0 +1,292 @@
+name: company-repo-pass2-ux
+
+on:
+  pull_request:
+    branches: ["main"]
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: company-repo-pass2-ux-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  company-repository:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DATABASE_URL: sqlite+pysqlite:///data/company-repo-pass2.db
+      PRIVATE_BETA_MODE: "false"
+      APP_BETA_PASSWORD: preview-access
+      APP_ADMIN_PASSWORD: preview-admin
+      MARKET_DATA_ENABLED: "true"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install application and browser dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install playwright==1.55.0
+          python -m playwright install --with-deps chromium
+          node --check frontend/assets/company-repo.js
+          node --check frontend/assets/product-shell.js
+
+      - name: Run Company Repository contracts
+        run: |
+          pytest -q \
+            tests/test_company_repo_pass2.py \
+            tests/test_scbb_company_frontend.py \
+            tests/test_pass8_launch_polish.py \
+            tests/test_unified_product_journey.py \
+            tests/test_pass6_investor_workflow.py \
+            tests/test_repo_pass1_contraction.py
+
+      - name: Seed deterministic company histories
+        run: |
+          rm -f data/company-repo-pass2.db
+          python -m jobs.seed_launch_preview
+          python -m jobs.seed_pass1_preview
+
+      - name: Start product
+        shell: bash
+        run: |
+          mkdir -p /tmp/company-repo-pass2
+          python -m uvicorn web_app:app --host 127.0.0.1 --port 8501 \
+            > /tmp/company-repo-pass2/web.log 2>&1 &
+          echo $! > /tmp/company-repo-pass2/web.pid
+          for attempt in $(seq 1 90); do
+            if curl --fail --silent http://127.0.0.1:8501/api/v1/health >/dev/null \
+              && curl --fail --silent http://127.0.0.1:8501/api/v1/company/SPR >/dev/null \
+              && curl --fail --silent http://127.0.0.1:8501/api/v1/company/TRLS >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/company-repo-pass2/web.log
+          exit 1
+
+      - name: Audit the Company repository on desktop and mobile
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          from playwright.sync_api import expect, sync_playwright
+
+          base = "http://127.0.0.1:8501"
+          out = Path("/tmp/company-repo-pass2")
+
+          def capture(page):
+              failures = []
+              page.on("pageerror", lambda error: failures.append(f"pageerror: {error}"))
+              page.on(
+                  "console",
+                  lambda message: failures.append(f"console: {message.text}")
+                  if message.type == "error"
+                  else None,
+              )
+              return failures
+
+          def assert_clean(failures, label):
+              if failures:
+                  raise AssertionError(f"{label}: {failures}")
+
+          def assert_no_overflow(page):
+              dimensions = page.evaluate(
+                  """
+                  () => ({
+                    client: document.documentElement.clientWidth,
+                    scroll: document.documentElement.scrollWidth,
+                    body: document.body.scrollWidth,
+                    duplicates: [...document.querySelectorAll('[id]')]
+                      .map(node => node.id)
+                      .filter((id, index, values) => values.indexOf(id) !== index),
+                  })
+                  """
+              )
+              if dimensions["scroll"] > dimensions["client"] + 2:
+                  raise AssertionError(f"Document overflow: {dimensions}")
+              if dimensions["body"] > dimensions["client"] + 2:
+                  raise AssertionError(f"Body overflow: {dimensions}")
+              if dimensions["duplicates"]:
+                  raise AssertionError(f"Duplicate ids: {dimensions}")
+
+          def wait_company(page, ticker):
+              page.get_by_role("heading", name=ticker, exact=True).wait_for(timeout=30000)
+              page.locator(".repo-story").wait_for(timeout=30000)
+              page.get_by_role("heading", name="Company news", exact=True).wait_for(timeout=30000)
+
+          def assert_story(page):
+              labels = page.locator(".repo-story-cell > .repo-label").all_text_contents()
+              if labels != ["NOW", "CHANGE", "WATCH"]:
+                  raise AssertionError(f"Story hierarchy drifted: {labels}")
+
+              word_counts = page.locator(".repo-story-value").evaluate_all(
+                  "nodes => nodes.map(node => node.textContent.trim().split(/\\s+/).filter(Boolean).length)"
+              )
+              if not word_counts or max(word_counts) > 40:
+                  raise AssertionError(f"Story is no longer terse: {word_counts}")
+
+              if not page.locator(".repo-story-grid").is_visible():
+                  raise AssertionError("Company story is not visible")
+
+          def assert_no_retired_copy(page):
+              body = page.locator("body").inner_text()
+              for value in (
+                  "Company Intelligence",
+                  "What matters now",
+                  "Evidence trail",
+                  "Smallcaps.ai view",
+                  "Next checks",
+                  "Supports the case",
+                  "Challenges the case",
+              ):
+                  if value in body:
+                      raise AssertionError(f"Retired Company copy remains visible: {value}")
+
+          with sync_playwright() as playwright:
+              browser = playwright.chromium.launch()
+
+              desktop = browser.new_context(viewport={"width": 1440, "height": 1000})
+              page = desktop.new_page()
+              failures = capture(page)
+              page.goto(
+                  f"{base}/company/SPR?from=news&date=2026-08-21&open=spr-preview-buyback",
+                  wait_until="domcontentloaded",
+              )
+              wait_company(page, "SPR")
+              assert_story(page)
+              assert_no_retired_copy(page)
+              assert_no_overflow(page)
+
+              section_order = page.locator(".repo-section").evaluate_all(
+                  "nodes => nodes.map(node => node.dataset.companySection)"
+              )
+              if section_order != ["current-position", "key-numbers", "company-news"]:
+                  raise AssertionError(f"Company hierarchy drifted: {section_order}")
+
+              metric_count = page.locator(".repo-metric").count()
+              if not 1 <= metric_count <= 6:
+                  raise AssertionError(f"Key numbers are outside the useful range: {metric_count}")
+              if page.locator(".repo-metric .repo-source-link").count() < 1:
+                  raise AssertionError("Key numbers lost source provenance")
+
+              requested = page.locator(
+                  '.repo-news-item[data-source-id="spr-preview-buyback"]'
+              )
+              requested.wait_for(timeout=30000)
+              if not requested.evaluate("node => node.open"):
+                  raise AssertionError("Requested company news did not expand in place")
+              requested.get_by_role("heading", name="FACTS", exact=True).wait_for(timeout=30000)
+              requested.get_by_role("heading", name="CHANGE", exact=True).wait_for(timeout=30000)
+              expect(page.locator("#company-context-link")).to_have_text("← Back to News")
+              expect(page.locator("#company-context-link")).to_have_attribute(
+                  "href", "/rns?date=2026-08-21&open=spr-preview-buyback"
+              )
+              page.screenshot(path=out / "01-springfield-repository-desktop.png", full_page=True)
+              assert_clean(failures, "Desktop Company repository")
+
+              failures.clear()
+              page.goto(
+                  f"{base}/company/SPR?from=watchlist&open=spr-preview-buyback",
+                  wait_until="domcontentloaded",
+              )
+              wait_company(page, "SPR")
+              expect(page.locator('[data-product-nav="watchlist"]')).to_have_attribute(
+                  "aria-current", "page"
+              )
+              expect(page.locator("#company-context-link")).to_have_text("← Back to Watchlist")
+              expect(page.locator("#company-context-link")).to_have_attribute(
+                  "href", "/rns?watchlist=1&open=spr-preview-buyback"
+              )
+              page.get_by_role("link", name="Open in Watchlist →", exact=True).first.wait_for(
+                  timeout=30000
+              )
+              assert_clean(failures, "Watchlist Company context")
+              desktop.close()
+
+              sparse = browser.new_context(viewport={"width": 1280, "height": 900})
+              page = sparse.new_page()
+              failures = capture(page)
+              page.goto(f"{base}/company/TRLS", wait_until="domcontentloaded")
+              wait_company(page, "TRLS")
+              assert_story(page)
+              sections = page.locator(".repo-section").evaluate_all(
+                  "nodes => nodes.map(node => node.dataset.companySection)"
+              )
+              if sections != ["current-position", "company-news"]:
+                  raise AssertionError(f"Sparse company invented empty sections: {sections}")
+              expect(page.locator(".repo-metric")).to_have_count(0)
+              page.get_by_text(
+                  "Administration imminent; no shareholder return expected",
+                  exact=True,
+              ).first.wait_for(timeout=30000)
+              assert_no_overflow(page)
+              page.screenshot(path=out / "02-trellus-repository-desktop.png", full_page=True)
+              assert_clean(failures, "Sparse Company repository")
+              sparse.close()
+
+              mobile = browser.new_context(
+                  viewport={"width": 390, "height": 844},
+                  device_scale_factor=1,
+                  is_mobile=True,
+              )
+              page = mobile.new_page()
+              failures = capture(page)
+              page.goto(
+                  f"{base}/company/SPR?open=spr-preview-buyback",
+                  wait_until="domcontentloaded",
+              )
+              wait_company(page, "SPR")
+              requested = page.locator(
+                  '.repo-news-item[data-source-id="spr-preview-buyback"]'
+              )
+              requested.get_by_role("heading", name="FACTS", exact=True).wait_for(timeout=30000)
+              layout = page.evaluate(
+                  """
+                  () => ({
+                    story: getComputedStyle(document.querySelector('.repo-story-grid')).gridTemplateColumns,
+                    metrics: getComputedStyle(document.querySelector('.repo-metric-grid')).gridTemplateColumns,
+                    detail: getComputedStyle(document.querySelector('.repo-detail-grid')).gridTemplateColumns,
+                    watch: document.querySelector('#company-watch-toggle').getBoundingClientRect(),
+                    row: document.querySelector('.repo-news-summary').getBoundingClientRect(),
+                  })
+                  """
+              )
+              for key in ("story", "metrics", "detail"):
+                  if len(layout[key].split()) != 1:
+                      raise AssertionError(f"Mobile {key} did not collapse: {layout}")
+              if layout["watch"]["height"] < 43.5 or layout["row"]["height"] < 43.5:
+                  raise AssertionError(f"Mobile targets are too small: {layout}")
+              assert_no_overflow(page)
+              assert_no_retired_copy(page)
+              page.screenshot(path=out / "03-springfield-repository-mobile.png", full_page=True)
+              assert_clean(failures, "Mobile Company repository")
+              mobile.close()
+
+              browser.close()
+          PY
+
+      - name: Reject runtime failures
+        run: |
+          if grep -En 'Traceback \(most recent call last\)|Uncaught app exception|company-api-error|monitoring-api-error' /tmp/company-repo-pass2/web.log; then
+            cat /tmp/company-repo-pass2/web.log
+            exit 1
+          fi
+
+      - name: Upload Company Repository Pass 2 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: company-repo-pass2-evidence
+          path: /tmp/company-repo-pass2
+          if-no-files-found: error
+          retention-days: 90

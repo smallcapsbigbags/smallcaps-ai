@@ -62,7 +62,7 @@ def test_company_page_uses_repository_language() -> None:
     assert "Smallcaps.ai · Company" in html
     assert '<p class="eyebrow">Company</p>' in html
     assert "Loading company…" in html
-    assert "Building company history…" in html
+    assert "Building history…" in html
     assert "company-repository-page" in html
     assert "Company Intelligence" not in html
     assert "The AIM Daily" not in html

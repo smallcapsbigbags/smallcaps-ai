@@ -8,6 +8,11 @@ from starlette.testclient import TestClient
 from api.frontend import _safe_next, create_frontend_routes
 
 
+ROOT = Path(__file__).resolve().parents[1]
+FRONTEND = ROOT / "frontend"
+ASSETS = FRONTEND / "assets"
+
+
 def test_private_beta_preserves_the_exact_dated_feed_destination(monkeypatch) -> None:
     monkeypatch.setenv("PRIVATE_BETA_MODE", "true")
     monkeypatch.setenv("APP_BETA_PASSWORD", "preview-access")
@@ -48,8 +53,8 @@ def test_private_beta_rejects_an_external_or_header_injection_destination(monkey
 
 
 def test_feed_owns_company_data_links_and_shareable_company_news_state() -> None:
-    html = Path("frontend/index.html").read_text(encoding="utf-8")
-    javascript = Path("frontend/assets/research.js").read_text(encoding="utf-8")
+    html = (FRONTEND / "index.html").read_text(encoding="utf-8")
+    javascript = (ASSETS / "research.js").read_text(encoding="utf-8")
 
     assert "/assets/feed-company.js" not in html
     assert "URLSearchParams" in javascript
@@ -65,25 +70,28 @@ def test_feed_owns_company_data_links_and_shareable_company_news_state() -> None
     assert "data-company-search-input" in html
 
 
-def test_company_evidence_trail_builds_exact_dated_news_links_directly() -> None:
-    html = Path("frontend/company.html").read_text(encoding="utf-8")
-    javascript = Path("frontend/assets/company.js").read_text(encoding="utf-8")
+def test_company_repository_builds_exact_dated_news_links_and_inline_detail() -> None:
+    html = (FRONTEND / "company.html").read_text(encoding="utf-8")
+    javascript = (ASSETS / "company-repo.js").read_text(encoding="utf-8")
 
-    assert "/assets/company.js" in html
+    assert "/assets/company-repo.js" in html
+    assert "/assets/company.js" not in html
     assert "/assets/company-journey.js" not in html
     assert "/assets/company-launch.js" not in html
     assert "function newsHref" in javascript
     assert 'params.set("date", dateValue)' in javascript
     assert 'params.set("open", clean(sourceId))' in javascript
     assert 'return query ? `/rns?${query}` : "/rns";' in javascript
-    assert "article.dataset.sourceId" in javascript
+    assert "details.dataset.sourceId" in javascript
     assert "new URLSearchParams(window.location.search)" in javascript
-    assert 'element("details", "company-event-evidence")' in javascript
+    assert 'element("details", `repo-news-item' in javascript
+    assert "loadEventDetail" in javascript
+    assert "activateRequestedAnnouncement" in javascript
     assert "innerHTML" not in javascript
 
 
 def test_shared_shell_preserves_source_context_without_arbitrary_return_urls() -> None:
-    shell = Path("frontend/assets/product-shell.js").read_text(encoding="utf-8")
+    shell = (ASSETS / "product-shell.js").read_text(encoding="utf-8")
 
     assert 'const COMPANY_CONTEXTS = new Set(["news", "watchlist"])' in shell
     assert 'url.searchParams.set("from", surface)' in shell
@@ -97,11 +105,11 @@ def test_shared_shell_preserves_source_context_without_arbitrary_return_urls() -
     assert "fetch(" not in shell
 
 
-def test_mobile_product_headers_retain_sign_out_search_and_one_shared_layout() -> None:
-    feed = Path("frontend/index.html").read_text(encoding="utf-8")
-    company = Path("frontend/company.html").read_text(encoding="utf-8")
-    company_css = Path("frontend/assets/company-pass4.css").read_text(encoding="utf-8")
-    shell_css = Path("frontend/assets/product-shell.css").read_text(encoding="utf-8")
+def test_mobile_product_headers_and_company_repository_share_one_layout() -> None:
+    feed = (FRONTEND / "index.html").read_text(encoding="utf-8")
+    company = (FRONTEND / "company.html").read_text(encoding="utf-8")
+    company_css = (ASSETS / "company-repo.css").read_text(encoding="utf-8")
+    shell_css = (ASSETS / "product-shell.css").read_text(encoding="utf-8")
     compact = "".join(shell_css.split())
 
     for html in (feed, company):
@@ -113,9 +121,11 @@ def test_mobile_product_headers_retain_sign_out_search_and_one_shared_layout() -
         assert 'data-product-nav="daily"' not in html
 
     assert ".company-watch-toggle" in company_css
-    assert ".company-position-main" in company_css
-    assert ".company-matters-grid" in company_css
-    assert "@media (max-width:680px)" in company_css
+    assert ".repo-story-grid" in company_css
+    assert ".repo-metric-grid" in company_css
+    assert ".repo-news-summary" in company_css
+    assert ".repo-detail-grid" in company_css
+    assert "@media (max-width: 680px)" in company_css
     assert 'grid-template-areas:"brandmeta""navnav""searchsearch"' in compact
     assert ".product-page .company-search" in shell_css
     assert ".product-page .live-status" in shell_css

@@ -3,21 +3,20 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Smallcaps.ai company repository — current position, key changes and company news history.">
+  <meta name="description" content="Smallcaps.ai company repository — now, change, watch, key numbers and company news.">
   <meta name="theme-color" content="#f5f6f8">
   <meta name="color-scheme" content="light">
   <title>Smallcaps.ai · Company</title>
   <link rel="icon" href="/favicon.svg?v={{ASSET_VERSION}}" type="image/svg+xml">
   <link rel="stylesheet" href="/assets/news.css?v={{ASSET_VERSION}}">
   <link rel="stylesheet" href="/assets/watchlist.css?v={{ASSET_VERSION}}">
-  <link rel="stylesheet" href="/assets/company-pass4.css?v={{ASSET_VERSION}}">
   <link rel="stylesheet" href="/assets/product-shell.css?v={{ASSET_VERSION}}">
-  <link rel="stylesheet" href="/assets/investor-workflow.css?v={{ASSET_VERSION}}">
+  <link rel="stylesheet" href="/assets/company-repo.css?v={{ASSET_VERSION}}">
+  <link rel="stylesheet" href="/assets/company-repo-polish.css?v={{ASSET_VERSION}}">
   <script src="/assets/watchlist.js?v={{ASSET_VERSION}}" defer></script>
   <script src="/assets/company-watchlist.js?v={{ASSET_VERSION}}" defer></script>
-  <script src="/assets/company.js?v={{ASSET_VERSION}}" defer></script>
+  <script src="/assets/company-repo.js?v={{ASSET_VERSION}}" defer></script>
   <script src="/assets/product-shell.js?v={{ASSET_VERSION}}" defer></script>
-  <script src="/assets/investor-workflow.js?v={{ASSET_VERSION}}" defer></script>
 </head>
 <body class="company-intelligence-page company-repository-page product-page">
   <a class="skip-link" href="#company-research">Skip to company</a>
@@ -36,6 +35,7 @@
         <label class="sr-only" for="company-search-input">Open company by ticker</label>
         <input id="company-search-input" data-company-search-input list="company-search-options" type="search" autocomplete="off" placeholder="Company or ticker">
         <datalist id="company-search-options" data-company-search-options></datalist>
+        <kbd aria-hidden="true">/</kbd>
         <span class="sr-only" data-company-search-status aria-live="polite"></span>
       </div>
       <div class="header-meta">
@@ -57,7 +57,7 @@
           <strong id="company-name">Loading company…</strong>
           <span id="company-market">AIM</span>
         </div>
-        <p id="company-coverage" class="company-coverage" aria-live="polite">Building company history…</p>
+        <p id="company-coverage" class="company-coverage" aria-live="polite">Building history…</p>
       </div>
       <button id="company-watch-toggle" class="company-watch-toggle" type="button" aria-pressed="false">☆ Watch</button>
     </section>
