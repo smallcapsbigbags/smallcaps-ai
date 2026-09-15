@@ -27,6 +27,13 @@ class EvidenceFact(KeyFact):
     condition_quotes: list[str] = Field(default_factory=list, max_length=6)
     calculation: EvidenceCalculation | None = None
 
+    @model_validator(mode="after")
+    def validate_fact_semantics(self) -> "EvidenceFact":
+        # Cross-field semantics must reach the existing bounded review. Structural
+        # types/enums remain strict; these same three rules are enforced by
+        # assess_paste_integrity on both the draft and the final output.
+        return self
+
 
 class NarrativeEvidence(StrictModel):
     field: Literal['headline','takeaway','what_changed.today','analyst_view','challenges_case','impact_rationale']
@@ -76,6 +83,8 @@ for relevant dependencies (development, deployment, approval, financing). Preser
 conditions in the affected value/label/note and in primary copy or challenges_case.
 'Up to' and 'more than' are not exact amounts. Net bank cash is not gross cash or debt-free.
 A year-end cash figure is not the current balance after a subsequent acquisition payment.
+For a disclosure gap, basis=not-disclosed and assertion=not-disclosed, and value must
+be exactly "Not disclosed". Put any explanatory language in note, not value.
 For not-disclosed facts, do not invent evidence; empty evidence_quotes is allowed only
 for a disclosure gap or source warning. Absence from a paste is not proof about the full RNS.
 

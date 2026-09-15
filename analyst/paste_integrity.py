@@ -138,6 +138,15 @@ def assess_paste_integrity(source: str, note: AnalystNote) -> IntegrityReport:
     for i, fact in enumerate(note.key_facts):
         path = f'key_facts[{i}]'
         report.checked_facts += 1
+        # Match all inherited KeyFact cross-field rules here, so a structurally
+        # valid draft can be corrected in the existing review rather than failing
+        # before that review. These checks also block unresolved final output.
+        if fact.basis == 'not-disclosed' and fact.value.strip().lower() != 'not disclosed':
+            report.add('DISCLOSURE_GAP_VALUE',path,'Use exactly Not disclosed as value; place the explanation in note.')
+        if fact.basis == 'calculated' and not fact.note.strip():
+            report.add('CALCULATION_NOTE_REQUIRED',path,'Show disclosed calculation inputs and method in note.')
+        if fact.value_low is not None and fact.value_high is not None and fact.value_low > fact.value_high:
+            report.add('INVALID_FACT_RANGE',path,'The lower bound cannot exceed the upper bound.')
         evidence = _anchors(report,source,fact.evidence_quotes,path+'.evidence_quotes')
         conditions = _anchors(report,source,fact.condition_quotes,path+'.condition_quotes')
         outward = ' '.join((fact.label,fact.value,fact.note))

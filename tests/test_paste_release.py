@@ -60,3 +60,47 @@ def test_review_receives_evidence_failures_too(monkeypatch):
     monkeypatch.setattr(adapter, "assess_analysis_quality", lambda *a, **kw: QualityReport(status="publishable"))
     feedback = paste_review_feedback(build_pasted_announcement(source), note)
     assert any("QUOTE_NOT_FOUND" in item for item in feedback)
+
+
+@pytest.mark.parametrize("change,expected", [
+    ({"basis":"not-disclosed", "assertion":"not-disclosed", "value":"Not disclosed in this text"}, "DISCLOSURE_GAP_VALUE"),
+    ({"basis":"calculated", "assertion":"calculated", "note":""}, "CALCULATION_NOTE_REQUIRED"),
+    ({"value_low":7, "value_high":2}, "INVALID_FACT_RANGE"),
+])
+def test_cross_field_fact_errors_reach_review_but_never_pass_integrity(change,expected):
+    from analyst.paste_integrity import assess_paste_integrity
+    from analyst.models import KeyFact
+    source,data=example()
+    data["key_facts"][0].update(change)
+    # Schema supports a repairable draft; no value is discarded or rewritten.
+    note=EvidenceAnalystNote(**data)
+    assert note.key_facts[0].value == data["key_facts"][0]["value"]
+    report=assess_paste_integrity(source.text,note)
+    assert not report.passed
+    assert expected in {f.code for f in report.findings}
+    assert any(expected in f for f in paste_review_feedback(build_pasted_announcement(source),note))
+    legacy={k:v for k,v in note.key_facts[0].model_dump().items() if k in KeyFact.model_fields}
+    with pytest.raises(ValidationError):
+        KeyFact(**legacy)
+
+
+def test_uncorrected_disclosure_gap_still_fails_final_gate(monkeypatch):
+    from types import SimpleNamespace
+    import analyst.paste as adapter
+    source,data=example()
+    data["key_facts"][-1].update(basis="not-disclosed",assertion="not-disclosed",value="Not specified")
+    note=EvidenceAnalystNote(**data)
+    class Engine:
+        def __init__(self,**kwargs):
+            self.model_name="test-only"
+            self.client=SimpleNamespace(close=lambda:None)
+            self.system_prompt=self.review_prompt=""
+        def analyse(self,*args,**kwargs):
+            return note
+    monkeypatch.setattr(adapter,"OpenAIAnalystEngine",Engine)
+    monkeypatch.setattr(adapter.Settings,"from_env",lambda:SimpleNamespace(
+        openai_api_key="test-only",openai_model="test-only",openai_max_output_tokens=2000,prompt_version="test-only"))
+    monkeypatch.setattr(adapter,"assess_analysis_quality",lambda *a,**kw:QualityReport(status="publishable"))
+    monkeypatch.setattr(adapter,"merge_monitoring_quality",lambda q,*a,**kw:q)
+    with pytest.raises(adapter.PasteQualityError):
+        adapter.analyse_paste(source)
