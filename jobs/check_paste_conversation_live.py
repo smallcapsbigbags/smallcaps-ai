@@ -38,7 +38,7 @@ def run(output: Path, *, live: bool = False, model: str = "", case: str = "trt",
         os.environ["OPENAI_MODEL"] = model
         os.environ["OPENAI_MAX_OUTPUT_TOKENS"] = "8000"
         import analyst.paste as adapter
-        from analyst.paste_chat import answer_question
+        from analyst.paste_chat import FollowupQualityError, answer_question
         from pydantic import ValidationError
         started = time.monotonic()
         try:
@@ -79,6 +79,13 @@ def run(output: Path, *, live: bool = False, model: str = "", case: str = "trt",
             report["status"] = "bounded-checks-passed-human-review-required"
         except Exception as exc:
             report["status"] = "failed"; report["error_type"] = type(exc).__name__; code = 1
+            # FollowupQualityError messages are fixed local rule codes only. Recording
+            # that code identifies the failing gate without exposing model text,
+            # prompts, provider headers, credentials or response bodies.
+            if isinstance(exc, FollowupQualityError):
+                quality_code = str(exc)
+                if quality_code and quality_code.replace("_", "").isalnum() and quality_code.upper() == quality_code:
+                    report["followup_quality_code"] = quality_code
             if source_file is None and isinstance(exc, ValidationError):
                 report["validation_errors"] = [{"type": e["type"], "location": list(e["loc"]), "message": e["msg"]}
                     for e in exc.errors(include_input=False, include_url=False, include_context=False)]
