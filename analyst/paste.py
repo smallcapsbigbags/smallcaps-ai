@@ -11,11 +11,12 @@ from analyst.classification import canonical_rns_type
 from analyst.guardrails import apply_analysis_guardrails
 from analyst.models import AnnouncementInput
 from analyst.monitoring_sheet import merge_monitoring_quality
+from analyst.paste_editorial import PASTE_CARD_EDITORIAL_INSTRUCTIONS, PASTE_EDITORIAL_VERSION
 from analyst.quality import assess_analysis_quality
 from product.paste import PasteRequest, extract_identity, project_paste_result
 from settings import Settings
 
-PASTE_ADAPTER_VERSION = "paste-adapter-1"
+PASTE_ADAPTER_VERSION = "paste-adapter-2b"
 PASTE_INSTRUCTIONS = """
 ON-DEMAND SOURCE BOUNDARY
 This is user-pasted text, not independently retrieved or verified regulatory evidence.
@@ -82,9 +83,10 @@ def analyse_paste(source: PasteRequest) -> dict[str, object]:
         timeout_seconds=90,
         max_output_tokens=settings.openai_max_output_tokens,
     )
-    # Add the source boundary without changing the production ingestion prompts.
-    engine.system_prompt += "\n\n" + PASTE_INSTRUCTIONS
-    engine.review_prompt += "\n\n" + PASTE_INSTRUCTIONS
+    # Both existing passes use the same source and editorial boundaries. No extra call.
+    paste_instructions = "\n\n" + PASTE_INSTRUCTIONS + "\n\n" + PASTE_CARD_EDITORIAL_INSTRUCTIONS
+    engine.system_prompt += paste_instructions
+    engine.review_prompt += paste_instructions
     try:
         note = engine.analyse(announcement, prior_context=())
         note = note.model_copy(update={
@@ -102,6 +104,7 @@ def analyse_paste(source: PasteRequest) -> dict[str, object]:
             "model": engine.model_name,
             "prompt": settings.prompt_version,
             "adapter": PASTE_ADAPTER_VERSION,
+            "editorial": PASTE_EDITORIAL_VERSION,
         }
         return result
     finally:

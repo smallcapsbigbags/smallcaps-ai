@@ -94,6 +94,8 @@ def test_card_assets_are_separate_and_loaded_before_the_controller():
     for forbidden in ("text-overflow: ellipsis", "line-clamp", "max-height:"):
         assert forbidden not in css
     assert 'section("What changed"' in script
-    assert 'section("What matters"' in script
+    # Pass 2B presents qualifications without an editorial heading.
+    assert 'section("What matters"' not in script
+    assert "qualification-strip" in script
     assert "source-warning" in script
     assert "min-height: 44px" in css

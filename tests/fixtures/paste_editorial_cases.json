@@ -1,0 +1,143 @@
+[
+  {
+    "id": "spr",
+    "provenance": "Manually edited presentation fixture based on the RNS supplied in this conversation. Source is a selected excerpt, not independently retrieved or a live-model result. TRT ticker is deliberately not supplied.",
+    "source": "Springfield Properties plc\n15 September 2026\nFinal Results and Publication of Annual Report\nSpringfield Properties (AIM: SPR) announces results for the year ended 31 May 2026.\nRevenue £243.7m (2025: £280.6m), adjusted PBT £12.9m (2025: £20.1m).\nBasic EPS 7.91p (2025: 11.86p). Net bank cash £1.2m at 31 May 2026 versus £20.9m net bank debt.\nPrivate housing revenue £165.0m (2025: £155.8m), affordable housing £54.3m (2025: £49.4m).\nLand sales £14.1m (2025: £60.5m). The board proposes a 3.0p dividend (2025: 2.0p), subject to shareholder approval.\nThe company intends to commence a share buyback programme.\nThe strengthened balance sheet enables development of more Central Scotland sites rather than their sale.\nAn initial agreement covers 293 homes across six sites in the North of Scotland.\nFinal deferred acquisition consideration of £20.7m was paid after year-end.\n",
+    "note": {
+      "rns_type": "Results & trading",
+      "impact_colour": "green",
+      "impact_score": 3,
+      "impact_level": "high",
+      "impact_rationale": "Illustrative materiality for a presentation test, not a live assessment.",
+      "headline": "Underlying housing grows as Springfield clears net bank debt",
+      "takeaway": "Springfield reports growth in private and affordable housing revenue, a higher proposed dividend and plans for a share buyback. Lower land sales reduced reported revenue and profit.",
+      "what_changed": {
+        "before": "No independent earlier history supplied.",
+        "today": "The stronger balance sheet allows Springfield to develop more Central Scotland sites rather than sell them. In the North, an initial agreement covers 293 homes across six sites.",
+        "read_through": "Springfield has more financial flexibility, but net bank cash is a year-end figure, before the subsequent acquisition payment."
+      },
+      "analyst_view": "Springfield has more financial flexibility, but net bank cash is a year-end figure, before the subsequent acquisition payment.",
+      "key_facts": [
+        {
+          "label": "Revenue",
+          "metric": "revenue",
+          "value": "£243.7m",
+          "basis": "reported",
+          "period": "FY26",
+          "previous_value": "£280.6m"
+        },
+        {
+          "label": "Adjusted PBT",
+          "metric": "adjusted pbt",
+          "value": "£12.9m",
+          "basis": "reported",
+          "period": "FY26",
+          "previous_value": "£20.1m"
+        },
+        {
+          "label": "Net bank cash",
+          "metric": "net bank cash",
+          "value": "£1.2m",
+          "basis": "reported",
+          "as_of_date": "31 May 2026",
+          "previous_value": "£20.9m net bank debt"
+        },
+        {
+          "label": "Proposed dividend",
+          "metric": "proposed dividend",
+          "value": "3.0p",
+          "basis": "reported",
+          "period": "FY26",
+          "previous_value": "2.0p",
+          "note": "Subject to shareholder approval."
+        },
+        {
+          "label": "Land sales",
+          "metric": "land sales",
+          "value": "£14.1m",
+          "basis": "reported",
+          "period": "FY26",
+          "previous_value": "£60.5m"
+        },
+        {
+          "label": "Acquisition payment",
+          "metric": "acquisition payment",
+          "value": "£20.7m",
+          "basis": "reported",
+          "period": "After year-end"
+        }
+      ],
+      "challenges_case": [
+        "Reported profit and EPS fell as land sales reduced. The year-end cash figure precedes a £20.7m acquisition payment made after 31 May."
+      ],
+      "source_warnings": [],
+      "confidence": 0.9
+    },
+    "expected_metric_indexes": [
+      0,
+      1,
+      2,
+      3
+    ]
+  },
+  {
+    "id": "trt",
+    "provenance": "Manually edited presentation fixture based on the RNS supplied in this conversation. Source is a selected excerpt, not independently retrieved or a live-model result. TRT ticker is deliberately not supplied.",
+    "source": "RNS Number : 7173U\nTransense Technologies PLC\n15 September 2026\nContract award with Continental to develop next-generation tyre management tool\nTransense has secured a development and supply contract with Continental.\nTranslogik will develop a bespoke version of its handheld TLGX device.\nFollowing successful completion of this funded six month development programme,\nproduction is expected from Q2 2027, with deployment opportunities across Continental's global service network.\nContinental has been a customer for several years.\nSubject to completion of development, the board expects annual revenues of more than £0.7m from future deployments.\n",
+    "note": {
+      "rns_type": "Contracts",
+      "impact_colour": "green",
+      "impact_score": 3,
+      "impact_level": "high",
+      "impact_rationale": "Illustrative materiality for a presentation test, not a live assessment.",
+      "headline": "Continental awards contract for next-generation tyre management tool",
+      "takeaway": "Transense has secured a funded six-month development and supply contract with Continental for a bespoke version of its TLGX handheld device.",
+      "what_changed": {
+        "before": "No independent earlier history supplied.",
+        "today": "The contract expands the existing Continental relationship into a funded development and supply programme.",
+        "read_through": "The contract provides a route into Continental’s service network. The revenue expectation is not a disclosed minimum purchase commitment."
+      },
+      "analyst_view": "The contract provides a route into Continental’s service network. The revenue expectation is not a disclosed minimum purchase commitment.",
+      "key_facts": [
+        {
+          "label": "Development programme",
+          "metric": "development programme",
+          "value": "6 months",
+          "basis": "reported",
+          "note": "Funded programme."
+        },
+        {
+          "label": "Expected production",
+          "metric": "expected production",
+          "value": "From Q2 2027",
+          "basis": "reported",
+          "note": "Following successful development."
+        },
+        {
+          "label": "Expected annual revenue",
+          "metric": "expected annual revenue",
+          "value": ">£0.7m",
+          "basis": "reported",
+          "period": "Future deployments",
+          "note": "Subject to development and deployment."
+        },
+        {
+          "label": "Minimum volumes",
+          "metric": "minimum volumes",
+          "value": "Not disclosed",
+          "basis": "not-disclosed"
+        }
+      ],
+      "challenges_case": [
+        "Future revenue depends on successful development and subsequent deployment. Minimum volumes and margins have not been disclosed."
+      ],
+      "source_warnings": [],
+      "confidence": 0.9
+    },
+    "expected_metric_indexes": [
+      0,
+      1,
+      2
+    ]
+  }
+]

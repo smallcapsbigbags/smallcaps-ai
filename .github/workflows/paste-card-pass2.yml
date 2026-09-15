@@ -40,8 +40,8 @@ jobs:
         run: |
           node --check frontend/assets/analysis-card.js
           node --check frontend/assets/analyse.js
-          python -m compileall -q product/paste.py product/paste_card.py jobs/check_paste_card.py
-          pytest -q tests/test_paste_card.py tests/test_paste_mvp.py
+          python -m compileall -q product/paste.py product/paste_card.py analyst/paste_editorial.py jobs/check_paste_card.py jobs/check_paste_editorial.py
+          pytest -q tests/test_paste_card.py tests/test_paste_mvp.py tests/test_paste_editorial.py
       - name: Start the actual app without a paid API key
         shell: bash
         run: |
@@ -56,6 +56,8 @@ jobs:
           exit 1
       - name: Test source-preserving cards at four viewport widths
         run: python -m jobs.check_paste_card --base http://127.0.0.1:8501 --output /tmp/paste-card-pass2/previews
+      - name: Test 2B editorial cards and progressive disclosure
+        run: python -m jobs.check_paste_editorial --base http://127.0.0.1:8501 --output /tmp/paste-card-pass2/editorial
       - name: Upload browser evidence
         if: always()
         uses: actions/upload-artifact@v4
