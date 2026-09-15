@@ -18,3 +18,17 @@ def test_numeric_hyphenated_duration_is_not_a_new_unsupported_number(duration):
     assert check_card(TRT,s,c)['status']=='passed'
     c.supporting_sentence.text='Continental supports a funded 9-month development programme.'
     with pytest.raises(CardError):check_card(TRT,s,c)
+
+
+def test_duration_in_headline_requires_its_own_support():
+    s,c=draft()
+    award='Transense has secured a development and supply contract with Continental.'
+    duration='The funded development programme lasts six months.'
+    c.headline=type(c.headline).model_validate(statement(s,
+        'Continental funds a six-month development programme',award))
+    with pytest.raises(CardError) as error:
+        check_card(TRT,s,c)
+    assert 'UNSUPPORTED_NUMBER' in error.value.findings
+    c.headline=type(c.headline).model_validate(statement(s,
+        'Continental funds a six-month development programme',award,duration))
+    assert check_card(TRT,s,c)['status']=='passed'

@@ -31,6 +31,12 @@ They are selected sections, not proof of a complete or authenticated announcemen
 Write natural British financial English. Use a specific, factual headline and one
 supporting sentence explaining what happened. Avoid management hype and compressed
 phrases such as 'tyre-tool development' or 'strategic inflection'.
+The headline is an 8-14 word event description, not a list of metrics. Keep durations
+and amounts in the metric tiles unless essential to the headline. The supporting
+sentence describes the product/action and partner, rather than repeating every tile.
+A six-month development stage is NOT a six-month supply contract. Deployment
+opportunities are NOT a committed global rollout; keep them as opportunities.
+Put successful-completion conditions in any sentence about future production.
 For results use up to four significant figures; for contracts normally three. Use
 fewer, even none, when figures are not disclosed. Do not invent values to fill tiles.
 what_changed is optional and adds explanation for results; normally null for contracts.
@@ -42,6 +48,9 @@ Every statement and metric needs short verbatim quotations and their passage IDs
 Use only IDs provided. Quote complete supporting sentences where possible, including
 conditions. For tables include row, year columns and units in the quotes; omit a
 metric if the copied table is ambiguous. Do not use a naked number as evidence.
+Evidence is checked separately for EACH field. Every number, written-out duration,
+period and amount in a field must appear in that field's own quotes, not just in
+another field or elsewhere in the passage. Remove details you cannot support locally.
 Only reported figures: no new arithmetic, percentage changes, valuations or forecasts.
 Use 'down 13.2%' instead of inventing a minus sign from a bracketed table value.
 Preserve > / up-to bounds, adjusted/statutory labels, net-bank/gross cash distinctions,
@@ -127,7 +136,7 @@ def project_card(source: PasteRequest, card: CardDraft, selection, integrity: di
         "capabilities": {"questions": False, "scores": False},
         "integrity": {**integrity, "source_hash": source.source_hash},
         "selection": selection.record(),
-        "versions": {"adapter": VERSION, "editorial": "rnsrepo-editorial-1"}}
+        "versions": {"adapter": VERSION, "editorial": "rnsrepo-editorial-1.1"}}
 
 
 class CardExtractor:
