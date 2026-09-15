@@ -8,12 +8,14 @@ from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from product.paste_card import CARD_LAYOUT_VERSION, select_metric_indexes
+
 if TYPE_CHECKING:
     from analyst.models import AnalystNote
 
 MIN_PASTE_CHARS = 120
 MAX_PASTE_CHARS = 120_000
-PASTE_CONTRACT_VERSION = "paste-mvp-1"
+PASTE_CONTRACT_VERSION = "paste-mvp-2"
 
 
 class PasteRequest(BaseModel):
@@ -89,14 +91,15 @@ def extract_identity(text: str) -> PasteIdentity:
 
 
 def project_paste_result(source: PasteRequest, note: AnalystNote) -> dict[str, object]:
-    """Preserve full facts and qualifiers; never use the legacy truncation/arrow helpers.
+    """Project a card without rewriting source facts or trimming their qualifications.
 
-    Pass 1 deliberately returns all fact metadata. Pass 2 will refine tile selection;
-    this boundary must not silently discard dates, proposals or conditions.
+    Metric indexes select highlights only. Every original fact stays in `facts`;
+    the renderer shows the remainder in More facts and all warnings in What matters.
     """
     if note.source_id != source.source_id:
         raise ValueError("Analysis does not match the supplied document.")
     identity = extract_identity(source.text)
+    facts = [fact.model_dump(mode="json") for fact in note.key_facts]
     matters = [*note.challenges_case]
     if note.disclosure_assessment.note:
         matters.append(note.disclosure_assessment.note)
@@ -106,14 +109,18 @@ def project_paste_result(source: PasteRequest, note: AnalystNote) -> dict[str, o
     matters = list(dict.fromkeys(item.strip() for item in matters if item.strip()))
     return {
         "schema_version": PASTE_CONTRACT_VERSION,
+        "card_layout_version": CARD_LAYOUT_VERSION,
         "source_hash": source.source_hash,
         "source_kind": "user-paste",
         "source_verified": False,
         "identity": identity.model_dump(mode="json"),
+        "rns_type": note.rns_type,
         "headline": note.headline,
         "summary": note.takeaway,
-        "facts": [fact.model_dump(mode="json") for fact in note.key_facts],
+        "facts": facts,
+        "metric_indexes": select_metric_indexes(facts, note.rns_type),
         "what_changed": note.what_changed.today,
+        "analyst_view": note.analyst_view,
         "what_matters": matters,
         "direction": note.impact_colour,
         "materiality": note.impact_score,
