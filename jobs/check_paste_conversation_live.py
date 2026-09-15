@@ -7,11 +7,13 @@ It does not deploy code, alter Railway, or prove launch readiness.
 from __future__ import annotations
 
 import argparse
+from contextlib import ExitStack
 import hashlib
 import json
 import os
 from pathlib import Path
 import time
+from unittest.mock import patch
 
 
 def run(output: Path, *, live: bool = False, model: str = "", case: str = "trt",
@@ -20,7 +22,6 @@ def run(output: Path, *, live: bool = False, model: str = "", case: str = "trt",
     from product.paste_chat import QuestionRequest
     from jobs.paste_chat_cases import example
     source = PasteRequest(text=source_file.read_text(encoding="utf-8")) if source_file else example(case)[0]
-    # Validate before any paid request; never use a CLI argument as an instruction template.
     q = QuestionRequest(question=question, request_id="explicit-live-check", turn_index=0)
     report = {"mode": "live" if live else "preflight", "live_model": False,
         "status": "preflight-only-no-model-request", "source_hash": source.source_hash,
@@ -37,12 +38,34 @@ def run(output: Path, *, live: bool = False, model: str = "", case: str = "trt",
     elif live:
         os.environ["OPENAI_MODEL"] = model
         os.environ["OPENAI_MAX_OUTPUT_TOKENS"] = "8000"
-        from analyst.paste import analyse_paste
+        import analyst.paste as adapter
         from analyst.paste_chat import answer_question
         started = time.monotonic()
         try:
             report["live_model"] = True
-            card = analyse_paste(source)
+            with ExitStack() as instrumentation:
+                # Observe the existing checks; always return their unmodified results.
+                # Candidate text is captured ONLY for the repository's public fixtures,
+                # never for operator-supplied documents or ordinary application users.
+                if source_file is None:
+                    original_integrity = adapter.assess_paste_integrity
+                    original_quality = adapter.merge_monitoring_quality
+                    def observed_integrity(text, note):
+                        checked = original_integrity(text, note)
+                        report["integrity_findings"] = [
+                            {"code": f.code, "field": f.field} for f in checked.findings]
+                        report["fixture_candidate"] = note.model_dump(mode="json")
+                        return checked
+                    def observed_quality(*args, **kwargs):
+                        checked = original_quality(*args, **kwargs)
+                        report["quality_status"] = checked.status
+                        report["quality_flags"] = [
+                            {"code": f.code, "severity": f.severity} for f in checked.flags]
+                        return checked
+                    instrumentation.enter_context(patch.object(adapter, "assess_paste_integrity", observed_integrity))
+                    instrumentation.enter_context(patch.object(adapter, "merge_monitoring_quality", observed_quality))
+                card = adapter.analyse_paste(source)
+            report.pop("fixture_candidate", None)
             report["analysis_telemetry"] = card.get("telemetry")
             report["card_review"] = {key: card[key] for key in ("headline", "summary", "what_changed", "what_matters")}
             answer = answer_question(source, card, [], q.question)
@@ -51,6 +74,14 @@ def run(output: Path, *, live: bool = False, model: str = "", case: str = "trt",
             report["status"] = "bounded-checks-passed-human-review-required"
         except Exception as exc:
             report["status"] = "failed"; report["error_type"] = type(exc).__name__; code = 1
+            # Never log exception messages, request headers, keys or response bodies.
+            status = getattr(exc, "status_code", None)
+            if isinstance(status, int) and 400 <= status <= 599:
+                report["provider_status"] = status
+            provider_code = getattr(exc, "code", None)
+            if provider_code in {"insufficient_quota", "rate_limit_exceeded", "organization_spend_limit_exceeded",
+                                 "model_not_found", "invalid_api_key", "invalid_json_schema"}:
+                report["provider_code"] = provider_code
         report["elapsed_seconds"] = round(time.monotonic() - started, 3)
     root = Path(__file__).resolve().parents[1]
     report["source_files"] = {str(p.relative_to(root)): hashlib.sha256(p.read_bytes()).hexdigest()
