@@ -119,14 +119,14 @@ def test_the_aim_daily_is_not_a_customer_surface_or_home_route(monkeypatch) -> N
 
     home = client.get("/")
     assert home.status_code == 200
-    assert "AIM COMPANY NEWS" in home.text
+    assert "See what matters." in home.text
     assert "THE AIM DAILY" not in home.text
     assert 'data-product-nav="daily"' not in home.text
 
     # Historical assets remain until the final migration/cleanup pass, but no
     # customer-facing page links to them.
     assert (FRONTEND / "daily.html").exists()
-    for name in ("index.html", "company.html", "access.html"):
+    for name in ("index.html", "company.html", "access.html", "analyse.html"):
         html = (FRONTEND / name).read_text(encoding="utf-8")
         assert "The AIM Daily" not in html
         assert 'data-product-nav="daily"' not in html

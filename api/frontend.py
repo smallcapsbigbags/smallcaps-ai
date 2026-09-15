@@ -140,7 +140,12 @@ def create_frontend_routes() -> list[Route]:
     """Serve the paste analyser, retained research routes and beta entrance."""
 
     async def home(request: Request) -> Response:
-        # On-demand analysis is the front door. Existing news/history links stay stable.
+        # Keep saved links to the former root news feed working after the move.
+        legacy_keys = {"date", "open", "watchlist", "ticker", "search"}
+        if legacy_keys.intersection(request.query_params):
+            return RedirectResponse(
+                f"/rns?{request.url.query}", status_code=308, headers=_security_headers()
+            )
         return _protected_file(request, "analyse.html")
 
     async def rns(request: Request) -> Response:
