@@ -17,6 +17,9 @@ PAYMENT = re.compile(r"paid|payment|consideration", re.I)
 
 
 def _numeric_text(text: str) -> str:
+    # Hyphenated numeric durations are the same quantity as their spaced source
+    # form. This does not remove negative signs, change amounts or allow rounding.
+    text = re.sub(r"(?<=\d)[-‐‑–](?=(?:months?|years?)\b)", " ", text, flags=re.I)
     # A fiscal-year display is an alias, not a new figure. Preserve all other digits.
     return re.sub(r"\bFY\s?(\d{2})\b", lambda m: "20" + m[1], text, flags=re.I)
 

@@ -8,10 +8,9 @@ def _railway_config(path: str) -> dict[str, object]:
     return json.loads(Path(path).read_text(encoding="utf-8"))
 
 
-def test_all_production_services_run_integrity_audit_before_deploy() -> None:
+def test_active_production_services_run_integrity_audit_before_deploy() -> None:
     for path, service in (
         ("railway.json", "web"),
-        ("railway.ingest.json", "ingestion"),
         ("railway.prices.json", "prices"),
     ):
         config = _railway_config(path)
@@ -30,7 +29,7 @@ def test_all_production_services_run_integrity_audit_before_deploy() -> None:
         )
 
 
-def test_ingestion_cron_also_runs_market_reactions_for_mvp() -> None:
+def test_legacy_ingestion_code_is_retained_but_paused_for_rnsrepo() -> None:
     ingestion_job = Path("jobs/ingest_daily.py").read_text(encoding="utf-8")
     price_job = Path("jobs/update_prices.py").read_text(encoding="utf-8")
     config = _railway_config("railway.ingest.json")
@@ -42,7 +41,11 @@ def test_ingestion_cron_also_runs_market_reactions_for_mvp() -> None:
     assert "_price_summary(price_outcome)" in ingestion_job
     assert 'JOB_NAME = "daily-price-reactions"' in price_job
     assert "advisory_job_lock(active_engine, JOB_NAME)" in price_job
-    assert config["deploy"]["cronSchedule"] == "*/10 6-18 * * 1-5"
+    # The card-only MVP must not run market discovery/AI on deploy or a timer.
+    assert config["deploy"]["cronSchedule"] is None
+    assert config["deploy"]["preDeployCommand"] == []
+    assert config["deploy"]["restartPolicyType"] == "NEVER"
+    assert config["deploy"]["startCommand"] == "python -c \"print('AIM ingestion is paused for RNSRepo')\""
 
 
 def test_production_audit_does_not_require_openai_or_market_requests() -> None:

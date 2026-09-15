@@ -8,6 +8,8 @@ import argparse
 import json
 import os
 from pathlib import Path
+from contextlib import nullcontext
+from unittest.mock import patch
 from product.paste import PasteRequest
 from rnsrepo.extractor import CardExtractor, DEFAULT_MODEL, request_kwargs
 from rnsrepo.schema import CardError
@@ -25,7 +27,16 @@ def run(*, live: bool = False, source_file: Path | None = None, output: Path | N
     code = 0
     if live:
         try:
-            result = CardExtractor(os.getenv('OPENAI_API_KEY',''), model).extract(source)
+            import rnsrepo.extractor as adapter
+            original = adapter.check_card
+            def observed_check(text, selected, draft):
+                # Diagnostic copy ONLY for the fixed, reviewed source fixture.
+                record['fixture_candidate'] = draft.model_dump(mode='json')
+                return original(text, selected, draft)
+            observer = patch.object(adapter, 'check_card', observed_check) if source_file is None else nullcontext()
+            with observer:
+                result = CardExtractor(os.getenv('OPENAI_API_KEY',''), model).extract(source)
+            record.pop('fixture_candidate', None)
             record.update(status='passed-needs-human-review', telemetry=result['telemetry'])
             if source_file is None:
                 record['card'] = {k: result[k] for k in ('headline','summary','facts','what_changed','what_matters')}
