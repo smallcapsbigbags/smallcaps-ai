@@ -9,7 +9,7 @@ from pydantic import model_validator
 from analyst.analyzer import OpenAIAnalystEngine
 from analyst.classification import canonical_rns_type
 from analyst.guardrails import apply_analysis_guardrails
-from analyst.models import AnnouncementInput
+from analyst.models import AnalystNote, AnnouncementInput
 from analyst.monitoring_sheet import merge_monitoring_quality
 from analyst.paste_editorial import PASTE_CARD_EDITORIAL_INSTRUCTIONS, PASTE_EDITORIAL_VERSION
 from analyst.quality import assess_analysis_quality
@@ -19,7 +19,7 @@ from product.news_contract import MATERIALITY_LABELS
 from product.paste import PasteRequest, extract_identity, project_paste_result
 from settings import Settings
 
-PASTE_ADAPTER_VERSION = "paste-adapter-3"
+PASTE_ADAPTER_VERSION = "paste-adapter-3.1"
 PASTE_INSTRUCTIONS = """
 ON-DEMAND SOURCE BOUNDARY
 This is user-pasted text, not independently retrieved or verified regulatory evidence.
@@ -75,6 +75,27 @@ def build_pasted_announcement(source: PasteRequest) -> PastedAnnouncementInput:
     )
 
 
+def paste_review_feedback(announcement: AnnouncementInput, note: AnalystNote) -> list[str]:
+    """Send the existing final publication rules into the existing review request.
+
+    Checks do not mutate the draft, suppress findings or spend another model call.
+    This closes the gap where a valid draft was reviewed without knowing the
+    editorial/guardrail problems that would later cause the final gate to reject it.
+    """
+    normalised = note.model_copy(update={
+        "rns_type": canonical_rns_type(announcement, note.rns_type),
+        "what_changed": note.what_changed.model_copy(update={"coverage_status": "building"}),
+    })
+    guarded = apply_analysis_guardrails(announcement, normalised, prior_context=())
+    quality = merge_monitoring_quality(
+        assess_analysis_quality(announcement, guarded, prior_context=()), guarded,
+    )
+    feedback = evidence_feedback(announcement, guarded)
+    feedback.extend(f"{flag.code}: {flag.message}" for flag in quality.flags
+                    if flag.severity in {"review", "block"})
+    return list(dict.fromkeys(feedback))
+
+
 def analyse_paste(source: PasteRequest) -> dict[str, object]:
     settings = Settings.from_env()
     if not settings.openai_api_key:
@@ -87,7 +108,7 @@ def analyse_paste(source: PasteRequest) -> dict[str, object]:
         max_output_tokens=settings.openai_max_output_tokens,
     )
     engine.response_type = EvidenceAnalystNote
-    engine.draft_validator = evidence_feedback
+    engine.draft_validator = paste_review_feedback
     engine.request_limit = 2
     # Paste starts are explicitly bounded. Do not invisibly retry paid requests.
     if hasattr(engine.client, "with_options"):

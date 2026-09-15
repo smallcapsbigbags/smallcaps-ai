@@ -2,8 +2,8 @@
 from __future__ import annotations
 
 from typing import Literal
-from pydantic import Field
-from analyst.models import AnalystNote, KeyFact, StrictModel
+from pydantic import Field, model_validator
+from analyst.models import AnalystNote, KeyFact, StrictModel, impact_level_from_score
 
 EVIDENCE_VERSION = 'paste-evidence-3'
 Assertion = Literal['actual','expected','proposed','conditional','calculated','not-disclosed','source-warning']
@@ -49,6 +49,14 @@ class EvidenceAnalystNote(AnalystNote):
     key_facts: list[EvidenceFact] = Field(default_factory=list)
     narrative_evidence: list[NarrativeEvidence] = Field(default_factory=list)
     materiality_evidence: MaterialityEvidence
+
+    @model_validator(mode="after")
+    def validate_impact_level(self) -> "EvidenceAnalystNote":
+        # impact_score is the judgement; impact_level is only a legacy display
+        # mapping. Derive it rather than rejecting a valid score for an LLM's
+        # inconsistent duplicate label. The generic ingestion schema stays strict.
+        self.impact_level = impact_level_from_score(self.impact_score)
+        return self
 
 
 PASTE_EVIDENCE_INSTRUCTIONS = '''
