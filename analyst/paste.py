@@ -2,9 +2,11 @@
 from __future__ import annotations
 
 from datetime import datetime
+import os
 from typing import Literal
 
-from pydantic import model_validator
+from openai import RateLimitError
+from pydantic import ValidationError, model_validator
 
 from analyst.analyzer import OpenAIAnalystEngine
 from analyst.classification import canonical_rns_type
@@ -19,7 +21,8 @@ from product.news_contract import MATERIALITY_LABELS
 from product.paste import PasteRequest, extract_identity, project_paste_result
 from settings import Settings
 
-PASTE_ADAPTER_VERSION = "paste-adapter-3.1"
+PASTE_ADAPTER_VERSION = "paste-adapter-3.2"
+_LONG_RNS_CHARACTERS = 50_000
 PASTE_INSTRUCTIONS = """
 ON-DEMAND SOURCE BOUNDARY
 This is user-pasted text, not independently retrieved or verified regulatory evidence.
@@ -76,12 +79,7 @@ def build_pasted_announcement(source: PasteRequest) -> PastedAnnouncementInput:
 
 
 def paste_review_feedback(announcement: AnnouncementInput, note: AnalystNote) -> list[str]:
-    """Send the existing final publication rules into the existing review request.
-
-    Checks do not mutate the draft, suppress findings or spend another model call.
-    This closes the gap where a valid draft was reviewed without knowing the
-    editorial/guardrail problems that would later cause the final gate to reject it.
-    """
+    """Send the existing final publication rules into the existing review request."""
     normalised = note.model_copy(update={
         "rns_type": canonical_rns_type(announcement, note.rns_type),
         "what_changed": note.what_changed.model_copy(update={"coverage_status": "building"}),
@@ -96,52 +94,75 @@ def paste_review_feedback(announcement: AnnouncementInput, note: AnalystNote) ->
     return list(dict.fromkeys(feedback))
 
 
-def analyse_paste(source: PasteRequest) -> dict[str, object]:
-    settings = Settings.from_env()
-    if not settings.openai_api_key:
-        raise RuntimeError("Analyst is not configured")
-    announcement = build_pasted_announcement(source)
+def _analyse_with_model(announcement: PastedAnnouncementInput, settings: Settings, model: str) -> tuple[AnalystNote, OpenAIAnalystEngine]:
     engine = OpenAIAnalystEngine(
         api_key=settings.openai_api_key,
-        model=settings.openai_model,
+        model=model,
         timeout_seconds=90,
         max_output_tokens=settings.openai_max_output_tokens,
     )
     engine.response_type = EvidenceAnalystNote
     engine.draft_validator = paste_review_feedback
     engine.request_limit = 2
-    # Paste starts are explicitly bounded. Do not invisibly retry paid requests.
     if hasattr(engine.client, "with_options"):
         engine.client = engine.client.with_options(max_retries=0)
-    # Evidence failures route into the existing review, never a third repair pass.
     paste_instructions = "\n\n".join((PASTE_INSTRUCTIONS, PASTE_CARD_EDITORIAL_INSTRUCTIONS, PASTE_EVIDENCE_INSTRUCTIONS))
     engine.system_prompt += paste_instructions
     engine.review_prompt += paste_instructions
     try:
         note = engine.analyse(announcement, prior_context=())
-        note = note.model_copy(update={
-            "rns_type": canonical_rns_type(announcement, note.rns_type),
-            "what_changed": note.what_changed.model_copy(update={"coverage_status": "building"}),
-        })
-        guarded = apply_analysis_guardrails(announcement, note, prior_context=())
-        quality = merge_monitoring_quality(
-            assess_analysis_quality(announcement, guarded, prior_context=()), guarded,
-        )
-        integrity = assess_paste_integrity(source.text, guarded)
-        if quality.status != "publishable" or not integrity.passed:
-            raise PasteQualityError("The analysis requires review")
-        result = project_paste_result(source, guarded)
-        result["integrity"] = integrity.record()
-        result["materiality_label"] = MATERIALITY_LABELS[guarded.impact_score]
-        result["telemetry"] = {"requests": getattr(engine, "request_calls", 0),
-                               "usage": getattr(engine, "usage_records", [])}
-        result["versions"] = {
-            "model": engine.model_name,
-            "prompt": settings.prompt_version,
-            "adapter": PASTE_ADAPTER_VERSION,
-            "editorial": PASTE_EDITORIAL_VERSION,
-            "evidence": EVIDENCE_VERSION,
-        }
-        return result
-    finally:
+        return note, engine
+    except Exception:
         engine.client.close()
+        raise
+
+
+def analyse_paste(source: PasteRequest) -> dict[str, object]:
+    settings = Settings.from_env()
+    if not settings.openai_api_key:
+        raise RuntimeError("Analyst is not configured")
+    announcement = build_pasted_announcement(source)
+    fallback_model = os.getenv("OPENAI_PASTE_FALLBACK_MODEL", "gpt-5.4").strip() or "gpt-5.4"
+    primary_model = settings.openai_model
+    selected_model = fallback_model if len(source.text) >= _LONG_RNS_CHARACTERS else primary_model
+    used_fallback = selected_model != primary_model
+
+    try:
+        try:
+            note, engine = _analyse_with_model(announcement, settings, selected_model)
+        except (RateLimitError, ValidationError):
+            if selected_model == fallback_model:
+                raise
+            used_fallback = True
+            note, engine = _analyse_with_model(announcement, settings, fallback_model)
+
+        try:
+            note = note.model_copy(update={
+                "rns_type": canonical_rns_type(announcement, note.rns_type),
+                "what_changed": note.what_changed.model_copy(update={"coverage_status": "building"}),
+            })
+            guarded = apply_analysis_guardrails(announcement, note, prior_context=())
+            quality = merge_monitoring_quality(
+                assess_analysis_quality(announcement, guarded, prior_context=()), guarded,
+            )
+            integrity = assess_paste_integrity(source.text, guarded)
+            if quality.status != "publishable" or not integrity.passed:
+                raise PasteQualityError("The analysis requires review")
+            result = project_paste_result(source, guarded)
+            result["integrity"] = integrity.record()
+            result["materiality_label"] = MATERIALITY_LABELS[guarded.impact_score]
+            result["telemetry"] = {"requests": getattr(engine, "request_calls", 0),
+                                   "usage": getattr(engine, "usage_records", []),
+                                   "fallback_used": used_fallback}
+            result["versions"] = {
+                "model": engine.model_name,
+                "prompt": settings.prompt_version,
+                "adapter": PASTE_ADAPTER_VERSION,
+                "editorial": PASTE_EDITORIAL_VERSION,
+                "evidence": EVIDENCE_VERSION,
+            }
+            return result
+        finally:
+            engine.client.close()
+    except Exception:
+        raise
