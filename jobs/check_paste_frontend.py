@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import copy
 import json
+import re
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -74,7 +75,9 @@ def run(base: str, out: Path) -> None:
                     payload = {"analysis_id": "fixture-job", "status": "processing" if state["polls"] == 1 else "complete", "result": state["card"]}
                 route.fulfill(status=200, json=payload)
 
-            page.route("**/api/v1/analyse**", fixture)
+            # A suffix glob attached to 'analyse' does not reliably cross '/'.
+            # Explicitly intercept both handshake/submission and every status poll.
+            page.route(re.compile(r"/api/v1/analyse(?:/[^?]*)?(?:\?.*)?$"), fixture)
             page.goto(base, wait_until="networkidle")
             expect(page.get_by_role("heading", name="See what matters.", exact=True)).to_be_visible()
             expect(page.locator("#analyse-button")).to_be_disabled()
@@ -88,12 +91,18 @@ def run(base: str, out: Path) -> None:
             page.locator("#rns-text").press("Control+Enter")
             expect(page.locator("#rns-text")).to_be_disabled()
             page.screenshot(path=out / f"loading-{name}.png", full_page=True)
-            expect(page.locator("#result")).to_be_visible(timeout=20000)
+            try:
+                expect(page.locator("#result")).to_be_visible(timeout=20000)
+            except AssertionError:
+                page.screenshot(path=out / f"failure-{name}.png", full_page=True)
+                print(json.dumps({"viewport": name, "message": page.locator("#form-message").inner_text(), "posts": state["posts"], "polls": state["polls"], "requests": requests_seen, "page_errors": failures}))
+                raise
             expect(page.locator("#result")).to_contain_text("Future revenue depends on successful development")
             expect(page.locator("#result")).to_contain_text("Not independently verified")
             assert page.locator(".metric-icon").count() == 3
             assert page.locator(".ticker").count() == 0
             assert state["posts"] == 1
+            assert state["polls"] == 2
             layout(page)
             page.screenshot(path=out / f"result-{name}.png", full_page=True)
 
