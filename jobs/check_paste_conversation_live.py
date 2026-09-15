@@ -1,8 +1,7 @@
-"""Explicit opt-in live check of analysis followed by one source-scoped question.
+"""Opt-in live analysis and follow-up check. No automatic retries or gate bypass.
 
-Default preflight performs no model request. A live run is limited to one document,
-up to two initial analysis requests and one answer request, with retries disabled.
-It does not deploy code, alter Railway, or prove launch readiness.
+Preflight makes no model request. Live mode allows at most two analysis requests
+and one answer. Diagnostic candidate text is confined to repository fixtures.
 """
 from __future__ import annotations
 
@@ -40,32 +39,44 @@ def run(output: Path, *, live: bool = False, model: str = "", case: str = "trt",
         os.environ["OPENAI_MAX_OUTPUT_TOKENS"] = "8000"
         import analyst.paste as adapter
         from analyst.paste_chat import answer_question
+        from pydantic import ValidationError
         started = time.monotonic()
         try:
             report["live_model"] = True
             with ExitStack() as instrumentation:
-                # Observe the existing checks; always return their unmodified results.
-                # Candidate text is captured ONLY for the repository's public fixtures,
-                # never for operator-supplied documents or ordinary application users.
+                # All observers call the original implementation exactly once and
+                # return it unchanged. They never correct output or suppress errors.
                 if source_file is None:
                     original_integrity = adapter.assess_paste_integrity
                     original_quality = adapter.merge_monitoring_quality
+                    original_engine = adapter.OpenAIAnalystEngine
+                    class ObservedEngine(original_engine):
+                        def _parse(self, **kwargs):
+                            response = super()._parse(**kwargs)
+                            if response.output_parsed is not None:
+                                report.setdefault("fixture_responses", []).append(response.output_parsed.model_dump(mode="json"))
+                            return response
+                        def analyse(self, *args, **kwargs):
+                            try:
+                                return super().analyse(*args, **kwargs)
+                            finally:
+                                report["analysis_telemetry"] = {"requests": self.request_calls, "usage": self.usage_records}
                     def observed_integrity(text, note):
                         checked = original_integrity(text, note)
-                        report["integrity_findings"] = [
-                            {"code": f.code, "field": f.field} for f in checked.findings]
+                        report["integrity_findings"] = [{"code": f.code, "field": f.field} for f in checked.findings]
                         report["fixture_candidate"] = note.model_dump(mode="json")
                         return checked
                     def observed_quality(*args, **kwargs):
                         checked = original_quality(*args, **kwargs)
                         report["quality_status"] = checked.status
-                        report["quality_flags"] = [
-                            {"code": f.code, "severity": f.severity} for f in checked.flags]
+                        report["quality_flags"] = [{"code": f.code, "severity": f.severity} for f in checked.flags]
                         return checked
+                    instrumentation.enter_context(patch.object(adapter, "OpenAIAnalystEngine", ObservedEngine))
                     instrumentation.enter_context(patch.object(adapter, "assess_paste_integrity", observed_integrity))
                     instrumentation.enter_context(patch.object(adapter, "merge_monitoring_quality", observed_quality))
                 card = adapter.analyse_paste(source)
             report.pop("fixture_candidate", None)
+            report.pop("fixture_responses", None)
             report["analysis_telemetry"] = card.get("telemetry")
             report["card_review"] = {key: card[key] for key in ("headline", "summary", "what_changed", "what_matters")}
             answer = answer_question(source, card, [], q.question)
@@ -74,7 +85,10 @@ def run(output: Path, *, live: bool = False, model: str = "", case: str = "trt",
             report["status"] = "bounded-checks-passed-human-review-required"
         except Exception as exc:
             report["status"] = "failed"; report["error_type"] = type(exc).__name__; code = 1
-            # Never log exception messages, request headers, keys or response bodies.
+            if source_file is None and isinstance(exc, ValidationError):
+                report["validation_errors"] = [{"type": e["type"], "location": list(e["loc"]), "message": e["msg"]}
+                    for e in exc.errors(include_input=False, include_url=False, include_context=False)]
+            # Never log provider exception messages, headers, keys or response bodies.
             status = getattr(exc, "status_code", None)
             if isinstance(status, int) and 400 <= status <= 599:
                 report["provider_status"] = status
