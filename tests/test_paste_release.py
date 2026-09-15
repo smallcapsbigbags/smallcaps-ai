@@ -104,3 +104,55 @@ def test_uncorrected_disclosure_gap_still_fails_final_gate(monkeypatch):
     monkeypatch.setattr(adapter,"merge_monitoring_quality",lambda q,*a,**kw:q)
     with pytest.raises(adapter.PasteQualityError):
         adapter.analyse_paste(source)
+
+
+
+def test_live_funded_duration_is_not_misread_as_conditional_revenue():
+    from analyst.paste_integrity import assess_paste_integrity
+    source,data=example()
+    fact=data["key_facts"][0]
+    fact.update(label="Development phase",metric="Programme duration",value="Funded six month programme",
+        basis="reported",assertion="actual",note="This is the funded initial phase before expected production.",
+        evidence_quotes=["Following successful completion of this funded six month development programme,"],
+        condition_quotes=["Following successful completion of this funded six month development programme,"])
+    # A quantified revenue numerator can be known while its group denominator is not.
+    data["materiality_evidence"].update(scale_known=False,amount_fact_index=2,denominator_fact_index=None)
+    note=EvidenceAnalystNote(**data)
+    checked=assess_paste_integrity(source.text,note)
+    assert checked.passed,checked.feedback()
+    assert note.key_facts[0].value==fact["value"]
+    assert note.materiality_evidence.scale_known is False
+
+
+@pytest.mark.parametrize("change",[
+    {"assertion":"expected","label":"Expected production","metric":"Production start"},
+    {"assertion":"actual","label":"Annual revenue","metric":"Annual revenue"},
+    {"assertion":"proposed","label":"Proposed funding amount","metric":"Funding amount"},
+    {"condition_quotes":["Subject to completion of development"]},
+])
+def test_duration_exception_never_hides_real_outcome_or_funding_conditions(change):
+    from analyst.paste_integrity import _funded_duration_context
+    from analyst.paste_evidence import EvidenceFact
+    fact=dict(label="Development phase",metric="Programme duration",value="Funded six month programme",
+        basis="reported",assertion="actual",note="Funded programme.",
+        evidence_quotes=["Following successful completion of this funded six month development programme,"],
+        condition_quotes=["Following successful completion of this funded six month development programme,"])
+    fact.update(change)
+    assert not _funded_duration_context(EvidenceFact(**fact))
+
+
+@pytest.mark.parametrize("index",[-1,999])
+def test_unknown_scale_does_not_allow_an_invalid_known_amount_reference(index):
+    from analyst.paste_integrity import assess_paste_integrity
+    source,data=example()
+    data["materiality_evidence"].update(scale_known=False,amount_fact_index=index)
+    report=assess_paste_integrity(source.text,EvidenceAnalystNote(**data))
+    assert "SCALE_AMOUNT_INVALID" in {f.code for f in report.findings}
+
+
+def test_unknown_scale_cannot_imply_a_known_denominator():
+    from analyst.paste_integrity import assess_paste_integrity
+    source,data=example()
+    data["materiality_evidence"].update(scale_known=False,amount_fact_index=2,denominator_fact_index=0)
+    report=assess_paste_integrity(source.text,EvidenceAnalystNote(**data))
+    assert "SCALE_STATUS_CONFLICT" in {f.code for f in report.findings}

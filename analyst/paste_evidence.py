@@ -79,7 +79,10 @@ or table row plus its headings to a naked number. Retain source qualifiers and c
 assertion describes the fact, independently of its basis: actual, expected, proposed,
 conditional, calculated, not-disclosed or source-warning. A reported expectation has
 basis=reported and assertion=expected, not actual. Provide verbatim condition_quotes
-for relevant dependencies (development, deployment, approval, financing). Preserve these
+for relevant dependencies (development, deployment, approval, financing). Conditions
+must apply to the chosen measure. The duration of an already funded development
+programme is not itself conditional on successfully completing that programme;
+completion conditions qualify future production or revenue instead. Preserve these
 conditions in the affected value/label/note and in primary copy or challenges_case.
 'Up to' and 'more than' are not exact amounts. Net bank cash is not gross cash or debt-free.
 A year-end cash figure is not the current balance after a subsequent acquisition payment.
@@ -114,7 +117,9 @@ Store the existing internal impact_level mapping for compatibility (3/4 both 'hi
 public label for 3 remains Material, not High. Do not use the old 'Medium' label to score.
 Provide materiality_evidence with basis, certainty, horizon and quotes. A numeric scale
 claim requires scale_known=true and the amount and denominator fact indexes, with the
-same currency and comparable annual periods. Without these, scale_known=false. Never
+same currency and comparable annual periods. Without these, scale_known=false and
+denominator_fact_index=null. A known quantified amount may still be referenced by
+amount_fact_index; it does not establish a ratio without a denominator. Never
 invent group revenue, market cap or margin. A missing denominator does NOT make an
 important event immaterial, and conditionality does NOT reduce a survival risk.
 The rationale is a short evidence-based explanation, not a price prediction. Do not

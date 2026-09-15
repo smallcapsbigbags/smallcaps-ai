@@ -112,6 +112,28 @@ def _condition_visible(condition: str, visible: str) -> bool:
         re.search(pattern,visible,re.I) for pattern in concepts)
 
 
+def _funded_duration_context(fact) -> bool:
+    """A funded phase's duration is not its future production outcome.
+
+    Narrow source-context exception: only an actual funded duration, and only
+    quotations consisting of the successful-completion antecedent itself. This
+    never exempts revenue, production, proposed funding or approval dependencies.
+    """
+    identity = fact.label + ' ' + fact.metric
+    if fact.basis != 'reported' or fact.assertion != 'actual':
+        return False
+    if not re.search(r'duration|development phase|development programme|programme length',identity,re.I):
+        return False
+    if re.search(r'revenue|production|cash|funding amount',identity,re.I):
+        return False
+    if not re.search(r'\bfunded\b',fact.value + ' ' + fact.note,re.I):
+        return False
+    antecedent = re.compile(r'following successful completion of (?:this|the|a) funded '
+                            r'[^,.;]{1,80}development (?:programme|program)[,.]?',re.I)
+    quotes = [*fact.evidence_quotes,*fact.condition_quotes]
+    return bool(quotes) and all(antecedent.fullmatch(' '.join(q.split())) for q in quotes)
+
+
 def primary_text(note: AnalystNote) -> str:
     facts = [f.model_dump(mode='json') for f in note.key_facts]
     selected = select_metric_indexes(facts,note.rns_type)
@@ -204,12 +226,13 @@ def assess_paste_integrity(source: str, note: AnalystNote) -> IntegrityReport:
                 report.add('PROPOSAL_AS_ACTUAL',path,'The cited proposal is not an approved/completed action.')
             if _EXPECTED.search(evidence) and re.search(r'production|revenue|runway|profit|pbt|eps',fact.label,re.I):
                 report.add('EXPECTATION_AS_ACTUAL',path,'The cited expectation is not a delivered result.')
-        if conditions:
+        duration_context = _funded_duration_context(fact)
+        if conditions and not duration_context:
             if not _condition_visible(conditions,outward):
                 report.add('CONDITION_LOST',path,'Preserve the dependency in the affected fact, not just its evidence.')
             if not _condition_visible(conditions,visible):
                 report.add('CONDITION_COLLAPSED',path,'Essential dependencies must also be visible on the primary card.')
-        if fact.basis == 'reported' and _CONDITIONAL.search(evidence) and not (conditions or _CONDITIONAL.search(outward)):
+        if fact.basis == 'reported' and not duration_context and _CONDITIONAL.search(evidence) and not (conditions or _CONDITIONAL.search(outward)):
             report.add('CONDITION_LOST',path,'The quoted dependency disappeared from the displayed fact.')
 
     targets = {'headline':[note.headline], 'takeaway':[note.takeaway],
@@ -284,8 +307,14 @@ def _materiality(report: IntegrityReport, source: str, note: EvidenceAnalystNote
         annual = lambda f: bool(re.search(r'annual|\bFY\s?\d{2,4}\b|year ended|full.year',f.label+' '+f.period,re.I))
         if left is None or right is None or left.unit != right.unit or right.amount <= 0 or not (annual(amount) and annual(denom)):
             report.add('SCALE_NOT_COMPARABLE','materiality','Financial scale needs comparable annual figures, units and a positive denominator.')
-    elif evidence.amount_fact_index is not None or evidence.denominator_fact_index is not None:
-        report.add('SCALE_STATUS_CONFLICT','materiality','Unknown financial scale must not imply a validated ratio.')
+    else:
+        # A disclosed numerator does not imply a known company-scale ratio. An
+        # unknown denominator must remain absent; no ratio is calculated here.
+        if evidence.denominator_fact_index is not None:
+            report.add('SCALE_STATUS_CONFLICT','materiality','Unknown financial scale must not imply a validated denominator.')
+        index = evidence.amount_fact_index
+        if index is not None and (index < 0 or index >= len(note.key_facts) or scalar(note.key_facts[index].value) is None):
+            report.add('SCALE_AMOUNT_INVALID','materiality','Reference an existing quantified amount or leave its index absent.')
     if evidence.certainty == 'committed' and _CONDITIONAL.search(quotes) and not re.search(r'minimum|binding|irrevocable',quotes,re.I):
         report.add('MATERIALITY_CERTAINTY_CHANGED','materiality','Retain the conditional outcome when explaining significance.')
     if note.impact_score >= 4 and evidence.basis == 'operational-milestone' and not evidence.scale_known:
