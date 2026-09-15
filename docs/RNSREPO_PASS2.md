@@ -82,3 +82,21 @@ PASTE_ANALYSIS_ENABLED=false. Never disable the legacy beta flag as a shortcut.
   https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html
 - PostgreSQL atomic conditional upsert:
   https://www.postgresql.org/docs/current/sql-insert.html
+
+## Live-test repair: select citations instead of recopying them
+
+The no-login production test reached the provider, but its answer failed source
+checks. A fixed-source diagnostic then exposed shortened quotations and a corrupted
+currency character, as well as a production condition missing from its metric.
+These were correctly rejected; the factual checks were not disabled.
+
+The wire schema now asks the model to choose IDs from a locally constructed catalog
+of short verbatim source excerpts rather than generate quotation text. IDs resolve
+server-side into the same internal CardDraft and run through the unchanged existing
+number, basis, condition and source-offset checks. Unknown IDs and arbitrary quote
+objects are rejected. Exact repeated excerpts with the same heading are deduplicated.
+Short table units are retained with adjacent original context. The existing request
+and output bounds, one-call limit and no-model-escalation policy remain.
+
+This prevents a quotation-copying error from becoming a failed card; it does not
+prove semantic entailment or completeness. Wider full-results evaluation is Pass 3.

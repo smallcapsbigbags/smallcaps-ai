@@ -11,6 +11,7 @@ from product.paste import PasteRequest, extract_identity
 from .schema import CardDraft, CardError, VERSION
 from .sections import select_passages
 from .validation import check_card
+from .citations import citation_catalog, wire_schema, resolve_wire
 
 LOG = logging.getLogger(__name__)
 MAX_REQUEST_BYTES = 30_000
@@ -50,10 +51,12 @@ qualification gives the most important limitation, in one or two short sentences
 without a label like 'The catch'. All six top-level fields are required; nullable
 fields must be null when not applicable. Keep total readable text about 120-180 words.
 
-Every statement and metric needs short verbatim quotations and their passage IDs.
-Use only IDs provided. Quote complete supporting sentences where possible, including
-conditions. For tables include row, year columns and units in the quotes; omit a
-metric if the copied table is ambiguous. Do not use a naked number as evidence.
+Every statement and metric needs evidence IDs from the supplied source excerpts.
+Return evidence as an array of excerpt IDs, e.g. ["q2"]. Never write or paraphrase
+quotation text in evidence. The server resolves IDs to exact original source text.
+Choose the specific excerpts supporting each field, including relevant conditions.
+For tables include excerpts covering row, year columns and units; omit a metric if
+its copied table is ambiguous. Do not use a naked number as evidence.
 Evidence is checked separately for EACH field. Every number, written-out duration,
 period and amount in a field must appear in that field's own quotes, not just in
 another field or elsewhere in the passage. Remove details you cannot support locally.
@@ -63,7 +66,10 @@ Preserve > / up-to bounds, adjusted/statutory labels, net-bank/gross cash distin
 and reporting dates. Use full year numbers (2026, not FY26). A proposed dividend is
 not paid. Expected production/revenue is not secured recurring revenue. Keep the
 expectation AND relevant conditions in the affected metric's label/note, and the
-main condition in qualification. The duration of already funded development is
+main condition in qualification. "Expected production" still needs a note such as
+"Subject to successful development" when that is a condition in its source excerpt.
+Keep value numerical ("6 months", "Q2 2027", ">£0.7m"), not a descriptive sentence.
+Do not repeat the value in period; leave period empty unless it adds a reporting date. The duration of already funded development is
 not itself conditional on completing that development. If discussing year-end cash,
 include material subsequent payments in qualification; it is not today's balance.
 Do not assert upgrades, growth, safety or completeness from silence in selected text.
@@ -79,13 +85,17 @@ def request_kwargs(source: PasteRequest, model: str) -> tuple[dict, Any]:
     if model not in MODELS: raise CardError("CARD_CONFIGURATION")
     selection = select_passages(source.text)
     identity = extract_identity(source.text)
+    catalog = citation_catalog(selection)
+    headings = {p.id: p.heading for p in selection.passages}
     payload = {"metadata": identity.model_dump(mode="json"),
                "selection_reduced": selection.reduced,
-               "passages": [p.payload() for p in selection.passages]}
+               "headings": headings,
+               "excerpts": [{"id": c.id, "section": c.passage_id, "text": c.quote}
+                            for c in catalog.values()]}
     kwargs = {"model": model, "instructions": INSTRUCTIONS,
         "input": json.dumps(payload, ensure_ascii=False, separators=(",", ":")),
         "text": {"format": {"type": "json_schema", "name": "RNSRepoCard",
-                            "strict": True, "schema": CardDraft.model_json_schema()}},
+                            "strict": True, "schema": wire_schema(catalog)}},
         "max_output_tokens": MAX_OUTPUT_TOKENS, "store": False}
     if MODELS[model] is not None: kwargs["reasoning"] = {"effort": MODELS[model]}
     # Byte bound includes schema + instructions + JSON escaping, not just the source.
@@ -108,7 +118,7 @@ def _provider_error(exc: Exception) -> CardError:
     return CardError("CARD_PROVIDER")
 
 
-def _draft(response: Any) -> CardDraft:
+def _draft(response: Any, catalog=None) -> CardDraft:
     # Inspect termination/refusal before trying to parse incomplete JSON. This avoids
     # misdiagnosing exhausted reasoning/output tokens as a model schema failure.
     if _get(response, "status") == "incomplete": raise CardError("CARD_INCOMPLETE")
@@ -121,7 +131,7 @@ def _draft(response: Any) -> CardDraft:
     raw = "".join(pieces)
     if not raw or len(raw) > 24_000: raise CardError("CARD_FORMAT")
     try:
-        return CardDraft.model_validate_json(raw)
+        return resolve_wire(raw, catalog) if catalog is not None else CardDraft.model_validate_json(raw)
     except (ValidationError, ValueError):
         raise CardError("CARD_FORMAT") from None
 
@@ -174,7 +184,7 @@ class CardExtractor:
             telemetry.update(input_tokens=_get(usage, "input_tokens"), output_tokens=_get(usage, "output_tokens"),
                 reasoning_tokens=_get(_get(usage, "output_tokens_details"), "reasoning_tokens"),
                 cached_input_tokens=_get(_get(usage, "input_tokens_details"), "cached_tokens"))
-            card = _draft(response)
+            card = _draft(response, citation_catalog(selection))
             integrity = check_card(source.text, selection, card)
             result = project_card(source, card, selection, integrity)
             telemetry["status"] = "passed"

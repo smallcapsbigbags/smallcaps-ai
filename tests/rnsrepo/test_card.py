@@ -71,8 +71,15 @@ def draft(text=TRT):
 
 
 def response(card, **override):
+    # Controlled provider responses use the production ID-only wire contract.
+    from rnsrepo.citations import citation_catalog
+    catalog = citation_catalog(select_passages(TRT))
+    wire = card.model_dump(mode='json')
+    for item in [wire[k] for k in ('headline','supporting_sentence','what_changed','qualification') if wire[k] is not None] + wire['metrics']:
+        item['evidence'] = [next(c.id for c in catalog.values() if ref['quote'] in c.quote)
+                            for ref in item['evidence']]
     value = {"status": "completed", "output": [{"type": "message", "content": [
-        {"type": "output_text", "text": card.model_dump_json()}]}],
+        {"type": "output_text", "text": json.dumps(wire)}]}],
         "usage": {"input_tokens": 1200, "output_tokens": 700,
                   "output_tokens_details": {"reasoning_tokens": 100},
                   "input_tokens_details": {"cached_tokens": 0}}}
