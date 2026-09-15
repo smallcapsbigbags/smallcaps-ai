@@ -51,11 +51,6 @@ def run(output: Path, *, live: bool = False, model: str = "", case: str = "trt",
                     original_quality = adapter.merge_monitoring_quality
                     original_engine = adapter.OpenAIAnalystEngine
                     class ObservedEngine(original_engine):
-                        def _parse(self, **kwargs):
-                            response = super()._parse(**kwargs)
-                            if response.output_parsed is not None:
-                                report.setdefault("fixture_responses", []).append(response.output_parsed.model_dump(mode="json"))
-                            return response
                         def analyse(self, *args, **kwargs):
                             try:
                                 return super().analyse(*args, **kwargs)
@@ -76,7 +71,6 @@ def run(output: Path, *, live: bool = False, model: str = "", case: str = "trt",
                     instrumentation.enter_context(patch.object(adapter, "merge_monitoring_quality", observed_quality))
                 card = adapter.analyse_paste(source)
             report.pop("fixture_candidate", None)
-            report.pop("fixture_responses", None)
             report["analysis_telemetry"] = card.get("telemetry")
             report["card_review"] = {key: card[key] for key in ("headline", "summary", "what_changed", "what_matters")}
             answer = answer_question(source, card, [], q.question)
@@ -101,7 +95,9 @@ def run(output: Path, *, live: bool = False, model: str = "", case: str = "trt",
     report["source_files"] = {str(p.relative_to(root)): hashlib.sha256(p.read_bytes()).hexdigest()
         for p in (root/"analyst/paste.py", root/"analyst/paste_chat.py", root/"product/paste_chat.py")}
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(json.dumps(report, indent=2, ensure_ascii=False)+"\n", encoding="utf-8")
+    # One JSON record avoids dropping the decisive diagnostics at Railway's
+    # per-second line-rate limit. Do not log copies of intermediate model notes.
+    output.write_text(json.dumps(report, ensure_ascii=False, separators=(",", ":"))+"\n", encoding="utf-8")
     print(json.dumps({"status": report["status"], "live_model": report["live_model"], "report": str(output)}))
     return code
 
