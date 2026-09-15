@@ -128,3 +128,6 @@
   .has-result { width: 100%; margin: 0; }
   .result { margin: 0; box-shadow: none; }
 }
+
+/* RNSRepo cards have a brand accent, never an inferred sentiment score. */
+.result[data-layout="rnsrepo-card-1"] { --accent: var(--green); --ink-accent: #0b573d; --tint: #f0f7f3; }

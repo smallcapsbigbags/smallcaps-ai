@@ -57,9 +57,9 @@ def _bounded_env(name: str, default: int, maximum: int) -> int:
 @lru_cache(maxsize=1)
 def default_jobs() -> PasteJobs:
     # Lazy construction: opening a page or polling does not instantiate the model.
-    from analyst.paste import analyse_paste
+    from rnsrepo.extractor import extract_card
     return PasteJobs(
-        analyse_paste,
+        extract_card,
         hourly_limit=_bounded_env("PASTE_MAX_JOBS_PER_HOUR", 30, 100),
         owner_limit=_bounded_env("PASTE_MAX_JOBS_PER_SESSION", 6, 20),
     )

@@ -88,6 +88,7 @@
   function render(target, card) {
     if (!card || !Array.isArray(card.facts) || card.facts.some(f => !f || typeof f !== "object")
         || !text(card.headline)) throw new Error("The analysis could not be displayed. Your text is still here.");
+    const compact = card.schema_version === "rnsrepo-card-1";
     const facts = card.facts;
     const identity = card.identity || {};
     const indexes = metricIndexes(card, facts);
@@ -132,12 +133,12 @@
     const changed = text(card.what_changed);
     // A contract card leads with what happened, numbers and conditions; its full delta
     // remains available below. Other announcements retain a distinct explanatory section.
-    const showChanged = changed && card.rns_type !== "Contracts"
+    const showChanged = changed && (compact || card.rns_type !== "Contracts")
       && ![key(card.summary), key(card.headline)].includes(key(changed));
     if (showChanged) fragment.append(section("What changed", [changed], "what-changed"));
     // Legacy notes were not instructed to mirror essential caveats into primary fields.
     // Keep their entire analyst view visible rather than silently moving it into detail.
-    const editorial = card.versions?.editorial === "paste-editorial-2b";
+    const editorial = compact || card.versions?.editorial === "paste-editorial-2b";
     const qualifications = unique([
       ...(editorial ? [] : [card.analyst_view]),
       ...(Array.isArray(card.what_matters) ? card.what_matters : []),
@@ -162,7 +163,7 @@
       && ![key(card.summary), key(card.headline), ...visibleQualifications.map(key)].includes(key(changed));
     const extraView = text(card.analyst_view)
       && ![key(card.summary), key(changed), key(fallbackView), ...visibleQualifications.map(key)].includes(key(card.analyst_view));
-    if (remaining.length || extraChanged || extraView) {
+    if (!compact && (remaining.length || extraChanged || extraView)) {
       const details = node("details", null, "more-facts");
       details.append(node("summary", remaining.length ? "More facts" : "More detail"));
       if (extraChanged) details.append(section("What changed", [changed], "detail-changed"));
@@ -184,16 +185,18 @@
       fragment.append(details);
     }
     const footer = node("footer", null, "result-footer");
-    footer.append(node("span", "AI analysis of pasted text · Not independently verified", "source-note"));
+    footer.append(node("span", compact
+      ? `AI summary of ${card.selection?.reduced ? "selected sections of " : ""}pasted text · Not independently verified`
+      : "AI analysis of pasted text · Not independently verified", "source-note"));
     const level = Number.isInteger(card.materiality) ? LEVELS[card.materiality] : "";
     const impact = node("details", null, "materiality");
     impact.append(node("summary", `Impact · ${level || "Unrated"}`));
     impact.append(node("p", text(card.materiality_rationale) || "Significance of the announcement, not a prediction of its share-price movement."));
-    footer.append(impact);
+    if (!compact) footer.append(impact);
     fragment.append(footer);
     target.replaceChildren(fragment);
-    target.dataset.layout = "paste-card-2b";
-    target.dataset.direction = ["green", "amber", "red", "grey"].includes(card.direction) ? card.direction : "grey";
+    target.dataset.layout = compact ? "rnsrepo-card-1" : "paste-card-2b";
+    target.dataset.direction = compact ? "brand" : ["green", "amber", "red", "grey"].includes(card.direction) ? card.direction : "grey";
   }
   window.SmallcapsCard = Object.freeze({render});
 })();

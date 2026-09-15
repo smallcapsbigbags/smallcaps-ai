@@ -48,7 +48,7 @@
     window.SmallcapsCard.render(result, card);
     result.hidden = false;
     document.getElementById("analyse-shell").classList.add("has-result");
-    if (card.integrity?.status === "passed") window.SmallcapsQuestions?.attach(id);
+    if (card.integrity?.status === "passed" && card.capabilities?.questions !== false) window.SmallcapsQuestions?.attach(id);
     result.focus({ preventScroll: true });
     result.scrollIntoView({ block: "start", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
   }
@@ -94,12 +94,26 @@
       while (job.status === "processing") {
         if (Date.now() - start > 600000) throw new Error("This is taking longer than expected. Check the analysis again shortly.");
         await new Promise((resolve) => setTimeout(resolve, 1500));
-        if (Date.now() - start > 45000) say("Still analysing. Complex announcements can take longer.");
+        if (Date.now() - start > 12000) say("Preparing your card and checking the figures…");
         job = await request(`/api/v1/analyse/${encodeURIComponent(analysisId)}`);
       }
       resume = false;
       analysisId = null;
       if (job.status !== "complete") {
+        const errors = {
+          CARD_RATE_LIMIT: "The AI service is busy. Your text is still here. Try again shortly.",
+          CARD_QUOTA: "The AI service has reached its usage allowance. Your text is still here.",
+          CARD_TIMEOUT: "The summary took too long. Your text is still here. Please try again.",
+          CARD_INCOMPLETE: "The AI response was incomplete. Your text is still here. Please try again.",
+          CARD_FORMAT: "The summary could not be read. Your text is still here. Please try again.",
+          CARD_EVIDENCE: "We couldn’t verify this summary against the pasted text. Your text is still here.",
+          CARD_SELECTION: "We couldn’t fit the important sections into a short card safely. Your text is still here.",
+          CARD_REQUEST_LIMIT: "This text needs a larger summary request than the current limit allows. Your text is still here.",
+          CARD_REFUSED: "The AI service could not summarise this text. Your text is still here.",
+          CARD_CONFIGURATION: "The summary service needs a configuration fix. Your text is still here.",
+          CARD_PROVIDER: "The AI service is temporarily unavailable. Your text is still here. Please try again later."
+        };
+        if (errors[job.error_code]) throw new Error(errors[job.error_code]);
         throw new Error(job.error_code === "REVIEW_REQUIRED"
           ? "We couldn’t produce a reliable card. Check that the complete announcement is included."
           : "Analysis is temporarily unavailable. Your text is still here. Please try again later.");

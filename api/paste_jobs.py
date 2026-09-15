@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from typing import Callable
 
 from product.paste import PasteRequest
+from rnsrepo.schema import CardError
 
 _LOG = logging.getLogger(__name__)
 Runner = Callable[[PasteRequest], dict[str, object]]
@@ -108,7 +109,8 @@ class PasteJobs:
         except Exception as exc:
             # Never log the exception message: provider errors can contain source text.
             _LOG.warning("paste_analysis_failed job=%s type=%s", job_id, type(exc).__name__)
-            code = "REVIEW_REQUIRED" if type(exc).__name__ == "PasteQualityError" else "ANALYSIS_UNAVAILABLE"
+            code = (exc.code if isinstance(exc, CardError) else
+                    "REVIEW_REQUIRED" if type(exc).__name__ == "PasteQualityError" else "ANALYSIS_UNAVAILABLE")
             with self._lock:
                 self._jobs[job_id].status = "failed"
                 self._jobs[job_id].error_code = code

@@ -1,0 +1,37 @@
+name: rnsrepo-card-pass1
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: pip install -r requirements.txt && pip install playwright
+      - run: python -m playwright install --with-deps chromium
+      - run: mkdir -p rnsrepo-evidence && python -m pytest tests/rnsrepo -q --junitxml=rnsrepo-evidence/focused.xml
+      - run: python -m pytest tests -q --junitxml=rnsrepo-evidence/full.xml
+      - run: python -m jobs.check_rnsrepo_card --output rnsrepo-evidence/preflight.json
+      - run: python -m jobs.check_rnsrepo_frontend --output rnsrepo-evidence/browser
+      - name: Source record
+        if: always()
+        run: |
+          mkdir -p rnsrepo-evidence
+          git archive --format=tar.gz HEAD > rnsrepo-evidence/application-source.tar.gz
+          git ls-tree -r HEAD > rnsrepo-evidence/source-tree.txt
+          git rev-parse HEAD > rnsrepo-evidence/commit.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rnsrepo-card-pass1-evidence
+          path: rnsrepo-evidence/
+          retention-days: 7

@@ -77,6 +77,8 @@ class FollowupJobs:
         if context is None:
             raise ConversationMissing("This analysis has expired or is not available in this browser.")
         source, card = context
+        if card.get("capabilities", {}).get("questions") is False:
+            raise ConversationMissing("Questions are not enabled for this information card.")
         if (card.get("source_hash") != source.source_hash
                 or card.get("integrity", {}).get("status") != "passed"):
             raise ConversationMissing("A checked analysis is needed before asking a question.")
