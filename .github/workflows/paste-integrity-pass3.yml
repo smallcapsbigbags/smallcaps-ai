@@ -1,0 +1,50 @@
+name: paste-integrity-pass3
+
+on:
+  pull_request:
+    branches: ["main"]
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: paste-integrity-pass3-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  integrity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DATABASE_URL: "sqlite+pysqlite:///:memory:"
+      PRIVATE_BETA_MODE: "false"
+      PASTE_ANALYSIS_ENABLED: "false"
+      AIM_DISCOVERY_MODE: disabled
+      MARKET_DATA_ENABLED: "false"
+      OPENAI_API_KEY: ""
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Capture reproducible application sources (no credentials or runtime data)
+        run: |
+          mkdir -p /tmp/paste-integrity-pass3
+          git ls-tree -r HEAD > /tmp/paste-integrity-pass3/source-tree.txt
+          git archive --format=tar.gz --output=/tmp/paste-integrity-pass3/application-source.tar.gz HEAD analyst api database ingestion jobs market product ui prompts tests benchmarks frontend settings.py pipeline.py web_app.py requirements.txt
+      - name: Install and verify paste contracts
+        run: |
+          pip install -r requirements.txt
+          pytest -q tests/test_paste_mvp.py tests/test_paste_card.py tests/test_paste_editorial.py
+      - name: Upload verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: paste-integrity-pass3-evidence
+          path: /tmp/paste-integrity-pass3
+          if-no-files-found: error
+          retention-days: 7
