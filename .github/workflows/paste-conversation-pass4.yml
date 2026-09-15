@@ -1,0 +1,53 @@
+name: paste-conversation-pass4
+on:
+  pull_request:
+    branches: ["main"]
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: paste-conversation-pass4-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  source-scoped-conversation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DATABASE_URL: "sqlite+pysqlite:///:memory:"
+      PRIVATE_BETA_MODE: "false"
+      AIM_DISCOVERY_MODE: disabled
+      MARKET_DATA_ENABLED: "false"
+      OPENAI_API_KEY: ""
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install application and browser dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install playwright==1.55.0
+          python -m playwright install --with-deps chromium
+      - name: Verify source-scoped QA and bounded jobs
+        run: |
+          mkdir -p /tmp/paste-conversation-pass4
+          git ls-tree -r HEAD > /tmp/paste-conversation-pass4/source-tree.txt
+          node --check frontend/assets/analysis-questions.js
+          node --check frontend/assets/analyse.js
+          python -m compileall -q analyst api product jobs web_app.py
+          pytest -q tests/test_paste_chat.py tests/test_paste_mvp.py tests/test_paste_integrity.py tests/test_paste_card.py tests/test_paste_editorial.py --junitxml=/tmp/paste-conversation-pass4/tests.xml
+      - name: Verify browser journey with real local API and stubbed models
+        run: python -m jobs.check_paste_conversation --output /tmp/paste-conversation-pass4/browser
+      - name: Record explicit no-model preflight
+        run: python -m jobs.check_paste_conversation_live --output /tmp/paste-conversation-pass4/live-preflight.json
+      - name: Upload verification artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: paste-conversation-pass4-evidence
+          path: /tmp/paste-conversation-pass4
+          if-no-files-found: error
+          retention-days: 30

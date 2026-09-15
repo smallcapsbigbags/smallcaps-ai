@@ -1,0 +1,283 @@
+[
+  {
+    "id": "spr",
+    "provenance": "Test excerpt and manually authored analysis based on the Springfield RNS pasted in the conversation. Not a live model result.",
+    "source": "Springfield Properties plc\n15 September 2026\nFinal Results and Publication of Annual Report\nSpringfield Properties (AIM: SPR) announces results for the year ended 31 May 2026.\nRevenue £243.7m; adjusted PBT £12.9m. Net bank cash £1.2m at year end, versus £20.9m net bank debt.\nProposed dividend 3.0p versus 2.0p. Subject to shareholder approval.\nPrivate housing revenue £165.0m; affordable housing revenue £54.3m.\nLand sales £14.1m versus £60.5m. Final deferred consideration of £20.7m paid after year end.\nThe company intends to commence a share buyback programme.\n",
+    "note": {
+      "rns_type": "Results & trading",
+      "impact_colour": "green",
+      "impact_score": 3,
+      "impact_level": "high",
+      "impact_rationale": "Significance of the disclosed change, not a predicted share-price reaction.",
+      "headline": "Housing revenue grows; net bank debt cleared",
+      "takeaway": "Private and affordable housing revenue grew. Lower land sales reduced reported revenue and profit, while the dividend proposal rose to 3.0p.",
+      "what_changed": {
+        "before": "No independent earlier history supplied.",
+        "today": "Net bank debt of £20.9m became £1.2m net bank cash at year-end. The proposed dividend rose 50%; a share buyback is planned.",
+        "read_through": "A stronger balance sheet gives Springfield more flexibility. The £1.2m cash figure is at 31 May, before the £20.7m acquisition payment made after year-end."
+      },
+      "analyst_view": "A stronger balance sheet gives Springfield more flexibility. The £1.2m cash figure is at 31 May, before the £20.7m acquisition payment made after year-end.",
+      "key_facts": [
+        {
+          "label": "Private housing revenue",
+          "metric": "private housing revenue",
+          "value": "£165.0m",
+          "basis": "reported",
+          "period": "FY26",
+          "previous_value": "£155.8m"
+        },
+        {
+          "label": "Revenue",
+          "metric": "revenue",
+          "value": "£243.7m",
+          "basis": "reported",
+          "period": "FY26",
+          "previous_value": "£280.6m"
+        },
+        {
+          "label": "Adjusted PBT",
+          "metric": "adjusted pbt",
+          "value": "£12.9m",
+          "basis": "reported",
+          "period": "FY26",
+          "previous_value": "£20.1m"
+        },
+        {
+          "label": "Basic EPS",
+          "metric": "basic eps",
+          "value": "7.91p",
+          "basis": "reported",
+          "period": "FY26",
+          "previous_value": "11.86p"
+        },
+        {
+          "label": "Cash balance",
+          "metric": "cash balance",
+          "value": "£24.2m",
+          "basis": "reported",
+          "as_of_date": "31 May 2026"
+        },
+        {
+          "label": "Net bank cash",
+          "metric": "net bank cash",
+          "value": "£1.2m",
+          "basis": "reported",
+          "as_of_date": "31 May 2026",
+          "previous_value": "£20.9m net bank debt"
+        },
+        {
+          "label": "Proposed dividend",
+          "metric": "proposed dividend",
+          "value": "3.0p",
+          "basis": "reported",
+          "period": "FY26",
+          "previous_value": "2.0p",
+          "note": "Subject to shareholder approval."
+        },
+        {
+          "label": "Land sales",
+          "metric": "land sales",
+          "value": "£14.1m",
+          "basis": "reported",
+          "period": "FY26",
+          "previous_value": "£60.5m"
+        },
+        {
+          "label": "Affordable housing revenue",
+          "metric": "affordable housing revenue",
+          "value": "£54.3m",
+          "basis": "reported",
+          "period": "FY26",
+          "previous_value": "£49.4m"
+        },
+        {
+          "label": "Acquisition payment",
+          "metric": "acquisition payment",
+          "value": "£20.7m",
+          "basis": "reported",
+          "period": "After year-end",
+          "note": "Final deferred consideration paid."
+        }
+      ],
+      "challenges_case": [
+        "The buyback is intended, not described as having started."
+      ],
+      "source_warnings": [],
+      "confidence": 0.9
+    },
+    "expected_metric_indexes": [
+      1,
+      2,
+      5,
+      6
+    ]
+  },
+  {
+    "id": "trt",
+    "provenance": "Test excerpt of the supplied Transense announcement. Ticker is deliberately absent because this source does not supply it. Analysis is a fixture.",
+    "source": "RNS Number : 7173U\nTransense Technologies PLC\n15 September 2026\nContract award with Continental to develop next-generation tyre management tool\nTranslogik will develop a bespoke version of its handheld TLGX device.\nA funded six month development programme precedes production expected from Q2 2027.\nSubject to completion of development, the board expects annual revenues of more than £0.7m from future deployments.\n",
+    "note": {
+      "rns_type": "Contracts",
+      "impact_colour": "green",
+      "impact_score": 3,
+      "impact_level": "high",
+      "impact_rationale": "Significance of the disclosed change, not a predicted share-price reaction.",
+      "headline": "Continental funds a new tyre-management tool",
+      "takeaway": "A bespoke TLGX device will be developed for Continental. Production is expected from Q2 2027, following a funded six-month programme.",
+      "what_changed": {
+        "before": "No independent earlier history supplied.",
+        "today": "An existing Continental relationship has expanded into a funded development and supply programme.",
+        "read_through": "Useful commercial progress. Expected annual revenue is not a minimum purchase commitment; the financial contribution will depend on actual deployments and margins."
+      },
+      "analyst_view": "Useful commercial progress. Expected annual revenue is not a minimum purchase commitment; the financial contribution will depend on actual deployments and margins.",
+      "key_facts": [
+        {
+          "label": "Customer",
+          "metric": "customer",
+          "value": "Continental",
+          "basis": "reported"
+        },
+        {
+          "label": "Development",
+          "metric": "development",
+          "value": "6 months",
+          "basis": "reported",
+          "note": "Funded programme."
+        },
+        {
+          "label": "Expected production",
+          "metric": "expected production",
+          "value": "From Q2 2027",
+          "basis": "reported",
+          "note": "Following successful development."
+        },
+        {
+          "label": "Expected annual revenue",
+          "metric": "expected annual revenue",
+          "value": ">£0.7m",
+          "basis": "reported",
+          "period": "Future deployments",
+          "note": "Subject to successful development and subsequent deployment."
+        },
+        {
+          "label": "Minimum volumes",
+          "metric": "minimum volumes",
+          "value": "Not disclosed",
+          "basis": "not-disclosed"
+        },
+        {
+          "label": "Margin",
+          "metric": "margin",
+          "value": "Not disclosed",
+          "basis": "not-disclosed"
+        }
+      ],
+      "challenges_case": [
+        "Future revenue depends on successful development and subsequent deployment."
+      ],
+      "source_warnings": [],
+      "confidence": 0.9
+    },
+    "expected_metric_indexes": [
+      1,
+      2,
+      3
+    ]
+  },
+  {
+    "id": "funding",
+    "provenance": "Entirely synthetic funding stress fixture; not a real company announcement.",
+    "source": "Example Therapeutics plc\n15 September 2026\nOperational update\nThe company (AIM: EXM) has cash of £1.5m at 31 August 2026.\nManagement expects that cash to last until December 2026. Further funding is needed.\nThe proposed funding of up to £4m is not yet committed.\n",
+    "note": {
+      "rns_type": "Funding & solvency",
+      "impact_colour": "red",
+      "impact_score": 5,
+      "impact_level": "critical",
+      "impact_rationale": "Significance of the disclosed change, not a predicted share-price reaction.",
+      "headline": "Further funding needed before the next milestone",
+      "takeaway": "Cash is £1.5m at 31 August. Management expects funding to last until December, but no binding financing has been agreed.",
+      "what_changed": {
+        "before": "No independent earlier history supplied.",
+        "today": "Management says further funding is needed before the next milestone. The proposed £4m financing is not committed.",
+        "read_through": "The funding requirement is the immediate issue. A proposed financing does not extend the runway until funds are secured."
+      },
+      "analyst_view": "The funding requirement is the immediate issue. A proposed financing does not extend the runway until funds are secured.",
+      "key_facts": [
+        {
+          "label": "Cash",
+          "metric": "cash",
+          "value": "£1.5m",
+          "basis": "reported",
+          "as_of_date": "31 August 2026"
+        },
+        {
+          "label": "Expected cash runway",
+          "metric": "expected cash runway",
+          "value": "To December 2026",
+          "basis": "reported",
+          "note": "Management expectation, not a calculated runway."
+        },
+        {
+          "label": "Proposed funding amount",
+          "metric": "proposed funding amount",
+          "value": "Up to £4m",
+          "basis": "reported",
+          "note": "Not committed."
+        },
+        {
+          "label": "Funding source",
+          "metric": "funding source",
+          "value": "Not disclosed",
+          "basis": "not-disclosed"
+        },
+        {
+          "label": "Source inconsistency",
+          "metric": "source inconsistency",
+          "value": "Two amounts are labelled as cash.",
+          "basis": "source-warning",
+          "note": "Resolve the source discrepancy before relying on the amounts."
+        }
+      ],
+      "challenges_case": [],
+      "source_warnings": [],
+      "confidence": 0.9
+    },
+    "expected_metric_indexes": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "id": "sparse",
+    "provenance": "Entirely synthetic non-quantified corporate fixture.",
+    "source": "A company announces that discussions about a potential commercial collaboration remain ongoing.\nNo financial terms have been agreed and there is no certainty that discussions will result in an agreement.\n",
+    "note": {
+      "rns_type": "Corporate",
+      "impact_colour": "grey",
+      "impact_score": 1,
+      "impact_level": "low",
+      "impact_rationale": "Significance of the disclosed change, not a predicted share-price reaction.",
+      "headline": "Discussions continue; no financial terms agreed",
+      "takeaway": "The announcement confirms that discussions remain ongoing. No agreement or financial terms are disclosed.",
+      "what_changed": {
+        "before": "No independent earlier history supplied.",
+        "today": "No new agreement is confirmed.",
+        "read_through": "Too little new information to assess the financial impact."
+      },
+      "analyst_view": "Too little new information to assess the financial impact.",
+      "key_facts": [
+        {
+          "label": "Financial terms",
+          "metric": "financial terms",
+          "value": "Not disclosed",
+          "basis": "not-disclosed"
+        }
+      ],
+      "challenges_case": [],
+      "source_warnings": [],
+      "confidence": 0.9
+    },
+    "expected_metric_indexes": []
+  }
+]

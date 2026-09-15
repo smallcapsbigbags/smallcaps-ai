@@ -13,7 +13,18 @@ def test_private_beta_requires_password(monkeypatch) -> None:
     assert any("APP_BETA_PASSWORD" in error for error in errors)
 
 
-def test_ingestion_requires_openai_key(monkeypatch) -> None:
-    monkeypatch.setenv("PRIVATE_BETA_MODE", "false"); monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+def test_enabled_ingestion_requires_openai_key(monkeypatch) -> None:
+    monkeypatch.setenv("PRIVATE_BETA_MODE", "false")
+    monkeypatch.setenv("AIM_DISCOVERY_MODE", "licensed")
+    monkeypatch.setenv("AIM_LICENSED_FEED_URL", "https://example.invalid/feed")
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     errors, _warnings = Settings.from_env().runtime_issues("ingestion")
     assert any("OPENAI_API_KEY" in error for error in errors)
+
+
+def test_disabled_discovery_does_not_require_an_analyst_key(monkeypatch) -> None:
+    monkeypatch.setenv("PRIVATE_BETA_MODE", "false")
+    monkeypatch.setenv("AIM_DISCOVERY_MODE", "disabled")
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    errors, _warnings = Settings.from_env().runtime_issues("ingestion")
+    assert not any("OPENAI_API_KEY" in error for error in errors)

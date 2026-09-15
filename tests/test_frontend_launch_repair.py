@@ -46,7 +46,8 @@ def test_company_news_bootstrap_script_is_versioned(monkeypatch) -> None:
 def test_primary_navigation_is_news_watchlist_then_search(monkeypatch) -> None:
     client = _client(monkeypatch)
 
-    for path in ("/rns", "/", "/company/SPR"):
+    # The new on-demand home intentionally has no dashboard navigation.
+    for path in ("/rns", "/company/SPR"):
         html = client.get(path).text
         navigation = html.split('aria-label="Primary navigation"', 1)[1].split(
             "</nav>", 1

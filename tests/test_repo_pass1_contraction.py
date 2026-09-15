@@ -25,7 +25,7 @@ def _client(monkeypatch) -> TestClient:  # type: ignore[no-untyped-def]
     return TestClient(Starlette(routes=create_frontend_routes()))
 
 
-def test_company_news_is_the_product_front_door(monkeypatch) -> None:
+def test_paste_is_the_front_door_and_company_news_remains_available(monkeypatch) -> None:
     client = _client(monkeypatch)
 
     home = client.get("/")
@@ -33,10 +33,13 @@ def test_company_news_is_the_product_front_door(monkeypatch) -> None:
 
     assert home.status_code == 200
     assert news.status_code == 200
+    assert "See what matters." in home.text
+    assert "Paste an RNS…" in home.text
+    assert "data-company-search" not in home.text
+    assert "AIM COMPANY NEWS" in news.text
+    assert "Facts. No fluff." in news.text
+    assert "What changed across AIM." in news.text
     for response in (home, news):
-        assert "AIM COMPANY NEWS" in response.text
-        assert "Facts. No fluff." in response.text
-        assert "What changed across AIM." in response.text
         assert "THE AIM DAILY" not in response.text
         assert 'data-product-nav="daily"' not in response.text
 

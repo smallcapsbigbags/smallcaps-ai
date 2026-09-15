@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import json
+import time
 from pathlib import Path
-from typing import Protocol, Sequence
+from typing import Callable, Protocol, Sequence
 
 from analyst.intelligence_policy import (
     AnalystIntelligenceBundle,
@@ -49,6 +50,13 @@ class OpenAIAnalystEngine:
 
         self.client = OpenAI(api_key=api_key, timeout=timeout_seconds, max_retries=1)
         self.model_name = model
+        # Opt-in paste extension; ingestion keeps AnalystNote and its existing policy.
+        self.response_type: type[AnalystNote] = AnalystNote
+        self.draft_validator: Callable[[AnnouncementInput, AnalystNote], list[str]] | None = None
+        self.validation_feedback: list[str] = []
+        self.request_limit: int | None = None
+        self.request_calls = 0
+        self.usage_records: list[dict[str, int]] = []
         self.max_output_tokens = max(2_000, max_output_tokens)
         self.initial_analysis_calls = 0
         self.consistency_review_calls = 0
@@ -114,6 +122,20 @@ class OpenAIAnalystEngine:
                 facts_prompt,
             )
         )
+
+    def _parse(self, **kwargs):
+        if self.request_limit is not None and self.request_calls >= self.request_limit:
+            raise RuntimeError("Analyst request limit reached")
+        self.request_calls += 1
+        start = time.monotonic()
+        response = self.client.responses.parse(**kwargs)
+        usage = getattr(response, "usage", None)
+        self.usage_records.append({
+            "input_tokens": int(getattr(usage, "input_tokens", 0) or 0),
+            "output_tokens": int(getattr(usage, "output_tokens", 0) or 0),
+            "elapsed_ms": int((time.monotonic() - start) * 1000),
+        })
+        return response
 
     @property
     def analyst_model_calls(self) -> int:
@@ -184,9 +206,10 @@ class OpenAIAnalystEngine:
             "eligible_prior_context": list(prior_context),
             "draft_analyst_note": draft.model_dump(mode="json"),
             "deterministic_analyst_intelligence": intelligence.to_review_record(),
+            "paste_integrity_feedback": self.validation_feedback,
         }
         self.consistency_review_calls += 1
-        response = self.client.responses.parse(
+        response = self._parse(
             model=self.model_name,
             instructions=self.review_prompt,
             input=(
@@ -203,7 +226,7 @@ class OpenAIAnalystEngine:
                 "Return the complete corrected AnalystNote.\n\n"
                 + json.dumps(review_payload, ensure_ascii=False)
             ),
-            text_format=AnalystNote,
+            text_format=self.response_type,
             max_output_tokens=self.max_output_tokens,
             store=False,
         )
@@ -227,7 +250,7 @@ class OpenAIAnalystEngine:
             "analyst_intelligence_profile": profile.to_context_record(),
         }
         self.initial_analysis_calls += 1
-        response = self.client.responses.parse(
+        response = self._parse(
             model=self.model_name,
             instructions=self.system_prompt,
             input=(
@@ -252,7 +275,7 @@ class OpenAIAnalystEngine:
                 "structured concept explanations. Do not expose private reasoning.\n\n"
                 + json.dumps(payload, ensure_ascii=False)
             ),
-            text_format=AnalystNote,
+            text_format=self.response_type,
             max_output_tokens=self.max_output_tokens,
             store=False,
         )
@@ -288,6 +311,18 @@ class OpenAIAnalystEngine:
                     f"review policy failed closed: {type(exc).__name__}",
                 ),
             )
+        self.validation_feedback = []
+        if self.draft_validator is not None:
+            try:
+                self.validation_feedback = self.draft_validator(announcement, parsed)
+            except Exception:
+                # Fail closed without dumping source/model data into error messages.
+                self.validation_feedback = ["PASTE_CHECK_FAILED: return complete source-bound evidence."]
+            if self.validation_feedback:
+                review_decision = ReviewDecision(
+                    mode="review",
+                    reasons=(*review_decision.reasons, "paste evidence/consistency checks require review"),
+                )
         self.last_review_decision = review_decision
 
         if review_decision.requires_review:

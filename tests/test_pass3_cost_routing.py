@@ -227,6 +227,12 @@ def engine_with(outputs: list[AnalystNote]) -> OpenAIAnalystEngine:
     engine.client = StubClient(outputs)
     engine.model_name = "stub-model"
     engine.max_output_tokens = 12_000
+    engine.response_type = AnalystNote
+    engine.draft_validator = None
+    engine.validation_feedback = []
+    engine.request_limit = None
+    engine.request_calls = 0
+    engine.usage_records = []
     engine.system_prompt = "system"
     engine.review_prompt = "review"
     engine.initial_analysis_calls = 0

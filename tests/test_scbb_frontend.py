@@ -20,7 +20,7 @@ def _local_runtime(monkeypatch, *, private_beta: bool) -> None:
     monkeypatch.setenv("APP_BETA_PASSWORD", "preview-access")
 
 
-def test_public_root_and_rns_alias_serve_company_news(monkeypatch) -> None:
+def test_paste_home_and_retained_news_serve_their_own_assets(monkeypatch) -> None:
     _local_runtime(monkeypatch, private_beta=False)
     with TestClient(app) as client:
         home = client.get("/")
@@ -30,18 +30,26 @@ def test_public_root_and_rns_alias_serve_company_news(monkeypatch) -> None:
         news_detail_css = client.get("/assets/news-detail.css")
         research_javascript = client.get("/assets/research.js")
         product_shell_javascript = client.get("/assets/product-shell.js")
+        paste_css = client.get("/assets/analyse.css")
+        paste_javascript = client.get("/assets/analyse.js")
 
+    assert home.status_code == 200
+    assert "See what matters." in home.text
+    assert "Paste an RNS…" in home.text
+    assert "/assets/analyse.js" in home.text
+    assert "/assets/research.js" not in home.text
+    assert "data-company-search" not in home.text
+    assert news.status_code == 200
+    assert "AIM COMPANY NEWS" in news.text
+    assert "Facts. No fluff." in news.text
+    assert "What changed across AIM." in news.text
+    assert 'id="filters-toggle"' in news.text
+    assert 'id="filter-panel"' in news.text
+    assert 'id="material-toggle"' in news.text
+    assert 'id="feed-mode">Key News' in news.text
+    assert '/assets/news-detail.css' in news.text
+    assert "data-company-search" in news.text
     for response in (home, news):
-        assert response.status_code == 200
-        assert "AIM COMPANY NEWS" in response.text
-        assert "Facts. No fluff." in response.text
-        assert "What changed across AIM." in response.text
-        assert 'id="filters-toggle"' in response.text
-        assert 'id="filter-panel"' in response.text
-        assert 'id="material-toggle"' in response.text
-        assert 'id="feed-mode">Key News' in response.text
-        assert '/assets/news-detail.css' in response.text
-        assert "data-company-search" in response.text
         assert 'data-product-nav="daily"' not in response.text
         assert "THE AIM DAILY" not in response.text
 
@@ -75,15 +83,25 @@ def test_public_root_and_rns_alias_serve_company_news(monkeypatch) -> None:
     assert product_shell_javascript.headers["content-type"].startswith(
         ("text/javascript", "application/javascript")
     )
+    assert paste_css.status_code == 200
+    assert paste_css.headers["content-type"].startswith("text/css")
+    assert paste_javascript.status_code == 200
+    assert paste_javascript.headers["content-type"].startswith(
+        ("text/javascript", "application/javascript")
+    )
     assert home.headers["x-content-type-options"] == "nosniff"
     assert "frame-ancestors 'none'" in home.headers["content-security-policy"]
 
 
 def test_legacy_open_deep_link_still_resolves_to_company_news(monkeypatch) -> None:
     _local_runtime(monkeypatch, private_beta=False)
+    query = "date=2026-08-21&open=trls-pass1-administration"
     with TestClient(app) as client:
-        response = client.get("/?date=2026-08-21&open=trls-pass1-administration")
+        redirect = client.get(f"/?{query}", follow_redirects=False)
+        response = client.get(f"/?{query}")
 
+    assert redirect.status_code == 308
+    assert redirect.headers["location"] == f"/rns?{query}"
     assert response.status_code == 200
     assert "AIM COMPANY NEWS" in response.text
     assert "Facts. No fluff." in response.text
@@ -110,7 +128,7 @@ def test_private_beta_uses_a_server_validated_httponly_cookie(monkeypatch) -> No
     assert "httponly" in accepted.headers["set-cookie"].lower()
     assert "samesite=lax" in accepted.headers["set-cookie"].lower()
     assert unlocked.status_code == 200
-    assert "AIM COMPANY NEWS" in unlocked.text
+    assert "See what matters." in unlocked.text
     assert "THE AIM DAILY" not in unlocked.text
     assert unlocked_news.status_code == 200
     assert "Facts. No fluff." in unlocked_news.text

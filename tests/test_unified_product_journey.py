@@ -13,16 +13,21 @@ FRONTEND = ROOT / "frontend"
 ASSETS = FRONTEND / "assets"
 
 
-def test_private_beta_preserves_the_exact_dated_feed_destination(monkeypatch) -> None:
+def test_private_beta_preserves_dated_feed_state_on_the_canonical_news_route(monkeypatch) -> None:
     monkeypatch.setenv("PRIVATE_BETA_MODE", "true")
     monkeypatch.setenv("APP_BETA_PASSWORD", "preview-access")
     client = TestClient(Starlette(routes=create_frontend_routes()))
-    destination = "/?date=2026-08-21&open=spr-preview-buyback"
+    query = "date=2026-08-21&open=spr-preview-buyback"
+    destination = f"/rns?{query}"
 
-    locked = client.get(destination)
+    # Saved root links move to /rns but retain the exact dated/open state through login.
+    redirect = client.get(f"/?{query}", follow_redirects=False)
+    assert redirect.status_code == 308
+    assert redirect.headers["location"] == destination
+    locked = client.get(f"/?{query}")
     assert locked.status_code == 200
     assert (
-        'name="next" value="/?date=2026-08-21&amp;open=spr-preview-buyback"'
+        'name="next" value="/rns?date=2026-08-21&amp;open=spr-preview-buyback"'
         in locked.text
     )
 
@@ -34,6 +39,7 @@ def test_private_beta_preserves_the_exact_dated_feed_destination(monkeypatch) ->
     assert unlocked.status_code == 303
     assert unlocked.headers["location"] == destination
     assert "httponly" in unlocked.headers["set-cookie"].lower()
+    assert "AIM COMPANY NEWS" in client.get(destination).text
 
 
 def test_private_beta_rejects_an_external_or_header_injection_destination(monkeypatch) -> None:
