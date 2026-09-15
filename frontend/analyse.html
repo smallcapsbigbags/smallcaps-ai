@@ -10,6 +10,8 @@
   <link rel="icon" href="/favicon.svg?v={{ASSET_VERSION}}" type="image/svg+xml">
   <link rel="stylesheet" href="/assets/analyse.css?v={{ASSET_VERSION}}">
   <link rel="stylesheet" href="/assets/analysis-card.css?v={{ASSET_VERSION}}">
+  <link rel="stylesheet" href="/assets/analysis-questions.css?v={{ASSET_VERSION}}">
+  <script src="/assets/analysis-questions.js?v={{ASSET_VERSION}}" defer></script>
   <script src="/assets/analysis-card.js?v={{ASSET_VERSION}}" defer></script>
   <script src="/assets/analyse.js?v={{ASSET_VERSION}}" defer></script>
 </head>
@@ -40,11 +42,31 @@
       <noscript><p class="form-message">Enable JavaScript to analyse an announcement.</p></noscript>
     </section>
     <section id="result" class="result" aria-labelledby="result-headline" tabindex="-1" hidden></section>
+    <section id="questions" class="questions" aria-labelledby="questions-title" hidden>
+      <h2 id="questions-title" class="sr-only">Questions about this announcement</h2>
+      <div id="question-history" class="question-history" role="log" aria-label="Announcement conversation" aria-live="polite"></div>
+      <form id="question-form" novalidate>
+        <div class="question-composer">
+          <label for="question-text" class="sr-only">Ask about this announcement</label>
+          <textarea id="question-text" rows="2" placeholder="Ask about this announcement…" spellcheck="false" autocomplete="off" aria-describedby="question-help question-message"></textarea>
+          <div class="question-actions">
+            <span id="question-hint" class="question-hint">Based on this announcement.</span>
+            <button id="question-button" class="question-button" type="submit" disabled>
+              <span id="question-button-label">Ask</span>
+              <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10h12m-5-5 5 5-5 5"/></svg>
+            </button>
+          </div>
+        </div>
+        <span id="question-help" class="sr-only">Maximum 2,000 characters. Control or Command and Enter submits. Questions use only this announcement.</span>
+        <p id="question-message" class="question-message" role="status" aria-live="polite"></p>
+        <a id="question-sign-in" class="sign-in" href="/" target="_blank" rel="noopener" hidden>Sign in again</a>
+      </form>
+    </section>
   </main>
   <footer class="page-footer">
     <details class="data-note">
       <summary>About your data</summary>
-      <p>Your pasted text is sent to OpenAI for analysis. It is not added to the public feed or company history. Results are held temporarily in server memory and may be lost on restart. Check the original announcement before relying on the analysis.</p>
+      <p>Your pasted text and any follow-up questions are sent to OpenAI for analysis. It is not added to the public feed or company history. Text, results and conversations are held temporarily in server memory and may be lost on restart. Check the original announcement before relying on the analysis.</p>
     </details>
   </footer>
 </body>

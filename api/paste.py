@@ -65,19 +65,20 @@ def default_jobs() -> PasteJobs:
     )
 
 
+def access_error(request: Request, settings: Settings) -> JSONResponse | None:
+    enabled = os.getenv("PASTE_ANALYSIS_ENABLED", "true").lower() in {"1", "true", "yes"}
+    # A paid public anonymous endpoint is deliberately NOT enabled by turning beta off.
+    if not enabled or not settings.private_beta_mode or not settings.app_beta_password:
+        return _error("ANALYSIS_DISABLED", "Analysis is not available here yet.", 503)
+    if not _valid_token(request.cookies.get(_COOKIE_NAME, ""), settings.app_beta_password):
+        return _error("AUTH_REQUIRED", "Please sign in again to analyse this announcement.", 401)
+    return None
+
+
 def create_paste_routes(
     jobs_provider: Callable[[], PasteJobs] = default_jobs,
     settings_provider: Callable[[], Settings] = Settings.from_env,
 ) -> list[Route]:
-    def access_error(request: Request, settings: Settings) -> JSONResponse | None:
-        enabled = os.getenv("PASTE_ANALYSIS_ENABLED", "true").lower() in {"1", "true", "yes"}
-        # A paid public anonymous endpoint is deliberately NOT enabled by turning beta off.
-        if not enabled or not settings.private_beta_mode or not settings.app_beta_password:
-            return _error("ANALYSIS_DISABLED", "Analysis is not available here yet.", 503)
-        if not _valid_token(request.cookies.get(_COOKIE_NAME, ""), settings.app_beta_password):
-            return _error("AUTH_REQUIRED", "Please sign in again to analyse this announcement.", 401)
-        return None
-
     async def prepare(request: Request) -> JSONResponse:
         settings = settings_provider()
         denied = access_error(request, settings)

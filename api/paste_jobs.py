@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import copy
 import secrets
 import threading
 import time
@@ -30,6 +31,7 @@ class _Job:
     result: dict[str, object] | None = None
     error_code: str | None = None
     finished: float | None = None
+    source: PasteRequest | None = None  # private; never part of public()
 
     def public(self) -> dict[str, object]:
         return {"analysis_id": self.id, "status": self.status,
@@ -112,7 +114,8 @@ class PasteJobs:
                 self._jobs[job_id].error_code = code
         else:
             with self._lock:
-                self._jobs[job_id].result = result
+                self._jobs[job_id].result = copy.deepcopy(result)
+                self._jobs[job_id].source = source
                 self._jobs[job_id].status = "complete"
         finally:
             with self._lock:
@@ -125,8 +128,22 @@ class PasteJobs:
             job = self._jobs.get(job_id)
             return job.public() if job is not None and job.owner == owner else None
 
+    def context(self, owner: str, job_id: str) -> tuple[PasteRequest, dict] | None:
+        """Owner-scoped snapshot for follow-ups; not a public API response."""
+        with self._lock:
+            self._prune()
+            job = self._jobs.get(job_id)
+            if (job is None or job.owner != owner or job.status != "complete"
+                    or job.source is None or job.result is None):
+                return None
+            return job.source.model_copy(deep=True), copy.deepcopy(job.result)
+
     def close(self) -> None:
         self._stop.set()
         with self._lock:
             self._closed = True
         self._pool.shutdown(wait=True)
+        self._janitor.join(timeout=2)
+        with self._lock:
+            self._jobs.clear()
+            self._starts.clear()

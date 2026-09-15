@@ -29,6 +29,7 @@
     if (input.value !== submittedText) {
       analysisId = null;
       resume = false;
+      window.SmallcapsQuestions?.reset();
       result.hidden = true;
       result.replaceChildren();
       document.getElementById("analyse-shell").classList.remove("has-result");
@@ -42,11 +43,12 @@
       form.requestSubmit();
     }
   });
-  function render(card) {
+  function render(card, id) {
     if (!window.SmallcapsCard) throw new Error("The card could not load. Refresh the page after copying your text.");
     window.SmallcapsCard.render(result, card);
     result.hidden = false;
     document.getElementById("analyse-shell").classList.add("has-result");
+    if (card.integrity?.status === "passed") window.SmallcapsQuestions?.attach(id);
     result.focus({ preventScroll: true });
     result.scrollIntoView({ block: "start", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
   }
@@ -69,6 +71,7 @@
     event.preventDefault();
     if (button.disabled) return;
     busy = true;
+    window.SmallcapsQuestions?.reset();
     signIn.hidden = true;
     result.hidden = true;
     submittedText = input.value;
@@ -101,7 +104,7 @@
           ? "We couldn’t produce a reliable card. Check that the complete announcement is included."
           : "Analysis is temporarily unavailable. Your text is still here. Please try again later.");
       }
-      render(job.result);
+      render(job.result, job.analysis_id);
       say("");
     } catch (error) {
       if (error.code === "NOT_FOUND") analysisId = null;
