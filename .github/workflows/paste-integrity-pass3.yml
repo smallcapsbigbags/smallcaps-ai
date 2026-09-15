@@ -39,7 +39,10 @@ jobs:
       - name: Install and verify paste contracts
         run: |
           pip install -r requirements.txt
-          pytest -q tests/test_paste_mvp.py tests/test_paste_card.py tests/test_paste_editorial.py
+          python -m compileall -q analyst/paste_evidence.py analyst/paste_integrity.py analyst/paste_quantities.py jobs/check_paste_live.py
+          pytest -q tests/test_paste_integrity.py tests/test_paste_mvp.py tests/test_paste_card.py tests/test_paste_editorial.py tests/test_pass3_cost_routing.py --junitxml=/tmp/paste-integrity-pass3/tests.xml
+      - name: Verify live preflight makes no model request
+        run: python -m jobs.check_paste_live --output /tmp/paste-integrity-pass3/live-preflight.json
       - name: Upload verification evidence
         if: always()
         uses: actions/upload-artifact@v4

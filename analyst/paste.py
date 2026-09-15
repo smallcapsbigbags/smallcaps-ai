@@ -13,10 +13,13 @@ from analyst.models import AnnouncementInput
 from analyst.monitoring_sheet import merge_monitoring_quality
 from analyst.paste_editorial import PASTE_CARD_EDITORIAL_INSTRUCTIONS, PASTE_EDITORIAL_VERSION
 from analyst.quality import assess_analysis_quality
+from analyst.paste_evidence import EvidenceAnalystNote, EVIDENCE_VERSION, PASTE_EVIDENCE_INSTRUCTIONS
+from analyst.paste_integrity import assess_paste_integrity, evidence_feedback
+from product.news_contract import MATERIALITY_LABELS
 from product.paste import PasteRequest, extract_identity, project_paste_result
 from settings import Settings
 
-PASTE_ADAPTER_VERSION = "paste-adapter-2b"
+PASTE_ADAPTER_VERSION = "paste-adapter-3"
 PASTE_INSTRUCTIONS = """
 ON-DEMAND SOURCE BOUNDARY
 This is user-pasted text, not independently retrieved or verified regulatory evidence.
@@ -83,8 +86,14 @@ def analyse_paste(source: PasteRequest) -> dict[str, object]:
         timeout_seconds=90,
         max_output_tokens=settings.openai_max_output_tokens,
     )
-    # Both existing passes use the same source and editorial boundaries. No extra call.
-    paste_instructions = "\n\n" + PASTE_INSTRUCTIONS + "\n\n" + PASTE_CARD_EDITORIAL_INSTRUCTIONS
+    engine.response_type = EvidenceAnalystNote
+    engine.draft_validator = evidence_feedback
+    engine.request_limit = 2
+    # Paste starts are explicitly bounded. Do not invisibly retry paid requests.
+    if hasattr(engine.client, "with_options"):
+        engine.client = engine.client.with_options(max_retries=0)
+    # Evidence failures route into the existing review, never a third repair pass.
+    paste_instructions = "\n\n".join((PASTE_INSTRUCTIONS, PASTE_CARD_EDITORIAL_INSTRUCTIONS, PASTE_EVIDENCE_INSTRUCTIONS))
     engine.system_prompt += paste_instructions
     engine.review_prompt += paste_instructions
     try:
@@ -97,14 +106,20 @@ def analyse_paste(source: PasteRequest) -> dict[str, object]:
         quality = merge_monitoring_quality(
             assess_analysis_quality(announcement, guarded, prior_context=()), guarded,
         )
-        if quality.status != "publishable":
+        integrity = assess_paste_integrity(source.text, guarded)
+        if quality.status != "publishable" or not integrity.passed:
             raise PasteQualityError("The analysis requires review")
         result = project_paste_result(source, guarded)
+        result["integrity"] = integrity.record()
+        result["materiality_label"] = MATERIALITY_LABELS[guarded.impact_score]
+        result["telemetry"] = {"requests": getattr(engine, "request_calls", 0),
+                               "usage": getattr(engine, "usage_records", [])}
         result["versions"] = {
             "model": engine.model_name,
             "prompt": settings.prompt_version,
             "adapter": PASTE_ADAPTER_VERSION,
             "editorial": PASTE_EDITORIAL_VERSION,
+            "evidence": EVIDENCE_VERSION,
         }
         return result
     finally:

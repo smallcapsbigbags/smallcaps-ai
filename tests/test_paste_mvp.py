@@ -74,14 +74,20 @@ def test_metadata_is_parsed_only_when_supported():
 
 
 def _note(source: PasteRequest):
-    from analyst.models import AnalystNote, KeyFact, WhatChanged
+    from analyst.models import WhatChanged
+    from analyst.paste_evidence import EvidenceAnalystNote as AnalystNote, EvidenceFact as KeyFact
     return AnalystNote(
         source_id=source.source_id, rns_type="Contracts", impact_colour="green",
+        materiality_evidence={"basis":"operational-milestone", "certainty":"conditional", "horizon":"longer-term",
+            "scale_known":False, "evidence_quotes":[source.text]},
+        narrative_evidence=[{"field":field,"index":0,"quotes":[source.text]} for field in
+            ("headline","takeaway","what_changed.today","analyst_view","impact_rationale","challenges_case")],
         impact_score=2, impact_level="medium", impact_rationale="A funded development programme adds a conditional revenue opportunity.",
         headline="Continental funds tyre-tool development",
         takeaway="Production is expected from Q2 2027 following successful development. Future deployments are expected to generate more than £0.7m annual revenue.",
         key_facts=[KeyFact(
             label="Expected annual revenue", value=">£0.7m", basis="reported",
+            assertion="expected", evidence_quotes=[source.text],
             note="Subject to successful development and subsequent deployment.",
             metric="expected annual revenue", period="Future deployments", unit="million", currency="GBP",
         )],

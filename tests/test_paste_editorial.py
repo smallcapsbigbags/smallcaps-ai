@@ -50,7 +50,10 @@ def test_editorial_policy_is_applied_to_existing_generation_and_review(monkeypat
             self.client = SimpleNamespace(close=lambda: captured.append("closed"))
         def analyse(self, announcement, prior_context):
             captured.append((self.system_prompt, self.review_prompt, prior_context))
-            return AnalystNote(source_id=source.source_id, **CASES[1]["note"])
+            from analyst.paste_evidence import EvidenceAnalystNote
+            from jobs.paste_test_cases import load_integrity_cases
+            annotated = load_integrity_cases()
+            return EvidenceAnalystNote(source_id=source.source_id, **annotated[1]["note"])
     monkeypatch.setattr(adapter, "OpenAIAnalystEngine", Engine)
     monkeypatch.setattr(adapter.Settings, "from_env", lambda: SimpleNamespace(
         openai_api_key="test-only", openai_model="test-model", openai_max_output_tokens=2000, prompt_version="test-prompt"))
