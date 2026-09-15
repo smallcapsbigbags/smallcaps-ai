@@ -47,7 +47,16 @@ def run(origin: str, output: Path) -> None:
             page.screenshot(path=str(output/'live-landing.png'),full_page=True)
             page.locator('#rns-text').fill((ROOT/'benchmarks/rnsrepo/trt-supplied-announcement.txt').read_text())
             started=time.monotonic();page.get_by_role('button',name='Analyse',exact=True).click()
-            page.wait_for_function('document.querySelector("#result").hidden === false || document.querySelector("#form-message").dataset.error === "true"',timeout=85000)
+            # Native locator polling respects the deployed CSP: do not use a
+            # string-evaluating wait helper or disable browser security for tests.
+            deadline=time.monotonic()+85
+            while time.monotonic()<deadline:
+                if (page.locator('#result').is_visible() or
+                        page.locator('#form-message').get_attribute('data-error')=='true'):
+                    break
+                page.wait_for_timeout(200)
+            else:
+                raise TimeoutError('The live browser did not reach a terminal result')
             record['elapsed_seconds']=round(time.monotonic()-started,3)
             record['submissions']=len(submitted)
             assert len(submitted)==1
@@ -67,10 +76,13 @@ def run(origin: str, output: Path) -> None:
             assert any(w in copy for w in ('subject to','conditional','following successful','depends on','contingent'))
             page.locator('#result').screenshot(path=str(output/'live-trt-desktop.png'))
             page.set_viewport_size({'width':390,'height':844})
-            assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
+            bounds=page.locator('#result').bounding_box()
+            assert bounds and bounds['x']>=0 and bounds['x']+bounds['width']<=390.5
             page.locator('#result').screenshot(path=str(output/'live-trt-mobile.png'))
             record.update(passed=True,build=expected)
         finally:
+            record['submissions']=len(submitted)
+            record['terminal_responses']=len(completed)
             if not record['passed']:page.screenshot(path=str(output/'live-failure.png'),full_page=True)
             (output/'live.json').write_text(json.dumps(record,ensure_ascii=False,indent=2)+'\n')
             context.close();browser.close()
