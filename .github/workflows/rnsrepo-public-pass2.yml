@@ -1,0 +1,68 @@
+name: rnsrepo-public-pass2
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: test-only-password
+          POSTGRES_DB: rnsrepo_test
+        ports: [5432:5432]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      RNSREPO_TEST_DATABASE_URL: postgresql://postgres:test-only-password@localhost:5432/rnsrepo_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: pip install -r requirements.txt && pip install playwright
+      - run: python -m playwright install --with-deps chromium
+      - run: mkdir -p pass2-evidence && python -m pytest tests/rnsrepo -q --junitxml=pass2-evidence/focused.xml
+      - run: python -m pytest tests -q --junitxml=pass2-evidence/full.xml
+      - run: python -m jobs.check_rnsrepo_public --output pass2-evidence/browser
+      - name: Archive reviewed source
+        if: always()
+        run: |
+          mkdir -p pass2-evidence
+          git archive --format=tar.gz HEAD > pass2-evidence/source.tar.gz
+          git rev-parse HEAD > pass2-evidence/commit.txt
+          git ls-tree -r HEAD > pass2-evidence/tree.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rnsrepo-public-pass2
+          path: pass2-evidence/
+          retention-days: 7
+  # No paid test on ordinary pushes. Explicit operator opt-in in the commit message.
+  live:
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[rnsrepo-pass2-live]')
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: pip install -r requirements.txt && pip install playwright
+      - run: python -m playwright install --with-deps chromium
+      - run: python -m jobs.check_rnsrepo_public_live --live --origin https://smallcaps-ai-production.up.railway.app --output live-evidence
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rnsrepo-pass2-live
+          path: live-evidence/
+          retention-days: 7

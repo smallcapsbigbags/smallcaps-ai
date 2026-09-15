@@ -40,7 +40,7 @@
     const label = `${text(fact.metric)} ${text(fact.label)}`.toLowerCase();
     let kind = "document";
     if (/dividend/.test(label)) kind = "dividend";
-    else if (/cash|debt|fund|liquidity/.test(label)) kind = "cash";
+    else if (/cash|debt|liquidity|fundrais|placing|subscription/.test(label)) kind = "cash";
     else if (/production|launch/.test(label)) kind = "factory";
     else if (/develop|duration|month|date|term|deadline/.test(label)) kind = "calendar";
     else if (/profit|pbt|ebit|annual revenue|consideration|contract value/.test(label)) kind = "coins";
@@ -100,7 +100,7 @@
     header.append(company);
     const meta = node("p", null, "source-meta");
     // This is a user-supplied announcement, not independently authenticated RNS evidence.
-    meta.append(node("span", "Announcement"));
+    meta.append(node("span", compact ? "RNS summary" : "Announcement"));
     const formatted = dateLabel(identity.publication_date);
     if (formatted) {
       const time = node("time", formatted, "source-date");

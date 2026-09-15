@@ -83,18 +83,19 @@
         job = await request(`/api/v1/analyse/${encodeURIComponent(analysisId)}`);
       } else {
         // Establish ownership before a paid POST so a lost POST response can be retried safely.
-        await request("/api/v1/analyse");
+        const access = await request("/api/v1/analyse", {headers: {"X-Smallcaps-Action": "prepare"}});
         job = await request("/api/v1/analyse", {
-          method: "POST", headers: { "Content-Type": "application/json", "X-Smallcaps-Action": "analyse" },
+          method: "POST", headers: { "Content-Type": "application/json", "X-Smallcaps-Action": "analyse",
+            ...(access.csrf_token ? {"X-RNSRepo-Token": access.csrf_token} : {}) },
           body: JSON.stringify({ text: submittedText })
         });
       }
       analysisId = job.analysis_id;
       const start = Date.now();
       while (job.status === "processing") {
-        if (Date.now() - start > 600000) throw new Error("This is taking longer than expected. Check the analysis again shortly.");
+        if (Date.now() - start > 60000) throw new Error("This is taking longer than expected. Check the analysis again shortly.");
         await new Promise((resolve) => setTimeout(resolve, 1500));
-        if (Date.now() - start > 12000) say("Preparing your card and checking the figures…");
+        if (Date.now() - start > 12000) say("Still preparing your summary…");
         job = await request(`/api/v1/analyse/${encodeURIComponent(analysisId)}`);
       }
       resume = false;
@@ -121,7 +122,7 @@
       render(job.result, job.analysis_id);
       say("");
     } catch (error) {
-      if (error.code === "NOT_FOUND") analysisId = null;
+      if (["NOT_FOUND", "DEMO_SESSION"].includes(error.code)) analysisId = null;
       resume = Boolean(analysisId);
       say(error.name === "AbortError" || error instanceof TypeError
         ? "Connection interrupted. Your text is still here; try again to check the same analysis."

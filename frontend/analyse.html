@@ -3,14 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="See what matters.">
+  <meta name="description" content="Paste a company announcement. Get a clear summary of the facts, figures and important qualifications. No sign-up.">
   <meta name="theme-color" content="#f6f7f5">
   <meta name="color-scheme" content="light">
-  <title>smallcaps.ai · See what matters.</title>
+  <title>RNSRepo · See what matters.</title>
   <link rel="icon" href="/favicon.svg?v={{ASSET_VERSION}}" type="image/svg+xml">
   <link rel="stylesheet" href="/assets/analyse.css?v={{ASSET_VERSION}}">
   <link rel="stylesheet" href="/assets/analysis-card.css?v={{ASSET_VERSION}}">
   <link rel="stylesheet" href="/assets/analysis-questions.css?v={{ASSET_VERSION}}">
+  <link rel="stylesheet" href="/assets/rnsrepo.css?v={{ASSET_VERSION}}">
   <script src="/assets/analysis-questions.js?v={{ASSET_VERSION}}" defer></script>
   <script src="/assets/analysis-card.js?v={{ASSET_VERSION}}" defer></script>
   <script src="/assets/analyse.js?v={{ASSET_VERSION}}" defer></script>
@@ -18,11 +19,12 @@
 <body>
   <a class="skip-link" href="#rns-text">Skip to announcement</a>
   <header class="site-header">
-    <a class="wordmark" href="/" aria-label="smallcaps.ai home">smallcaps<span>.ai</span></a>
+    <a class="wordmark" href="/" aria-label="RNSRepo home">RNS<span>Repo</span></a>
   </header>
   <main class="analyse-shell" id="analyse-shell">
     <section class="input-section" aria-labelledby="page-title">
       <h1 id="page-title">See what matters.</h1>
+      <p class="page-intro">Paste an announcement. Get the important details.</p>
       <form id="analyse-form" novalidate>
         <div class="composer">
           <label class="sr-only" for="rns-text">Paste an RNS</label>
@@ -64,9 +66,10 @@
     </section>
   </main>
   <footer class="page-footer">
+    <p class="page-caution">AI summaries can miss or misread details. Check the original announcement.</p>
     <details class="data-note">
       <summary>About your data</summary>
-      <p>Your pasted text and any follow-up questions are sent to OpenAI for analysis. It is not added to the public feed or company history. Text, results and conversations are held temporarily in server memory and may be lost on restart. Check the original announcement before relying on the analysis.</p>
+      <p>Selected passages of your text are sent to OpenAI to create the card. There are no accounts, saved repos or public posts. Your text and card are held temporarily in server memory, normally for up to 30 minutes after completion, and are lost on restart. Operational rate-limit counters, including keyed network and browser identifiers, are stored separately and cleared during later activity once expired. No announcement text is written to that database. Hosting and AI providers have their own retention policies. Paste published announcements, not confidential information.</p>
     </details>
   </footer>
 </body>

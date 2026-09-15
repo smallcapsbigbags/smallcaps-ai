@@ -71,7 +71,7 @@ class PasteJobs:
             with self._lock:
                 self._prune()
 
-    def submit(self, owner: str, source: PasteRequest) -> dict[str, object]:
+    def submit(self, owner: str, source: PasteRequest, *, admit: Callable[[], None] | None = None) -> dict[str, object]:
         with self._lock:
             self._prune()
             if self._closed:
@@ -90,6 +90,8 @@ class PasteJobs:
                 raise BusyError("The analysis limit has been reached. Please try again later.")
             if self._active >= self.max_active or len(self._jobs) >= self.max_jobs:
                 raise BusyError("All analysis slots are busy. Please try again shortly.")
+            if admit is not None:
+                admit()  # durable allowance, after dedupe and before starting paid work
             job = _Job(secrets.token_urlsafe(24), owner, source.source_hash, now)
             self._jobs[job.id] = job
             self._starts.append((now, owner))

@@ -17,6 +17,8 @@ from api.frontend import _COOKIE_NAME, _valid_token
 from api.paste_jobs import BusyError, PasteJobs
 from product.paste import PasteRequest
 from settings import Settings
+from rnsrepo.public_access import enabled as public_enabled
+from api.rnsrepo_public import PublicCards
 
 _SESSION_COOKIE = "smallcaps_paste_session"
 _MAX_BODY_BYTES = 520_000
@@ -79,7 +81,11 @@ def create_paste_routes(
     jobs_provider: Callable[[], PasteJobs] = default_jobs,
     settings_provider: Callable[[], Settings] = Settings.from_env,
 ) -> list[Route]:
+    public = PublicCards(jobs_provider, settings_provider)
+
     async def prepare(request: Request) -> JSONResponse:
+        if public_enabled():
+            return await public.prepare(request)
         settings = settings_provider()
         denied = access_error(request, settings)
         if denied is not None:
@@ -91,6 +97,8 @@ def create_paste_routes(
         return response
 
     async def analyse(request: Request) -> JSONResponse:
+        if public_enabled():
+            return await public.analyse(request)
         settings = settings_provider()
         denied = access_error(request, settings)
         if denied is not None:
@@ -125,6 +133,8 @@ def create_paste_routes(
         return response
 
     async def status(request: Request) -> JSONResponse:
+        if public_enabled():
+            return await public.status(request)
         settings = settings_provider()
         denied = access_error(request, settings)
         if denied is not None:

@@ -1,0 +1,114 @@
+{
+  "note": "Manually edited visual fixtures based on supplied announcements; not live model outputs.",
+  "cards": {
+    "trt": {
+      "schema_version": "rnsrepo-card-1",
+      "capabilities": {
+        "questions": false,
+        "scores": false
+      },
+      "integrity": {
+        "status": "passed"
+      },
+      "selection": {
+        "reduced": false
+      },
+      "versions": {
+        "editorial": "rnsrepo-editorial-2"
+      },
+      "identity": {
+        "ticker": "TRT",
+        "company": "Transense Technologies plc",
+        "publication_date": "2026-09-15"
+      },
+      "rns_type": "Contracts",
+      "headline": "Continental awards contract for next-generation tyre management tool",
+      "summary": "Translogik will develop a bespoke TLGX handheld device for Continental under a funded six-month development programme.",
+      "facts": [
+        {
+          "label": "Development programme",
+          "value": "6 months",
+          "period": "",
+          "note": "Funded programme.",
+          "basis": "reported"
+        },
+        {
+          "label": "Expected production",
+          "value": "Q2 2027",
+          "period": "",
+          "note": "Subject to successful development.",
+          "basis": "reported"
+        },
+        {
+          "label": "Expected annual revenue",
+          "value": ">£0.7m",
+          "period": "Future deployments",
+          "note": "Subject to successful development and rollout.",
+          "basis": "reported"
+        }
+      ],
+      "what_changed": "",
+      "what_matters": [
+        "Future revenues depend on successful completion of the development project and subsequent deployment."
+      ]
+    },
+    "spr": {
+      "schema_version": "rnsrepo-card-1",
+      "capabilities": {
+        "questions": false,
+        "scores": false
+      },
+      "integrity": {
+        "status": "passed"
+      },
+      "selection": {
+        "reduced": false
+      },
+      "versions": {
+        "editorial": "rnsrepo-editorial-2"
+      },
+      "identity": {
+        "ticker": "SPR",
+        "company": "Springfield Properties plc",
+        "publication_date": "2026-09-15"
+      },
+      "rns_type": "Results",
+      "headline": "Housing revenue grows as Springfield moves to net bank cash",
+      "summary": "Private and affordable housing revenue increased, while lower land sales reduced group revenue and profit. The board proposes a higher dividend and plans a share buyback.",
+      "facts": [
+        {
+          "label": "Revenue",
+          "value": "£243.7m",
+          "period": "Year ended May 2026",
+          "note": "2025: £280.6m",
+          "basis": "reported"
+        },
+        {
+          "label": "Adjusted PBT",
+          "value": "£12.9m",
+          "period": "Year ended May 2026",
+          "note": "2025: £20.1m",
+          "basis": "reported"
+        },
+        {
+          "label": "Net bank cash",
+          "value": "£1.2m",
+          "period": "31 May 2026",
+          "note": "2025: £20.9m net bank debt",
+          "basis": "reported"
+        },
+        {
+          "label": "Proposed dividend",
+          "value": "3.0p",
+          "period": "2026",
+          "note": "2025: 2.0p. Subject to approval.",
+          "basis": "reported"
+        }
+      ],
+      "what_changed": "Springfield plans to develop its remaining Central Scotland sites rather than sell them, alongside the worker-housing opportunity in the North of Scotland.",
+      "what_matters": [
+        "Reported profit fell as land sales reduced. The year-end cash figure precedes £20.7m of deferred acquisition payments. The dividend requires shareholder approval."
+      ]
+    }
+  }
+}

@@ -15,7 +15,7 @@ def run(output: Path) -> None:
     fixture=runpy.run_path(str(root/'tests/rnsrepo/test_card.py'))
     text=fixture['TRT']; selection, draft=fixture['draft']()
     card=project_card(PasteRequest(text=text),draft,selection,check_card(text,selection,draft))
-    css=(root/'frontend/assets/analysis-card.css').read_text()
+    css=(root/'frontend/assets/analysis-card.css').read_text() + (root/'frontend/assets/rnsrepo.css').read_text()
     script=(root/'frontend/assets/analysis-card.js').read_text()
     results=[];output.mkdir(parents=True,exist_ok=True)
     with sync_playwright() as p:

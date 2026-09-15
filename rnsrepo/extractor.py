@@ -37,6 +37,12 @@ sentence describes the product/action and partner, rather than repeating every t
 A six-month development stage is NOT a six-month supply contract. Deployment
 opportunities are NOT a committed global rollout; keep them as opportunities.
 Put successful-completion conditions in any sentence about future production.
+Metric labels are short editorial labels, normally 2-4 words, not sentences: e.g.
+'Development programme', 'Expected production', 'Expected annual revenue',
+'Net bank cash', 'Adjusted PBT', 'Proposed dividend'. Keep expectations/proposals
+explicit. Put the financial period in period. Use note only for extra context or
+necessary qualifications; do not repeat the label or explain what a metric means.
+Write durations naturally (e.g. '6 months'), preserving the source quantity.
 For results use up to four significant figures; for contracts normally three. Use
 fewer, even none, when figures are not disclosed. Do not invent values to fill tiles.
 what_changed is optional and adds explanation for results; normally null for contracts.
@@ -136,7 +142,7 @@ def project_card(source: PasteRequest, card: CardDraft, selection, integrity: di
         "capabilities": {"questions": False, "scores": False},
         "integrity": {**integrity, "source_hash": source.source_hash},
         "selection": selection.record(),
-        "versions": {"adapter": VERSION, "editorial": "rnsrepo-editorial-1.1"}}
+        "versions": {"adapter": VERSION, "editorial": "rnsrepo-editorial-2"}}
 
 
 class CardExtractor:

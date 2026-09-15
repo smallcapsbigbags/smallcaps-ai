@@ -13,6 +13,7 @@ from starlette.responses import FileResponse, HTMLResponse, RedirectResponse, Re
 from starlette.routing import Route
 
 from settings import Settings
+from rnsrepo.public_access import enabled as public_enabled
 
 _COOKIE_NAME: Final = "smallcaps_beta"
 _COOKIE_MAX_AGE: Final = 60 * 60 * 24 * 30
@@ -146,6 +147,8 @@ def create_frontend_routes() -> list[Route]:
             return RedirectResponse(
                 f"/rns?{request.url.query}", status_code=308, headers=_security_headers()
             )
+        if public_enabled():
+            return _html_file(_FRONTEND_ROOT / "analyse.html")
         return _protected_file(request, "analyse.html")
 
     async def rns(request: Request) -> Response:
@@ -192,6 +195,7 @@ def create_frontend_routes() -> list[Route]:
         response = RedirectResponse("/", status_code=303)
         response.delete_cookie(_COOKIE_NAME, path="/")
         response.delete_cookie("smallcaps_paste_session", path="/api/v1/analyse")
+        response.delete_cookie("rnsrepo_browser", path="/api/v1/analyse")
         for key, value in _security_headers().items():
             response.headers[key] = value
         return response
