@@ -137,12 +137,11 @@ def _protected_file(request: Request, filename: str) -> Response:
 
 
 def create_frontend_routes() -> list[Route]:
-    """Serve Company News, Watchlist, Company pages and the beta entrance."""
+    """Serve the paste analyser, retained research routes and beta entrance."""
 
     async def home(request: Request) -> Response:
-        # Company News is the product front door. /rns remains the stable
-        # canonical route for dated and announcement-level links.
-        return _protected_file(request, "index.html")
+        # On-demand analysis is the front door. Existing news/history links stay stable.
+        return _protected_file(request, "analyse.html")
 
     async def rns(request: Request) -> Response:
         return _protected_file(request, "index.html")
@@ -187,6 +186,7 @@ def create_frontend_routes() -> list[Route]:
     async def logout(_request: Request) -> Response:
         response = RedirectResponse("/", status_code=303)
         response.delete_cookie(_COOKIE_NAME, path="/")
+        response.delete_cookie("smallcaps_paste_session", path="/api/v1/analyse")
         for key, value in _security_headers().items():
             response.headers[key] = value
         return response

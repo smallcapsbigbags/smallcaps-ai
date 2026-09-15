@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="See what matters.">
+  <meta name="theme-color" content="#f6f7f5">
+  <meta name="color-scheme" content="light">
+  <title>smallcaps.ai · See what matters.</title>
+  <link rel="icon" href="/favicon.svg?v={{ASSET_VERSION}}" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/analyse.css?v={{ASSET_VERSION}}">
+  <script src="/assets/analyse.js?v={{ASSET_VERSION}}" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#rns-text">Skip to announcement</a>
+  <header class="site-header">
+    <a class="wordmark" href="/" aria-label="smallcaps.ai home">smallcaps<span>.ai</span></a>
+  </header>
+  <main class="analyse-shell" id="analyse-shell">
+    <section class="input-section" aria-labelledby="page-title">
+      <h1 id="page-title">See what matters.</h1>
+      <form id="analyse-form" novalidate>
+        <div class="composer">
+          <label class="sr-only" for="rns-text">Paste an RNS</label>
+          <textarea id="rns-text" name="text" rows="7" placeholder="Paste an RNS…" spellcheck="false" autocomplete="off" aria-describedby="input-help form-message"></textarea>
+          <div class="composer-actions">
+            <span id="input-count" class="input-count" aria-hidden="true"></span>
+            <button id="analyse-button" class="analyse-button" type="submit" disabled>
+              <span id="button-label">Analyse</span>
+              <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10h12m-5-5 5 5-5 5"/></svg>
+            </button>
+          </div>
+        </div>
+        <span id="input-help" class="sr-only">Paste one announcement, including its header. Maximum 120,000 characters. Control or Command and Enter submits.</span>
+        <p id="form-message" class="form-message" role="status" aria-live="polite"></p>
+        <a id="sign-in" class="sign-in" href="/" target="_blank" rel="noopener" hidden>Sign in again</a>
+      </form>
+      <noscript><p class="form-message">Enable JavaScript to analyse an announcement.</p></noscript>
+    </section>
+    <section id="result" class="result" aria-labelledby="result-headline" tabindex="-1" hidden></section>
+  </main>
+  <footer class="page-footer">
+    <details class="data-note">
+      <summary>About your data</summary>
+      <p>Your pasted text is sent to OpenAI for analysis. It is not added to the public feed or company history. Results are held temporarily in server memory and may be lost on restart. Check the original announcement before relying on the analysis.</p>
+    </details>
+  </footer>
+</body>
+</html>

@@ -15,6 +15,7 @@ from api.daily_editor import create_daily_editor_routes
 from api.frontend import create_frontend_routes
 from api.monitoring import create_monitoring_routes
 from api.newsroom import create_newsroom_routes
+from api.paste import create_paste_routes
 
 ROOT = Path(__file__).resolve().parent
 
@@ -33,13 +34,13 @@ class RevalidatingStaticFiles(StaticFiles):
         return response
 
 
-# The Smallcaps.ai Company News and Company Intelligence surfaces are the public
-# product. The existing Streamlit implementation remains available under
-# /legacy during migration, while every surface uses the same PostgreSQL records.
+# The paste analyser is the front door. Existing research routes and the
+# Streamlit /legacy surface remain intact while the on-demand MVP is developed.
 legacy_app = StreamlitApp("streamlit_app.py")
 app = Starlette(
     routes=[
         *create_frontend_routes(),
+        *create_paste_routes(),
         *create_daily_editor_routes(),
         *create_newsroom_routes(),
         *create_monitoring_routes(),
