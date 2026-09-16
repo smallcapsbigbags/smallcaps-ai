@@ -8,7 +8,8 @@ import hashlib
 import json
 from pathlib import Path
 import re
-import requests
+import gzip
+import shutil
 from bs4 import BeautifulSoup, NavigableString
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -52,29 +53,48 @@ def issuer_text(html: str) -> str:
     return text
 
 
-def load_corpus(directory: Path | None = None) -> list[tuple[str, str]]:
+def load_corpus(directory: Path | None = None, *, progress=None) -> list[tuple[str, str]]:
+    """Use immutable snapshots, never make release availability depend on a website.
+
+    The manifest authenticates every fixture before any paid work. An explicit
+    directory also supports the original HTML audit artifacts. Fixtures are for
+    tests only and never become shared product records.
+    """
     records = json.loads(MANIFEST.read_text())
+    packed = (directory / 'corpus.json.gz') if directory is not None else (ROOT / 'benchmarks/rnsrepo/corpus.json.gz')
+    saved = None
+    if packed.exists():
+        with gzip.open(packed, 'rt', encoding='utf-8') as f:
+            saved = json.load(f)
+        if set(saved) != {r['id'] for r in records}:
+            raise ValueError('Unexpected fixture set')
+    elif directory is None:
+        raise ValueError('Pinned evaluation snapshots are missing')
     sources = []
-    with requests.Session() as session:
-        session.headers['User-Agent'] = 'RNSRepo-Evaluation/1.0 (fixed acceptance corpus)'
-        for record in records:
-            name = record['id']
-            if name == 'trt-contract':
-                text = (ROOT / 'benchmarks/rnsrepo/trt-supplied-announcement.txt').read_text().strip()
-            else:
-                if directory is None:
-                    # URLs are committed constants, never client-supplied destinations.
-                    url = record['url']
-                    if not url.startswith('https://www.investegate.co.uk/announcement/rns/'):
-                        raise ValueError('Invalid evaluation URL')
-                    response = session.get(url, timeout=(8, 20), allow_redirects=False)
-                    if response.status_code != 200 or len(response.content) > 3_000_000:
-                        raise ValueError('Source unavailable')
-                    html = response.content.decode('utf-8')
-                else:
-                    html = (directory / (name + '.html')).read_text()
-                text = issuer_text(html)
-            if hashlib.sha256(text.encode()).hexdigest() != record['text_sha256']:
-                raise ValueError('Evaluation source changed: ' + name)
-            sources.append((name, text))
+    for record in records:
+        name = record['id']
+        if progress: progress(name, 'loading')
+        if saved is not None:
+            text = saved[name]
+        elif name == 'trt-contract':
+            text = (ROOT / 'benchmarks/rnsrepo/trt-supplied-announcement.txt').read_text().strip()
+        else:
+            text = issuer_text((directory / (name + '.html')).read_text())
+        if not isinstance(text, str) or hashlib.sha256(text.encode()).hexdigest() != record['text_sha256']:
+            raise ValueError('Evaluation source changed: ' + name)
+        sources.append((name, text))
+        if progress: progress(name, 'verified')
     return sources
+
+
+if __name__ == '__main__':
+    import argparse
+    parser = argparse.ArgumentParser(description='Verify/export fixed test inputs; zero network or AI calls.')
+    parser.add_argument('--export', type=Path)
+    args = parser.parse_args()
+    corpus = load_corpus()
+    if args.export:
+        args.export.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(ROOT / 'benchmarks/rnsrepo/corpus.json.gz', args.export / 'corpus.json.gz')
+        shutil.copy2(MANIFEST, args.export / 'corpus-manifest.json')
+    print(json.dumps({'verified':len(corpus), 'network_requests':0, 'model_requests':0}))

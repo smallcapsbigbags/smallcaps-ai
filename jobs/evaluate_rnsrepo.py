@@ -44,7 +44,14 @@ def card_copy(card):
 def evaluate(*, live=False, models=('gpt-5-mini', 'gpt-5-nano'), directory=None, output=None, cases=None):
     if not 1 <= len(models) <= 2 or len(set(models)) != len(models) or any(m not in PRICES for m in models):
         raise ValueError('At most two approved small models')
-    corpus = load_corpus(directory)  # Verify ALL sources before any paid work.
+    print('rnsrepo_eval_start ' + json.dumps({'live': live, 'models': models, 'stage': 'source_preflight'}), flush=True)
+    def progress(name, stage):
+        print('rnsrepo_source ' + json.dumps({'case': name, 'stage': stage}), flush=True)
+    try:
+        corpus = load_corpus(directory, progress=progress)  # Verify ALL before paid work.
+    except Exception as exc:
+        print('rnsrepo_eval_failed ' + json.dumps({'stage':'source_preflight', 'error_type':type(exc).__name__, 'requests':0}), flush=True)
+        raise SystemExit(2) from None
     if cases:
         wanted = set(cases)
         if wanted - {n for n, _ in corpus}: raise ValueError('Unknown case')

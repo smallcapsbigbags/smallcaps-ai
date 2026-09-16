@@ -29,8 +29,8 @@ jobs:
           python-version: '3.12'
           cache: pip
       - run: pip install -r requirements.txt
-      - name: Fetch fixed public source snapshots (zero AI calls)
-        run: python -m jobs.fetch_rnsrepo_corpus --output corpus-evidence
+      - name: Verify fixed source snapshots (zero network or AI calls)
+        run: python -m jobs.rnsrepo_corpus --export corpus-evidence
       - run: python -m pytest tests/rnsrepo -q --junitxml=corpus-evidence/focused.xml
       - run: python -m pytest tests -q --junitxml=corpus-evidence/full.xml
       - name: Preflight every full announcement without AI
