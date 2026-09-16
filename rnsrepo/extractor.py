@@ -12,6 +12,7 @@ from .schema import CardDraft, CardError, VERSION
 from .sections import select_passages
 from .validation import check_card
 from .citations import citation_catalog, wire_schema, resolve_wire
+from .financial_context import table_hints
 
 LOG = logging.getLogger(__name__)
 MAX_REQUEST_BYTES = 30_000
@@ -65,7 +66,9 @@ its copied table is ambiguous. Do not use a naked number as evidence.
 Evidence is checked separately for EACH field. Every number, written-out duration,
 period and amount in a field must appear in that field's own quotes, not just in
 another field or elsewhere in the passage. Remove details you cannot support locally.
-Only reported figures: no new arithmetic, percentage changes, valuations or forecasts.
+The financial_rows map is a mechanical view of explicit table cells: match the
+correct year column, units and label. Cite its source IDs. It is not a forecast.
+Use only reported figures: no new arithmetic, percentage changes, valuations or forecasts.
 Use 'down 13.2%' instead of inventing a minus sign from a bracketed table value.
 Preserve > / up-to bounds, adjusted/statutory labels, net-bank/gross cash distinctions,
 and reporting dates. Use full year numbers (2026, not FY26).
@@ -81,7 +84,8 @@ explicit loss label and the disclosed magnitude, rather than reversing its sign.
 Do not add a made-up qualification about continued trading/FX when none is stated.
 Describe the company action and its implications plainly; avoid "the update covers"
 or "reporting revenues and balance sheet movements". A proposed dividend is
-not paid. Expected production/revenue is not secured recurring revenue. Keep the
+not paid; an intended buyback is not launched or underway. Prefer the formal
+capital-returns section over a loosely worded quotation about launching a buyback. Expected production/revenue is not secured recurring revenue. Keep the
 expectation AND relevant conditions in the affected metric's label/note, and the
 main condition in qualification. "Expected production" still needs a note such as
 "Subject to successful development" when that is a condition in its source excerpt.
@@ -122,6 +126,7 @@ def request_kwargs(source: PasteRequest, model: str) -> tuple[dict, Any]:
         payload = {"metadata": identity.model_dump(mode="json"),
                    "selection_reduced": selection.reduced,
                    "headings": headings,
+                   "financial_rows": table_hints(source.text, catalog),
                    "excerpts": [{"id": c.id, "section": c.passage_id, "text": c.quote}
                                 for c in catalog.values()]}
         kwargs = {"model": model, "instructions": INSTRUCTIONS,

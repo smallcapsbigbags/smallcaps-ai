@@ -194,7 +194,7 @@ def build_fingerprint() -> str:
     root = Path(__file__).resolve().parents[1]
     digest = hashlib.sha256()
     for name in ('api/rnsrepo_public.py', 'api/paste.py', 'api/paste_jobs.py',
-                 'rnsrepo/public_access.py', 'rnsrepo/extractor.py', 'rnsrepo/citations.py', 'rnsrepo/sections.py', 'rnsrepo/schema.py', 'rnsrepo/validation.py', 'product/paste.py',
+                 'rnsrepo/public_access.py', 'rnsrepo/extractor.py', 'rnsrepo/citations.py', 'rnsrepo/sections.py', 'rnsrepo/schema.py', 'rnsrepo/financial_context.py', 'rnsrepo/validation.py', 'product/paste.py',
                  'frontend/analyse.html', 'frontend/assets/analyse.js',
                  'frontend/assets/analysis-card.js', 'frontend/assets/analyse.css',
                  'frontend/assets/analysis-card.css', 'frontend/assets/rnsrepo.css'):

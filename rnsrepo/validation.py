@@ -7,6 +7,7 @@ from __future__ import annotations
 import re
 from .schema import CardDraft, CardError
 from .sections import Selection
+from .financial_context import table_rows, table_metric_check, metric_reporting_quote, DATE, date_key
 from analyst.paste_quantities import supported_numbers, bound_preserved, quantities, source_quantities, equal_at_display_precision
 
 EXPECTED = re.compile(r"\bexpect\w*|\bforecast\w*|\btarget\w*|\banticipat\w*|\bguidance\b", re.I)
@@ -59,10 +60,27 @@ def _numeric_text(text: str) -> str:
     return re.sub(r"\bFY\s?(\d{2})\b", lambda m: "20" + m[1], text, flags=re.I)
 
 
+def forecast_applies(visible: str, evidence: str) -> bool:
+    """A forecast elsewhere in a citation does not turn an actual into a forecast.
+
+    Require a matching displayed financial amount/duration in the forecast sentence.
+    Production dates are matched too. "As expected" describes an actual outcome.
+    """
+    targets = quantities(_numeric_text(visible))
+    targets = [q for q in targets if q.unit != 'number' or re.search(r'production|launch', visible, re.I)]
+    for sentence in re.split(r'(?<=[.!?])\s+|\n', evidence):
+        cleaned = re.sub(r'\bas expected\b', '', sentence, flags=re.I)
+        if not EXPECTED.search(cleaned): continue
+        values = source_quantities(_numeric_text(cleaned))
+        if any(equal_at_display_precision(v, q) for v in targets for q in values): return True
+    return False
+
+
 def check_card(source: str, selection: Selection, card: CardDraft) -> dict:
     by_id = {p.id: p for p in selection.passages}
     anchors = []
     findings = []
+    rows = table_rows(source)
 
     def support(refs, field: str) -> str:
         parts = []
@@ -81,6 +99,9 @@ def check_card(source: str, selection: Selection, card: CardDraft) -> dict:
         return "\n".join(parts)
 
     def check_numbers(visible: str, evidence: str) -> None:
+        evidence_dates = {date_key(m[0]) for m in DATE.finditer(evidence)}
+        if any(date_key(m[0]) not in evidence_dates for m in DATE.finditer(visible)):
+            findings.append("UNSUPPORTED_DATE")
         if not supported_numbers(_numeric_text(visible), _numeric_text(evidence)):
             findings.append("UNSUPPORTED_NUMBER")
         if not bound_preserved(_numeric_text(visible), _numeric_text(evidence)):
@@ -109,7 +130,7 @@ def check_card(source: str, selection: Selection, card: CardDraft) -> dict:
         # Forecast/proposal qualifications apply to a numerical claim, not every
         # generic description of an already awarded development programme.
         if quantities(statement.text):
-            if re.search(r"revenue|production|profit|runway", statement.text, re.I) and EXPECTED.search(evidence):
+            if re.search(r"revenue|production|profit|runway", statement.text, re.I) and forecast_applies(statement.text, evidence):
                 if not (EXPECTED.search(statement.text) or CONDITION.search(statement.text)):
                     findings.append("EXPECTED_QUALIFIER_LOST")
             if re.search(r"dividend|buyback", statement.text, re.I) and PROPOSED.search(evidence):
@@ -118,6 +139,17 @@ def check_card(source: str, selection: Selection, card: CardDraft) -> dict:
     seen = set()
     for i, metric in enumerate(card.metrics):
         evidence = support(metric.evidence, f"metrics.{i}")
+        # A table row and its report header are one piece of financial evidence,
+        # even when a browser copy put them into different excerpts. The exact
+        # date must match the opening report end, and the value must match that
+        # row's year column. Do not add arbitrary document-wide numbers.
+        findings.extend(table_metric_check(metric, source, rows))
+        date_span = metric_reporting_quote(metric, source, rows)
+        if date_span is not None:
+            start, end = date_span
+            quote = source[start:end]
+            evidence += "\n" + quote
+            anchors.append({"field": f"metrics.{i}", "start": start, "end": end, "quote": quote})
         visible = " ".join((metric.label, metric.value, metric.period, metric.note))
         check_numbers(visible, evidence)
         check_commitments(visible, evidence)
@@ -144,7 +176,7 @@ def check_card(source: str, selection: Selection, card: CardDraft) -> dict:
         if is_balance(metric.label) and not metric.period.strip():
             findings.append("BALANCE_DATE_REQUIRED")
         scoped = metric_evidence(metric, [r.quote for r in metric.evidence])
-        if re.search(r"production|revenue|profit|runway", metric.label, re.I) and EXPECTED.search(scoped):
+        if re.search(r"production|revenue|profit|runway", metric.label, re.I) and forecast_applies(metric.label + " " + metric.value, scoped):
             if not (EXPECTED.search(visible) or CONDITION.search(visible)):
                 findings.append("EXPECTED_QUALIFIER_LOST")
         if re.search(r"dividend|buyback", metric.label, re.I) and PROPOSED.search(evidence):
@@ -164,8 +196,12 @@ def check_card(source: str, selection: Selection, card: CardDraft) -> dict:
         later_amounts = set()
         for p in selection.passages:
             for match in POST.finditer(p.text):
-                sentence = re.split(r"(?<=[.!?])\s+", p.text[match.start():match.start()+500])[0]
-                if PAYMENT.search(sentence):
+                # Include amounts BEFORE "post year end" in the same sentence.
+                # A period inside 20.7 is not a sentence boundary.
+                left = list(re.finditer(r"[.!?]\s+|\n\s*\n", p.text[:match.start()]))
+                start = left[-1].end() if left else 0
+                sentence = re.split(r"(?<=[.!?])\s+|\n\s*\n", p.text[start:match.end()+500])[0]
+                if re.search(r"paid|payments?|deferred consideration", sentence, re.I):
                     later_amounts.update(q.amount for q in quantities(sentence) if q.unit == "GBP")
         if later_amounts:
             shown = {q.amount for q in quantities(full_visible) if q.unit == "GBP"}
