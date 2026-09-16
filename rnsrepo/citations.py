@@ -21,33 +21,35 @@ def citation_catalog(selection) -> dict[str, Citation]:
     catalog = {}
     seen = set()
     for passage in selection.passages:
-        # Paragraphs retain table rows and conditions together. Oversized paragraphs
-        # split at sentence/row boundaries, falling back to spaces, never rewritten.
-        for paragraph in re.split(r'\n\s*\n', passage.text):
-            rest = paragraph.strip()
-            while rest:
-                end = min(len(rest), 850)
-                if len(rest) > 850:
-                    cuts = [m.end() for m in re.finditer(r'[.!?]\s+|\n', rest[300:850])]
-                    if cuts: end = 300 + cuts[-1]
-                    else:
-                        cut = rest.rfind(' ', 300, 850)
-                        if cut >= 300: end = cut + 1
-                quote = rest[:end].strip()
-                rest = rest[end:].lstrip()
-                if len(quote) < 12:
-                    # Keep short table units/date headings with adjacent original
-                    # context instead of dropping them. No text is manufactured.
-                    at = passage.text.find(quote)
-                    quote = passage.text[max(0, at - 60):min(len(passage.text), at + len(quote) + 240)].strip()
-                    if len(quote) < 12:
-                        continue  # Entire passage is too small for the evidence contract.
-                key = (passage.heading, quote)
-                if key in seen:
-                    continue
-                seen.add(key)
-                cid = f'q{len(catalog)}'
-                catalog[cid] = Citation(cid, passage.id, quote)
+        # Pack adjacent original paragraphs/rows into modest contiguous excerpts.
+        # Do not duplicate 240 characters for EACH short table cell or emit a huge
+        # enum of one-line fragments. Every quote remains an exact source slice.
+        at = 0
+        while at < len(passage.text):
+            while at < len(passage.text) and passage.text[at].isspace(): at += 1
+            if at >= len(passage.text): break
+            remaining = len(passage.text) - at
+            end = at + min(850, remaining)
+            if remaining > 850:
+                cuts = [at + m.end() for m in re.finditer(r"\n\s*\n|[.!?]\s+|\n", passage.text[at:at+850])
+                        if m.end() >= 200]
+                preferred = [c for c in cuts if c-at <= 600]
+                if preferred: end = preferred[-1]
+                elif cuts: end = cuts[0]
+                else:
+                    cut = passage.text.rfind(' ', at+300, at+850)
+                    if cut >= at+300: end = cut+1
+            quote = passage.text[at:end].strip()
+            if len(quote) < 12:
+                # Tiny final heading/units retain adjacent original context once.
+                quote = passage.text[max(0, at-80):end].strip()
+            at = end
+            if len(quote) < 12: continue
+            key = (passage.id, quote)
+            if key in seen: continue
+            seen.add(key)
+            cid = f'q{len(catalog)}'
+            catalog[cid] = Citation(cid, passage.id, quote)
     if not catalog or len(catalog) > 256:
         raise CardError('CARD_SELECTION')
     return catalog

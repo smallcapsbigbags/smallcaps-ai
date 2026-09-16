@@ -17,6 +17,13 @@ PAYMENT = re.compile(r"paid|payment|consideration", re.I)
 
 
 def _numeric_text(text: str) -> str:
+    # Equivalent disclosed bounds and UK percentage notation. These aliases do
+    # not remove a floor/ceiling or create a new derived percentage.
+    text = re.sub(r"\b(?:no|not) less than\b", "at least", text, flags=re.I)
+    text = re.sub(r"\b(?:no|not) more than\b", "at most", text, flags=re.I)
+    text = re.sub(r"\bper\s+cent\.?", "%", text, flags=re.I)
+    text = re.sub(r"\((\d+(?:\.\d+)?)\)\s*(%|bps\b)", r"-\1\2", text, flags=re.I)
+    text = re.sub(r"\b(?:down|decreased by|fell by)\s+(\d+(?:\.\d+)?\s*%)", r"-\1", text, flags=re.I)
     # Hyphenated numeric durations are the same quantity as their spaced source
     # form. This does not remove negative signs, change amounts or allow rounding.
     text = re.sub(r"(?<=\d)[-‐‑–](?=(?:months?|years?)\b)", " ", text, flags=re.I)
@@ -134,6 +141,20 @@ def check_card(source: str, selection: Selection, card: CardDraft) -> dict:
             cited = any(POST.search(a["quote"]) and PAYMENT.search(a["quote"]) for a in anchors)
             if not later_amounts.issubset(shown) or not cited or not POST.search(full_visible):
                 findings.append("SUBSEQUENT_PAYMENT_OMITTED")
+    # Explicit going-concern uncertainty must not disappear behind an upbeat
+    # highlights card. This narrow guard is NOT a general insolvency classifier.
+    uncertain = []
+    for p in selection.passages:
+        for paragraph in re.split(r"\n\s*\n", p.text):
+            if re.search(r"material uncertaint(?:y|ies)[\s\S]{0,180}(?:cast|significant doubt)", paragraph, re.I):
+                if not re.search(r"(?:no|not (?:a|any))\s+material uncertaint", paragraph, re.I):
+                    uncertain.append(paragraph)
+    if uncertain:
+        qual = card.qualification.text if card.qualification else ""
+        cited = any(a["field"] == "qualification" and
+                    re.search(r"material uncertaint", a["quote"], re.I) for a in anchors)
+        if not re.search(r"material uncertaint", qual, re.I) or not cited:
+            findings.append("GOING_CONCERN_OMITTED")
     if findings:
         raise CardError("CARD_EVIDENCE", findings=tuple(dict.fromkeys(findings)))
     return {"status": "passed", "anchors": anchors,

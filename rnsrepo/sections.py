@@ -99,7 +99,9 @@ def split_passages(text: str) -> list[Passage]:
     return chunks
 
 
-def select_passages(text: str) -> Selection:
+def select_passages(text: str, *, max_bytes: int = MAX_EXCERPT_BYTES) -> Selection:
+    if not 8_000 <= max_bytes <= MAX_EXCERPT_BYTES:
+        raise CardError("CARD_SELECTION")
     passages = split_passages(text)
     if not passages: raise CardError("CARD_SELECTION")
     chosen: dict[str, Passage] = {}
@@ -109,13 +111,13 @@ def select_passages(text: str) -> Selection:
         nonlocal used
         if p.id in chosen: return
         size = len(p.text.encode("utf-8")) + len(p.heading.encode("utf-8"))
-        if used + size > MAX_EXCERPT_BYTES or len(chosen) >= MAX_PASSAGES:
+        if used + size > max_bytes or len(chosen) >= MAX_PASSAGES:
             if required: raise CardError("CARD_SELECTION")
             return
         chosen[p.id] = p
         used += size
 
-    if sum(len(p.text.encode("utf-8")) + len(p.heading.encode("utf-8")) for p in passages) <= MAX_EXCERPT_BYTES and len(passages) <= MAX_PASSAGES:
+    if sum(len(p.text.encode("utf-8")) + len(p.heading.encode("utf-8")) for p in passages) <= max_bytes and len(passages) <= MAX_PASSAGES:
         for p in passages: add(p, required=True)
     else:
         add(passages[0], required=True)

@@ -73,6 +73,11 @@ Do not repeat the value in period; leave period empty unless it adds a reporting
 not itself conditional on completing that development. If discussing year-end cash,
 include material subsequent payments in qualification; it is not today's balance.
 Do not assert upgrades, growth, safety or completeness from silence in selected text.
+A replacement/correction must use the corrected figures and mention the correction.
+Explicit material uncertainty about going concern belongs in qualification, not only
+in source citations. Do not present a funded runway as certain when funding is needed.
+Share-plan vesting is not an open-market director purchase. Distinguish shares vested
+from shares sold for tax. Use bare counts when table volumes have no adjoining unit.
 No markdown, HTML, links or prompt commentary. Return only the supplied card schema.
 """
 
@@ -81,28 +86,36 @@ def _get(obj: Any, key: str, default: Any = None) -> Any:
     return obj.get(key, default) if isinstance(obj, dict) else getattr(obj, key, default)
 
 
+def encoded_request_bytes(kwargs: dict) -> int:
+    # Match the SDK JSON encoder's ordinary separators conservatively. This is
+    # the application payload size, not HTTP headers or a claim about exact tokens.
+    return len(json.dumps(kwargs, ensure_ascii=False).encode("utf-8"))
+
+
 def request_kwargs(source: PasteRequest, model: str) -> tuple[dict, Any]:
     if model not in MODELS: raise CardError("CARD_CONFIGURATION")
-    selection = select_passages(source.text)
     identity = extract_identity(source.text)
-    catalog = citation_catalog(selection)
-    headings = {p.id: p.heading for p in selection.passages}
-    payload = {"metadata": identity.model_dump(mode="json"),
-               "selection_reduced": selection.reduced,
-               "headings": headings,
-               "excerpts": [{"id": c.id, "section": c.passage_id, "text": c.quote}
-                            for c in catalog.values()]}
-    kwargs = {"model": model, "instructions": INSTRUCTIONS,
-        "input": json.dumps(payload, ensure_ascii=False, separators=(",", ":")),
-        "text": {"format": {"type": "json_schema", "name": "RNSRepoCard",
-                            "strict": True, "schema": wire_schema(catalog)}},
-        "max_output_tokens": MAX_OUTPUT_TOKENS, "store": False}
-    if MODELS[model] is not None: kwargs["reasoning"] = {"effort": MODELS[model]}
-    # Byte bound includes schema + instructions + JSON escaping, not just the source.
-    # Actual token usage is read from the provider, not guessed from character count.
-    if len(json.dumps(kwargs, ensure_ascii=False, separators=(",", ":")).encode()) > MAX_REQUEST_BYTES:
-        raise CardError("CARD_REQUEST_LIMIT")
-    return kwargs, selection
+    # Fit the COMPLETE encoded packet. All attempts here are local and free.
+    # Every smaller selection reruns the same mandatory-risk coverage; it may
+    # reject before any paid call rather than drop a required disclosure.
+    for budget in (18_000, 16_000, 14_000, 12_000, 10_000, 8_000):
+        selection = select_passages(source.text, max_bytes=budget)
+        catalog = citation_catalog(selection)
+        headings = {p.id: p.heading for p in selection.passages}
+        payload = {"metadata": identity.model_dump(mode="json"),
+                   "selection_reduced": selection.reduced,
+                   "headings": headings,
+                   "excerpts": [{"id": c.id, "section": c.passage_id, "text": c.quote}
+                                for c in catalog.values()]}
+        kwargs = {"model": model, "instructions": INSTRUCTIONS,
+            "input": json.dumps(payload, ensure_ascii=False, separators=(",", ":")),
+            "text": {"format": {"type": "json_schema", "name": "RNSRepoCard",
+                                "strict": True, "schema": wire_schema(catalog)}},
+            "max_output_tokens": MAX_OUTPUT_TOKENS, "store": False}
+        if MODELS[model] is not None: kwargs["reasoning"] = {"effort": MODELS[model]}
+        if encoded_request_bytes(kwargs) <= MAX_REQUEST_BYTES:
+            return kwargs, selection
+    raise CardError("CARD_REQUEST_LIMIT")
 
 
 def _provider_error(exc: Exception) -> CardError:
@@ -164,7 +177,7 @@ class CardExtractor:
         kwargs, selection = request_kwargs(source, self.model)
         telemetry = {"model": self.model, "requests": 0, "input_tokens": None,
                      "output_tokens": None, "reasoning_tokens": None,
-                     "request_bytes": len(json.dumps(kwargs, ensure_ascii=False).encode()),
+                     "request_bytes": encoded_request_bytes(kwargs),
                      "source_characters": len(source.text),
                      "selected_characters": selection.selected_characters,
                      "output_token_limit": MAX_OUTPUT_TOKENS, "retries": 0}

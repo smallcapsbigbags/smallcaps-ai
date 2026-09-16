@@ -72,6 +72,13 @@ def extract_identity(text: str) -> PasteIdentity:
     lines = [line.strip() for line in text.splitlines() if line.strip()]
     header = lines[:12]
     company = next((line for line in header if _COMPANY_RE.fullmatch(line)), None)
+    # Some issuer headers put the short-name definition on the same line.
+    if company is None:
+        for line in header:
+            prefix = re.split(r"\s*\([\"'“‘]", line, maxsplit=1)[0].strip()
+            if _COMPANY_RE.fullmatch(prefix):
+                company = prefix
+                break
     dates: set[date] = set()
     for line in header:
         match = _DATE_RE.fullmatch(line)
@@ -81,6 +88,14 @@ def extract_identity(text: str) -> PasteIdentity:
             except ValueError:
                 pass
     tickers = set(_TICKER_RE.findall(text[:4000]))
+    if company:
+        stem = re.sub(r"\s+(?:plc|limited|ltd\.?)$", "", company, flags=re.I)
+        own = re.findall(re.escape(stem) + r"(?:\s+(?:plc|limited|ltd\.?))?\s*\((?:AIM|LSE)\s*:\s*([A-Z0-9][A-Z0-9.-]{0,9})", text[:4000], re.I)
+        if len(set(own)) == 1:
+            tickers = {own[0].upper()}
+    if not tickers:
+        epic = re.findall(r"\bEPIC\s*:\s*([A-Z0-9][A-Z0-9.-]{0,9})\b", text[:500])
+        if len(set(epic)) == 1: tickers = set(epic)
     title = next((line for line in lines[:25] if _TITLE_RE.search(line)), "Pasted announcement")
     return PasteIdentity(
         company=company,
