@@ -60,10 +60,15 @@ def evaluate(*, live=False, models=('gpt-5-mini', 'gpt-5-nano'), directory=None,
     report = {'build': build_fingerprint(), 'live': live, 'launch_approved': False,
               'max_requests': len(corpus)*len(models) if live else 0, 'results': []}
     started = time.monotonic()
+    blocked_by = None
     for model in models:
         for name, text in corpus:
             if time.monotonic()-started > 780: raise TimeoutError('Evaluation wall-time bound')
             row = {'case': name, 'model': model, 'characters': len(text), 'status': 'preflight'}
+            if blocked_by:
+                row.update(status='not_run', blocked_by=blocked_by)
+                report['results'].append(row)
+                continue
             captured = []
             def checked(source, selection, draft):
                 catalog = citation_catalog(selection)
@@ -85,6 +90,10 @@ def evaluate(*, live=False, models=('gpt-5-mini', 'gpt-5-nano'), directory=None,
                 row.update(status=exc.code, findings=list(exc.findings), issues=getattr(exc,'details',[]), telemetry=getattr(exc,'telemetry',{}))
             except Exception as exc:
                 row.update(status='harness_error', error_type=type(exc).__name__)
+            if row['status'] in {'CARD_QUOTA','CARD_RATE_LIMIT','CARD_CONFIGURATION'}:
+                # Shared provider failures cannot be repaired by sending the next
+                # nine inputs. Stop without retries and retain unrun test cases.
+                blocked_by = row['status']
             if captured: row['candidate'], row['references'] = captured[-1]
             if row.get('telemetry'): row['estimated_usd'] = cost(row['telemetry'])
             report['results'].append(row)

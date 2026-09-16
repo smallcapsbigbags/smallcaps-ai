@@ -30,7 +30,7 @@ INSTRUCTIONS = """Write one factual RNSRepo card in natural British financial En
 
 Headline: a specific 8-14 word event description, not a list of numbers. Supporting sentence: explain the action/product and partner, or the results story. Avoid promotional company wording and jargon. Keep about 120-180 readable words in total. what_changed is optional: for results explain the main movement using the source; for simple contracts leave null. qualification holds the material limitation in one or two sentences, without "The catch". All six schema fields are required; optional statements are null.
 
-Use up to four useful metrics; fewer when not disclosed. Results: group revenue, adjusted PBT if explicitly reported (otherwise statutory profit/loss), dated cash/net bank cash, then proposed dividend or corrected margin. Prefer directly stated narrative financial amounts to ambiguous tables. Do not select two nearly identical losses or dates merely to fill slots. Contracts normally need three metrics. Labels are short (2-4 words); put period/date in period, conditions in note. Avoid repeated value/period/note. Keep supporting words, not just numbers.
+Use up to four useful metrics; fewer when not disclosed. Results: group revenue, adjusted PBT if explicitly reported (otherwise statutory profit/loss), dated cash/net bank cash, then proposed dividend or corrected margin. Prefer directly stated narrative financial amounts to ambiguous tables. Do not select two nearly identical losses or dates merely to fill slots. Labels are short (2-4 words); put period/date in period, conditions in note. Avoid repeated value/period/note. Keep supporting words, not just numbers.
 
 Each field needs its own evidence IDs, e.g. ["q2","q5"]. Select ONLY supplied IDs; never recopy quotations. Cite the exact excerpt supporting EACH quantity and period in that field. Table metrics must cite row, currency unit and year-column headers; financial_rows shows the original cells and their source IDs. reporting_period may supply the report-end date, NOT the publication date. Unknown dates stay empty. Use full years, not FY26. Keep dates and periods as disclosed, not inferred from nearby numbers.
 
@@ -84,16 +84,39 @@ def request_kwargs(source: PasteRequest, model: str) -> tuple[dict, Any]:
 
 
 def _provider_error(exc: Exception) -> CardError:
-    code = _get(exc, "code", "")
-    if code in {"insufficient_quota", "organization_spend_limit_exceeded", "billing_hard_limit_reached"}:
-        return CardError("CARD_QUOTA")
+    # SDK attributes and nested HTTP bodies can differ. Only enumerated codes and
+    # numeric retry guidance reach logs; never copy provider messages or headers.
+    body = _get(exc, "body", {})
+    body = body if isinstance(body, dict) else {}
+    nested = body.get("error", body)
+    nested = nested if isinstance(nested, dict) else {}
+    code = _get(exc, "code") or nested.get("code")
+    kind = _get(exc, "type") or nested.get("type")
+    quota_codes = {"insufficient_quota", "credit_balance_exhausted",
+        "organization_usage_limit_exceeded", "organization_spend_limit_exceeded",
+        "project_spend_limit_exceeded", "billing_hard_limit_reached"}
+    allowed = quota_codes | {"rate_limit_exceeded", "requests", "tokens"}
     status = _get(exc, "status_code")
-    name = type(exc).__name__
-    if status == 429: return CardError("CARD_RATE_LIMIT")
-    if name in {"APITimeoutError", "TimeoutError", "ReadTimeout", "ConnectTimeout"}:
-        return CardError("CARD_TIMEOUT")
-    if status in {400, 401, 403, 404}: return CardError("CARD_CONFIGURATION")
-    return CardError("CARD_PROVIDER")
+    diagnostic = {"http_status": status if type(status) is int else None,
+                  "provider_code": code if isinstance(code, str) and code in allowed else "unrecognised",
+                  "provider_type": kind if isinstance(kind, str) and kind in allowed else "unrecognised"}
+    if (isinstance(code, str) and code in quota_codes) or kind == "insufficient_quota":
+        error = CardError("CARD_QUOTA")
+    elif status == 429:
+        error = CardError("CARD_RATE_LIMIT")
+    elif type(exc).__name__ in {"APITimeoutError", "TimeoutError", "ReadTimeout", "ConnectTimeout"}:
+        error = CardError("CARD_TIMEOUT")
+    elif status in {400, 401, 403, 404}:
+        error = CardError("CARD_CONFIGURATION")
+    else:
+        error = CardError("CARD_PROVIDER")
+    headers = _get(_get(exc, "response"), "headers", {}) or {}
+    retry = headers.get("retry-after", "")
+    if isinstance(retry, str) and retry.isascii() and retry.replace(".", "", 1).isdigit():
+        seconds = float(retry)
+        if 0 <= seconds <= 86400: diagnostic["retry_after_seconds"] = seconds
+    error.provider_diagnostic = diagnostic
+    return error
 
 
 def _draft(response: Any, catalog=None) -> CardDraft:
@@ -172,6 +195,8 @@ class CardExtractor:
         except CardError as exc:
             telemetry["status"] = exc.code
             telemetry["findings"] = list(exc.findings)
+            if hasattr(exc, "provider_diagnostic"):
+                telemetry["provider"] = exc.provider_diagnostic
             exc.telemetry = telemetry
             raise
         finally:
