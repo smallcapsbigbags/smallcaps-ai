@@ -7,13 +7,37 @@ from __future__ import annotations
 import re
 from .schema import CardDraft, CardError
 from .sections import Selection
-from analyst.paste_quantities import supported_numbers, bound_preserved, quantities
+from analyst.paste_quantities import supported_numbers, bound_preserved, quantities, source_quantities, equal_at_display_precision
 
-EXPECTED = re.compile(r"\bexpect\w*|\bforecast\w*|\btarget\w*|\banticipat\w*", re.I)
+EXPECTED = re.compile(r"\bexpect\w*|\bforecast\w*|\btarget\w*|\banticipat\w*|\bguidance\b", re.I)
 PROPOSED = re.compile(r"\bpropos\w*|\bintend\w*|\brecommend\w*|\bplan(?:s|ned)?\b", re.I)
-CONDITION = re.compile(r"subject to|depend\w*|conditional|following successful|upon successful", re.I)
+CONDITION = re.compile(r"subject to|depend\w*|conditional|following successful|upon successful|contingent|no certainty|not certain|remain required", re.I)
 POST = re.compile(r"(?:post|after|since)[- ](?:the )?(?:year|period)[- ]end|subsequent", re.I)
 PAYMENT = re.compile(r"paid|payment|consideration", re.I)
+
+
+UNCERTAINTY = re.compile(r"material(?:\s+going[-‑ ]concern)?\s+uncertaint(?:y|ies)", re.I)
+
+def is_balance(label: str) -> bool:
+    return bool(re.search(r"cash|debt", label, re.I) and not re.search(
+        r"consideration|payment|proceeds|cash[- ]?flow|cost|facility|financing", label, re.I))
+
+
+def metric_evidence(metric, quotes: list[str]) -> str:
+    """Ignore separate header/date references when checking a value's conditions.
+
+    Full quotations remain the numeric evidence. Never trim a condition out of an
+    excerpt containing the actual value. A generic condition-only reference is also
+    retained. This avoids applying another metric's forecast to an actual result.
+    """
+    values = quantities(_numeric_text(metric.value))
+    chosen = []
+    for quote in quotes:
+        qs = source_quantities(_numeric_text(quote))
+        matching = any(equal_at_display_precision(v, q) for v in values for q in qs)
+        condition_only = CONDITION.search(quote) and not qs
+        if matching or condition_only: chosen.append(quote)
+    return "\n".join(chosen) if chosen else "\n".join(quotes)
 
 
 def _numeric_text(text: str) -> str:
@@ -22,6 +46,10 @@ def _numeric_text(text: str) -> str:
     text = re.sub(r"\b(?:no|not) less than\b", "at least", text, flags=re.I)
     text = re.sub(r"\b(?:no|not) more than\b", "at most", text, flags=re.I)
     text = re.sub(r"\bper\s+cent\.?", "%", text, flags=re.I)
+    text = re.sub(r"\bc\.\s*(?=\d)", "approximately ", text, flags=re.I)
+    text = re.sub(r"\b(?:below|less than|under)\s+(?=[£$€]?\d)", "<", text, flags=re.I)
+    # Common RNS negative-currency notation with a superscript footnote marker.
+    text = re.sub(r"([£$€])\((\d+(?:\.\d+)?)\)[¹²³⁴⁵⁶⁷⁸⁹⁰]*\s*(m|k|bn)?", r"-\1\2\3", text, flags=re.I)
     text = re.sub(r"\((\d+(?:\.\d+)?)\)\s*(%|bps\b)", r"-\1\2", text, flags=re.I)
     text = re.sub(r"\b(?:down|decreased by|fell by)\s+(\d+(?:\.\d+)?\s*%)", r"-\1", text, flags=re.I)
     # Hyphenated numeric durations are the same quantity as their spaced source
@@ -94,7 +122,9 @@ def check_card(source: str, selection: Selection, card: CardDraft) -> dict:
         check_numbers(visible, evidence)
         check_commitments(visible, evidence)
         visible_parts.append(visible)
-        if not quantities(metric.value): findings.append("METRIC_NOT_NUMERICAL")
+        nil_price = (metric.value.strip().lower() == "nil" and re.search(r"price|cost", metric.label, re.I)
+                     and re.search(r"\bnil\b", evidence, re.I))
+        if not quantities(_numeric_text(metric.value)) and not nil_price: findings.append("METRIC_NOT_NUMERICAL")
         identity = (metric.label.lower().strip(), metric.period.lower().strip())
         if identity in seen: findings.append("DUPLICATE_METRIC")
         seen.add(identity)
@@ -111,23 +141,24 @@ def check_card(source: str, selection: Selection, card: CardDraft) -> dict:
         net = re.search(r"net (?:bank )?(cash|debt)", metric.label, re.I)
         if net and not re.search(r"net (?:bank )?" + net[1], evidence, re.I):
             findings.append("NET_BASIS_MISSING")
-        if re.search(r"cash|debt", metric.label, re.I) and not metric.period.strip():
+        if is_balance(metric.label) and not metric.period.strip():
             findings.append("BALANCE_DATE_REQUIRED")
-        if re.search(r"production|revenue|profit|runway", metric.label, re.I) and EXPECTED.search(evidence):
+        scoped = metric_evidence(metric, [r.quote for r in metric.evidence])
+        if re.search(r"production|revenue|profit|runway", metric.label, re.I) and EXPECTED.search(scoped):
             if not (EXPECTED.search(visible) or CONDITION.search(visible)):
                 findings.append("EXPECTED_QUALIFIER_LOST")
         if re.search(r"dividend|buyback", metric.label, re.I) and PROPOSED.search(evidence):
             if not PROPOSED.search(visible): findings.append("PROPOSED_QUALIFIER_LOST")
         duration = (bool(re.search(r"development|duration", metric.label, re.I))
                     and any(q.unit in {"month", "year"} for q in quantities(metric.value)))
-        if CONDITION.search(evidence) and not duration:
+        if CONDITION.search(scoped) and not duration:
             if not (CONDITION.search(visible) or PROPOSED.search(visible)):
                 findings.append("CONDITION_LOST")
             if card.qualification is None or not (CONDITION.search(card.qualification.text) or PROPOSED.search(card.qualification.text)):
                 findings.append("QUALIFICATION_MISSING")
     # Do not suggest that year-end cash is available after a disclosed later payment.
     full_visible = "\n".join(visible_parts)
-    if any(re.search(r"cash|debt", m.label, re.I) for m in card.metrics):
+    if any(is_balance(m.label) for m in card.metrics) or re.search(r"net (?:bank )?cash", "\n".join(visible_parts[:2]), re.I):
         # Repeated disclosures do not require repeated citations. Match each unique
         # later-payment amount to visible prose and at least one supporting quote.
         later_amounts = set()
@@ -153,7 +184,7 @@ def check_card(source: str, selection: Selection, card: CardDraft) -> dict:
         qual = card.qualification.text if card.qualification else ""
         cited = any(a["field"] == "qualification" and
                     re.search(r"material uncertaint", a["quote"], re.I) for a in anchors)
-        if not re.search(r"material uncertaint", qual, re.I) or not cited:
+        if not UNCERTAINTY.search(qual) or not cited:
             findings.append("GOING_CONCERN_OMITTED")
     if findings:
         raise CardError("CARD_EVIDENCE", findings=tuple(dict.fromkeys(findings)))

@@ -82,3 +82,61 @@ def test_all_validation_inputs_are_in_build_fingerprint():
     text=(Path(__file__).resolve().parents[2]/'rnsrepo/public_access.py').read_text()
     for name in ('rnsrepo/sections.py','rnsrepo/citations.py','rnsrepo/validation.py','rnsrepo/schema.py','product/paste.py'):
         assert repr(name) in text
+
+
+@pytest.mark.parametrize('source,display', [
+    ('The increase was c.23%.', '23%'),
+    ('Net debt was £(36.2)¹m.', '-£36.2m'),
+    ('Dose was below 0.05%.', '<0.05%'),
+])
+def test_additional_disclosed_numeric_formats(source,display):
+    assert supported_numbers(_numeric_text(display), _numeric_text(source))
+    assert bound_preserved(_numeric_text(display), _numeric_text(source))
+
+
+def test_table_rows_are_not_section_headings():
+    from rnsrepo.sections import split_passages
+    text = 'Financial Highlights\n2026 £m\t2025 £m\nRevenue\t243.7\t280.6\nContract housing revenue\t5.1\t11.0\nOperating profit\t14.8\t24.2'
+    parts = split_passages(text)
+    assert len(parts)==1 and parts[0].heading=='Financial Highlights'
+
+
+def test_actual_cash_consideration_is_not_a_balance_snapshot():
+    from rnsrepo.validation import is_balance
+    assert not is_balance('Cash consideration')
+    assert not is_balance('Cash flow')
+    for label in ('Cash', 'Net bank cash','Net debt','Cash and equivalents'):
+        assert is_balance(label)
+
+
+def test_nil_is_allowed_only_as_disclosed_price():
+    text='Example plc\n16 September 2026\nDirector dealing\n141,904 shares vested at Nil cost under the long term plan.'
+    s=select_passages(text);q='141,904 shares vested at Nil cost under the long term plan.'
+    data={'announcement_type':'Director dealing','headline':statement(s,'Shares vest under employee plan',q),
+          'supporting_sentence':statement(s,'Shares vested under the long term plan.',q),
+          'metrics':[{'label':'Acquisition cost','value':'Nil','period':'','note':'','evidence':[ref(s,q)]}],
+          'what_changed':None,'qualification':None}
+    c=CardDraft.model_validate(data);assert check_card(text,s,c)['status']=='passed'
+    c.metrics[0].label='Revenue'
+    with pytest.raises(CardError):check_card(text,s,c)
+
+
+def test_forecast_date_reference_does_not_reclassify_other_actual_metric():
+    from rnsrepo.validation import metric_evidence
+    from types import SimpleNamespace
+    metric=SimpleNamespace(value='£90m')
+    actual='Cash consideration is £90m.'
+    unrelated='Revenue is expected to grow in 2027.'
+    assert metric_evidence(metric,[actual,unrelated])==actual
+    conditional='Cash consideration is £90m, subject to regulatory approvals.'
+    assert 'subject to' in metric_evidence(metric,[conditional,unrelated])
+
+
+def test_citations_do_not_merge_separate_material_paragraphs():
+    from rnsrepo.citations import citation_catalog
+    first='The company reports actual revenue of £90m for the financial period. This is the reported figure before any subsequent acquisitions.'
+    second='Expected production is subject to successful completion of development. The programme remains at a preliminary stage and completion is not guaranteed.'
+    s=select_passages(first+'\n\n'+second)
+    items=list(citation_catalog(s).values())
+    assert any(c.quote==first for c in items)
+    assert not any('£90m' in c.quote and 'Expected production' in c.quote for c in items)

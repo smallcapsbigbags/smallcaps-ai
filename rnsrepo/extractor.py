@@ -44,7 +44,12 @@ Metric labels are short editorial labels, normally 2-4 words, not sentences: e.g
 explicit. Put the financial period in period. Use note only for extra context or
 necessary qualifications; do not repeat the label or explain what a metric means.
 Write durations naturally (e.g. '6 months'), preserving the source quantity.
-For results use up to four significant figures; for contracts normally three. Use
+For results prioritise GROUP revenue, clearly labelled adjusted PBT (or statutory
+profit/loss if that is what is disclosed), dated cash/net bank cash and proposed
+per-share dividend. Do not fill the card with revenue sub-divisions while omitting
+profit and cash. When there is no dividend, a corrected margin or operating figure
+can be the fourth metric. In what_changed explain the reason for the main reported
+movement using the source, not just a repeated list. For contracts normally three. Use
 fewer, even none, when figures are not disclosed. Do not invent values to fill tiles.
 what_changed is optional and adds explanation for results; normally null for contracts.
 qualification gives the most important limitation, in one or two short sentences,
@@ -63,7 +68,19 @@ another field or elsewhere in the passage. Remove details you cannot support loc
 Only reported figures: no new arithmetic, percentage changes, valuations or forecasts.
 Use 'down 13.2%' instead of inventing a minus sign from a bracketed table value.
 Preserve > / up-to bounds, adjusted/statutory labels, net-bank/gross cash distinctions,
-and reporting dates. Use full year numbers (2026, not FY26). A proposed dividend is
+and reporting dates. Use full year numbers (2026, not FY26).
+Dates in period need their own cited excerpt just like money. Add the reporting
+header's ID as well as the financial row's ID. Never infer a nine-month period from
+an announcement date. For a table cite the unit/year-column header together with the
+row. Prefer the simple disclosed period "2026" to a full date not in those excerpts.
+Use an exact bound in the VALUE (>=£22.6m for "no less than £22.6 million"), not a
+naked value with "no less than" tucked into another field. Put approximately 23% as
+"23%" with "approximately" in note, not c.23%. Do not calculate new totals such as
+adding two acquisition amounts; keep them in separate metrics. For a loss use an
+explicit loss label and the disclosed magnitude, rather than reversing its sign.
+Do not add a made-up qualification about continued trading/FX when none is stated.
+Describe the company action and its implications plainly; avoid "the update covers"
+or "reporting revenues and balance sheet movements". A proposed dividend is
 not paid. Expected production/revenue is not secured recurring revenue. Keep the
 expectation AND relevant conditions in the affected metric's label/note, and the
 main condition in qualification. "Expected production" still needs a note such as

@@ -15,13 +15,14 @@ from product.paste import PasteRequest
 from rnsrepo.extractor import CardExtractor, check_card, request_kwargs, encoded_request_bytes
 from rnsrepo.public_access import build_fingerprint
 from rnsrepo.schema import CardError
+from rnsrepo.citations import citation_catalog
 from jobs.rnsrepo_corpus import load_corpus
 
 # Standard prices per million tokens, verified against official model pages on
 # 16 September 2026. Observed usage is priced including failed attempts. This is
 # an estimate, not the provider invoice or a permanent pricing guarantee.
 PRICES = {'gpt-5-mini': (.25, .025, 2), 'gpt-5-nano': (.05, .005, .4),
-          'gpt-4.1-nano': (.1, .025, .4)}
+          'gpt-4.1-nano': (.1, .025, .4), 'gpt-5.4-nano': (.2, .02, 1.25)}
 
 
 def cost(usage):
@@ -58,7 +59,12 @@ def evaluate(*, live=False, models=('gpt-5-mini', 'gpt-5-nano'), directory=None,
             row = {'case': name, 'model': model, 'characters': len(text), 'status': 'preflight'}
             captured = []
             def checked(source, selection, draft):
-                captured.append(card_copy(draft))
+                catalog = citation_catalog(selection)
+                refs = {}
+                for key, obj in [(k,getattr(draft,k)) for k in ('headline','supporting_sentence','what_changed','qualification')] + [(f'metrics.{i}',m) for i,m in enumerate(draft.metrics)]:
+                    if obj is not None:
+                        refs[key]=[next(c.id for c in catalog.values() if c.passage_id==r.passage_id and c.quote==r.quote) for r in obj.evidence]
+                captured.append((card_copy(draft), refs))
                 return check_card(source, selection, draft)  # NEVER bypass the gate.
             try:
                 source = PasteRequest(text=text)
@@ -72,7 +78,7 @@ def evaluate(*, live=False, models=('gpt-5-mini', 'gpt-5-nano'), directory=None,
                 row.update(status=exc.code, findings=list(exc.findings), telemetry=getattr(exc,'telemetry',{}))
             except Exception as exc:
                 row.update(status='harness_error', error_type=type(exc).__name__)
-            if captured: row['candidate'] = captured[-1]
+            if captured: row['candidate'], row['references'] = captured[-1]
             if row.get('telemetry'): row['estimated_usd'] = cost(row['telemetry'])
             report['results'].append(row)
             # A single modest record per attempt; public fixture only, no provider

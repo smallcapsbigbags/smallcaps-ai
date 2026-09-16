@@ -29,8 +29,12 @@ def citation_catalog(selection) -> dict[str, Citation]:
             while at < len(passage.text) and passage.text[at].isspace(): at += 1
             if at >= len(passage.text): break
             remaining = len(passage.text) - at
-            end = at + min(850, remaining)
-            if remaining > 850:
+            # Prefer an original prose paragraph over merging unrelated actual
+            # figures with a following forecast or condition. Tiny headings and
+            # table cells may share contiguous context; prose is not recast.
+            paragraph_end = next((at+m.start() for m in re.finditer(r"\n\s*\n", passage.text[at:]) if m.start() >= 120), len(passage.text))
+            end = min(at+850, paragraph_end, len(passage.text))
+            if end == at+850 and remaining > 850:
                 cuts = [at + m.end() for m in re.finditer(r"\n\s*\n|[.!?]\s+|\n", passage.text[at:at+850])
                         if m.end() >= 200]
                 preferred = [c for c in cuts if c-at <= 600]

@@ -71,7 +71,7 @@ def split_passages(text: str) -> list[Passage]:
     headings = []
     for m in re.finditer(r"(?m)^[^\n]+$", text):
         line = m[0].strip()
-        if len(line) <= 95 and HEADING.search(line) and not re.search(r"[.;]$|£|\$|€", line):
+        if len(line) <= 95 and "\t" not in m[0] and HEADING.search(line) and not re.search(r"[.;]$|£|\$|€|%", line):
             headings.append((m.start(), line))
     boundaries = [0] + [p for p, _ in headings if p > 0] + [len(text)]
     critical_spans = [(m.start(), m.end()) for m in CRITICAL.finditer(text)]
