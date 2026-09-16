@@ -11,7 +11,7 @@ import re
 from analyst.paste_quantities import Quantity, quantities, equal_at_display_precision
 
 MONTH = r'(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)'
-DATE = re.compile(rf'\b(\d{{1,2}})\s+({MONTH})\s+(20\d{{2}})\b', re.I)
+DATE = re.compile(rf'\b(?:(\d{{1,2}})\s+({MONTH})\s+(20\d{{2}})|(20\d{{2}})[.-](\d{{2}})[.-](\d{{2}}))\b', re.I)
 YEAR = re.compile(r'\b20\d{2}\b')
 CELL = re.compile(r'^(?:[+−-]?[£$€]?\(?\d[\d,]*(?:\.\d+)?\)?\s*(?:%|bps|p|m|k|bn)?|[–—-])$', re.I)
 FINANCIAL = re.compile(r'revenue|sales|profit|loss|cash|debt|dividend|eps|earnings|margin|expense|income|asset|liabilit', re.I)
@@ -118,7 +118,15 @@ def reporting_context(source: str) -> tuple[int, int] | None:
 
 def date_key(text: str):
     m = DATE.search(text)
-    return (m[1].lstrip('0'), m[2][:3].lower(), m[3]) if m else None
+    if not m: return None
+    from datetime import date
+    names = ('jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec')
+    try:
+        day, month, year = (int(m[1]), names.index(m[2][:3].lower())+1, int(m[3])) if m[1] else (int(m[6]), int(m[5]), int(m[4]))
+        value = date(year, month, day)
+        return (str(value.day), names[value.month-1], str(value.year))
+    except (ValueError, IndexError):
+        return None
 
 
 def table_metric_check(metric, source: str, rows: tuple[Row, ...]) -> tuple[str, ...]:
@@ -154,15 +162,42 @@ def metric_reporting_quote(metric, source: str, rows: tuple[Row, ...]) -> tuple[
 def table_hints(source: str, catalog) -> list[dict]:
     """Small mechanical row/header map; all cells remain verbatim source values."""
     result = []
-    for row in table_rows(source):
+    priority = {'revenue':0, 'adjusted_pbt':1, 'pbt':2, 'net_bank_cash':3, 'cash':3, 'net_cash':3, 'net_debt':3, 'dividend':4}
+    for row in sorted(table_rows(source), key=lambda r:(priority.get(metric_key(r.label),9),r.start)):
         if metric_key(row.label) is None: continue
         row_text = source[row.start:row.end]
         header_text = source[row.header_start:row.header_end]
-        row_refs = [c.id for c in catalog.values() if row_text in c.quote]
-        header_refs = [c.id for c in catalog.values() if header_text in c.quote]
-        if not row_refs or not header_refs: continue
+        row_refs = covering_refs(source, row.start, row.end, catalog)
+        header_refs = covering_refs(source, row.header_start, row.header_end, catalog)
+        if not row_refs or not header_refs or len(set(header_refs+row_refs)) > 4: continue
         result.append({'label': row.label, 'years': row.years, 'cells': row.values,
                        'unit': '£000' if row.unit == 'k' else '£m' if row.unit == 'm' else '',
-                       'evidence': list(dict.fromkeys(header_refs[:1] + row_refs[:1]))})
+                       'evidence': list(dict.fromkeys(header_refs + row_refs))})
         if len(result) == 8: break
     return result
+
+
+def covering_refs(source: str, start: int, end: int, catalog) -> list[str]:
+    """Cover an explicit table row across adjacent excerpts, never by inference.
+
+    A vertical paste can split the label and cells into different excerpts. Each
+    non-whitespace source character in the row/header must still be covered.
+    """
+    exact = [c.id for c in catalog.values() if source[start:end] in c.quote]
+    if exact: return exact[:1]
+    candidates = []
+    for c in catalog.values():
+        # The same words can recur. Only contiguous source occurrences that
+        # overlap THIS known row/header are eligible, not another year's table.
+        at = source.find(c.quote, max(0, start-len(c.quote)))
+        if at >= 0 and at < end and at+len(c.quote)>start:
+            candidates.append((at,at+len(c.quote),c.id))
+    cursor = start; refs = []
+    while cursor < end:
+        while cursor < end and source[cursor].isspace(): cursor += 1
+        if cursor == end: break
+        matches = [c for c in candidates if c[0] <= cursor < c[1]]
+        if not matches: return []
+        best = max(matches,key=lambda c:c[1]); refs.append(best[2]); cursor=min(end,best[1])
+        if len(refs)>4:return []
+    return list(dict.fromkeys(refs))

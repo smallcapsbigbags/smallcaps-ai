@@ -72,7 +72,11 @@ def split_passages(text: str) -> list[Passage]:
     for m in re.finditer(r"(?m)^[^\n]+$", text):
         line = m[0].strip()
         if len(line) <= 95 and "\t" not in m[0] and HEADING.search(line) and not re.search(r"[.;]$|£|\$|€|%", line):
-            headings.append((m.start(), line))
+            next_line = re.search(r"\S[^\n]*", text[m.end():m.end()+100])
+            table_cell = next_line and re.fullmatch(r"[+−-]?[£$€]?\(?\d[\d,]*(?:\.\d+)?\)?\s*(?:%|bps|p|m|k|bn)?", next_line[0].strip(), re.I)
+            # e.g. Contract housing\n5.1 is a table row, not a contract heading.
+            if not (table_cell and re.search(r"housing|revenue|profit|margin|per share",line,re.I)):
+                headings.append((m.start(), line))
     boundaries = [0] + [p for p, _ in headings if p > 0] + [len(text)]
     critical_spans = [(m.start(), m.end()) for m in CRITICAL.finditer(text)]
     chunks = []

@@ -75,7 +75,7 @@ def evaluate(*, live=False, models=('gpt-5-mini', 'gpt-5-nano'), directory=None,
                         result = CardExtractor(os.environ.get('OPENAI_API_KEY',''), model).extract(source)
                     row.update(status='passed', telemetry=result['telemetry'], identity=result['identity'])
             except CardError as exc:
-                row.update(status=exc.code, findings=list(exc.findings), telemetry=getattr(exc,'telemetry',{}))
+                row.update(status=exc.code, findings=list(exc.findings), issues=getattr(exc,'details',[]), telemetry=getattr(exc,'telemetry',{}))
             except Exception as exc:
                 row.update(status='harness_error', error_type=type(exc).__name__)
             if captured: row['candidate'], row['references'] = captured[-1]
